@@ -1,0 +1,164 @@
+ANSIBLE_CONFIG
+pwd
+user home directory .ansible.cfg
+/etc/ansible/ansible.cfg
+
+
+You can keep all the components in one component file which is dependent on other files (Here Frontend). From there, it starts executing one by one as provided.
+
+==> nohup ansible-playbook -e component="{ component }" roboshop.yaml &>/var/log/ansible.log & ==> Use this format
+
+==> tail -f nohup.out
+
+==> less /var/log/ansible.log
+
+==> nohup ansible-playbook -e component="{ component }" roboshop.yaml & ===> nohup and & takes the command into background and it executes in the background. (It ignores the input and appends the output to 'nohup.out') [If used only & it asks after every single command execution]....
+
+
+handlers:
+=========
+
+Handlers are notifiers, you can call task-b when task-a changes. for example when a configuration changes you can restart the application using handlers. (It is required to restart the servers because whenever we run the application(instance) we get new user, download the application, unzipping and so on. So, it is mandatory to restart the application after every new addition). (If we change then only it restarts the application or else by default it will be as usual when it was first executed)
+
+tags:
+=====
+
+If you want a specific tag to run inside playbook, tag it and call it. When we start the component many tasks will be executed which are present inside the playbook, so we use TAGS to run only few or particular tasks whichever are required to be executed.
+
+==> ansible-playbook -e component=catalogue -t deployment roboshop.yaml  --> Run only which are with tags deployment on it.
+
+==> ansible-playbook -e component=catalogue -t deployment roboshop.yaml -vvv
+
+It will show the exact file and line number causing the issue.
+
+
+Installation Tags:
+==================
+
+-> install
+-> packages
+-> dependencies
+-> setup
+-> bootstrap
+
+
+Configuration Tags:
+===================
+
+-> config
+-> configuration
+-> app-config
+-> db-config
+-> nginx-config
+-> env-setup
+
+Deployment Tags:
+================
+
+-> deploy
+-> deployment
+-> release
+-> build
+-> start
+-> restart
+
+Database Tags:
+==============
+
+-> db
+-> mysql
+-> mongodb
+-> schema
+-> migration
+-> seed
+
+Infrastructure Tags:
+====================
+
+-> create
+-> delete
+-> provision
+-> destroy
+-> ec2
+-> r53
+-> security-group
+
+Cleanup Tags:
+=============
+
+-> cleanup
+-> remove
+-> teardown
+-> rollback
+
+Testing & Debug Tags:
+=====================
+
+-> debug
+-> test
+-> verify
+-> healthcheck
+
+Security Tags:
+==============
+
+-> firewall
+-> ssl
+-> certificates
+-> hardening
+-> users
+
+Environment Tags:
+=================
+
+-> dev (Development)
+-> qa (Quality Analysis)
+-> uat (User Acceptance Testing)
+-> prod (production)
+
+Special Built-in Tags:
+======================
+
+-> always
+-> never
+
+
+deployment (releasing the new version):
+=======================================
+
+1. remove old code
+2. copy new code
+3. install dependencies
+4. restart the server
+
+include_role vs import_rule:
+============================
+
+--> Way of calling other roles.
+
+import_role respects the tags. If you apply tags to import_role those will be automatically applied to all the tasks inside that role.
+
+include_role does not respect tags. It dynamically loads and executes a role during playbook execution, allowing conditional logic, loops, and variable overrides. It is used to task execution skipping wherever tags are specified.
+
+* include_role vs import_role
+* dynamic inventory
+* ansible vault and secrets manager
+* ansible forks (How to connect multiple servers at a time)
+
+
+TERRAFORM:
+==========
+
+4 servers -> catalogue
+
+5th server -> new catalogue app runs
+delete one old server
+
+6th server -> new catalogue app runs
+delete 2nd old server
+
+blue-green:
+===========
+
+--> Create another 4 servers -> deployment new catalogue
+--> Route traffic to new servers

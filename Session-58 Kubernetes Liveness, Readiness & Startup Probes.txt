@@ -1,0 +1,781 @@
+1. Build images in docker -> optimise
+2. Run inside Kubernetes
+
+Best practices:
+===============
+
+Including resources, probes (Health checks) are also best practices.
+
+Liveness, Readiness and Startup probe (liveness and readiness probes)
+
+==> liveness probe 	--> Every 5 sec, check the server is running or not -> Health check
+
+==> readiness probe	--> Is your app ready to handle traffic? Usually app takes some time to start/get ready.
+
+==> startup probe	--> Usually java apps or high memory apps take some more time to start ==> For running the image, it takes some time to start for that we use startup probe.
+
+Flow: startup -> readiness -> liveness
+~~~~~
+
+1. if 8080 is opened then app is running (port opened or not)
+2. /health is giving response then app is running --> preferable (http url)
+
+
+How They Work Together:
+=======================
+
+Phase               Probe Used          Behavior
+======              ===========         ========
+App starting        Startup Probe       Waits until app is up
+Running             Liveness Probe      Restarts if broken
+Serving traffic     Readiness Probe     Controls traffic flow
+
+
+==> Liveness Probe: A liveness probe checks whether a container is still running properly. If it fails, Kubernetes restarts the container.
+
+==> Readiness Probe: A readiness probe checks whether a container is ready to accept traffic. If it fails, Kubernetes stops sending requests to that container.
+
+==> Startup Probe: A startup probe checks whether a container has successfully started. It is used for slow-starting applications and prevents premature restarts during initialization.
+
+
+==> Startup ensures the app starts correctly, readiness ensures it serves traffic safely, and liveness ensures it stays healthy.
+
+==> For a slow-starting application, I would use a startup probe to allow initialization, a readiness probe to delay traffic until dependencies are ready, and a liveness probe to restart the container if it becomes unresponsive later.
+
+
+When Would You Use All Three?
+
+==> When the application has a slow startup time and needs proper health monitoring to avoid downtime and unnecessary restarts.
+
+
+What is a Liveness Probe?
+==> A liveness probe checks whether the container is still running correctly, and if it fails, Kubernetes automatically restarts the container to recover from failures like deadlocks.
+
+What is a Readiness Probe?
+==> A readiness probe determines if a container is ready to serve traffic, and if it fails, Kubernetes removes the pod from the service so it doesn’t receive requests.
+
+What is a Startup Probe?
+==> A startup probe verifies whether the application has started successfully, preventing the liveness probe from restarting slow-starting containers too early.
+
+Difference Between All Three
+==> Startup probe handles initialization, readiness probe controls traffic, and liveness probe ensures the application stays healthy by restarting it if needed.
+
+
+
+k8s-roboshop:
+~~~~~~~~~~~~~
+
+==> git clone https://github.com/javeed-mohd/k8s-roboshop.git
+cd k8s-roboshop/
+
+First, we have to create namespace,
+==> kubectl apply -f namespace.yaml
+
+
+==> kubectl apply -f mongodb/manifest.yaml
+deployment.apps/mongodb created
+service/mongodb created
+
+
+==> kubectl get pods -n roboshop
+NAME                       READY   STATUS              RESTARTS   AGE
+mongodb-85478bf5c4-d5gwk   0/1     ContainerCreating   0          9s
+
+44.200.79.236 | 172.31.68.88 | t3.micro | https://github.com/javeed-mohd/k8s-roboshop.git
+[ ec2-user@ip-172-31-68-88 ~/k8s-roboshop ]$ kubectl get pods -n roboshop
+NAME                       READY   STATUS    RESTARTS   AGE
+mongodb-85478bf5c4-d5gwk   1/1     Running   0          22s
+
+
+
+==> kubectl apply -f catalogue/manifest.yaml
+configmap/catalogue created
+deployment.apps/catalogue created
+service/catalogue created
+
+==> Container will become available after 35 seconds, initialDelaySeconds=15, failureThreshold=2, periodSeconds=10. Where initially, it takes 15 seconds for container creation and in 35 seconds, it will become available.
+
+==> kubectl get pods -n roboshop [Initial delay is 15 seconds after scheduling, to pull the image, to create the container and to start the container...]
+NAME                         READY   STATUS    RESTARTS   AGE
+catalogue-7fc4dc5454-jp77d   1/1     Running   0          23s
+mongodb-85478bf5c4-d5gwk     1/1     Running   0          12m
+
+
+kubens install (Browser --> GitHub --> Shell completion scripts(bash))
+===============
+
+==> -n roboshop ==> To skip always mentioning the namespace, kubens helps to keep the namespace beforehand.
+
+cd
+git clone https://github.com/ahmetb/kubectx.git ~/.kubectx
+COMPDIR=$(pkg-config --variable=completionsdir bash-completion)
+sudo ln -sf ~/.kubectx/completion/kubens.bash $COMPDIR/kubens
+sudo ln -sf ~/.kubectx/completion/kubectx.bash $COMPDIR/kubectx
+cat << EOF >> ~/.bashrc
+
+
+#kubectx and kubens
+export PATH=~/.kubectx:$PATH
+EOF
+
+
+==> cd
+
+44.200.79.236 | 172.31.68.88 | t3.micro | null
+[ ec2-user@ip-172-31-68-88 ~ ]$ git clone https://github.com/ahmetb/kubectx.git ~/.kubectx
+
+44.200.79.236 | 172.31.68.88 | t3.micro | null
+[ ec2-user@ip-172-31-68-88 ~ ]$ COMPDIR=$(pkg-config --variable=completionsdir bash-completion)
+
+44.200.79.236 | 172.31.68.88 | t3.micro | null
+[ ec2-user@ip-172-31-68-88 ~ ]$ sudo ln -sf ~/.kubectx/completion/kubens.bash $COMPDIR/kubens
+
+44.200.79.236 | 172.31.68.88 | t3.micro | null
+[ ec2-user@ip-172-31-68-88 ~ ]$ sudo ln -sf ~/.kubectx/completion/kubectx.bash $COMPDIR/kubectx
+
+44.200.79.236 | 172.31.68.88 | t3.micro | null
+[ ec2-user@ip-172-31-68-88 ~ ]$ export PATH=~/.kubectx:$PATH
+
+
+==> echo $PATH
+/home/ec2-user/.kubectx:/home/ec2-user/.kubectx:/home/ec2-user/bin:/home/ec2-user/.local/bin:/home/ec2-user/bin:/usr/local/bin:/usr/bin:/usr/local/sbin:/usr/sbin
+
+44.200.79.236 | 172.31.68.88 | t3.micro | null
+[ ec2-user@ip-172-31-68-88 ~ ]$ cd /home/ec2-user/.kubectx/
+
+44.200.79.236 | 172.31.68.88 | t3.micro | https://github.com/ahmetb/kubectx.git
+[ ec2-user@ip-172-31-68-88 ~/.kubectx ]$ ls -l
+total 60
+-rw-r--r-- 1 ec2-user ec2-user   968 Apr  8 11:23 CONTRIBUTING.md
+-rw-r--r-- 1 ec2-user ec2-user 11357 Apr  8 11:23 LICENSE
+-rw-r--r-- 1 ec2-user ec2-user  7300 Apr  8 11:23 README.md
+drwxr-xr-x 4 ec2-user ec2-user    35 Apr  8 11:23 cmd
+drwxr-xr-x 2 ec2-user ec2-user   123 Apr  8 11:23 completion
+-rw-r--r-- 1 ec2-user ec2-user  2218 Apr  8 11:23 go.mod
+-rw-r--r-- 1 ec2-user ec2-user 12439 Apr  8 11:23 go.sum
+drwxr-xr-x 2 ec2-user ec2-user    84 Apr  8 11:23 img
+drwxr-xr-x 8 ec2-user ec2-user    94 Apr  8 11:23 internal
+-rwxr-xr-x 1 ec2-user ec2-user  6263 Apr  8 11:23 kubectx
+-rwxr-xr-x 1 ec2-user ec2-user  5703 Apr  8 11:23 kubens
+drwxr-xr-x 3 ec2-user ec2-user   100 Apr  8 11:23 test
+
+
+
+/home/ec2-user/.kubectx:
+/usr/local/sbin:
+/usr/local/bin: -> local user (current user) Which we have logged in suppose, ec2-user
+/usr/sbin: -> for all users system commands
+/usr/bin: -> for all users normal commands
+/sbin:
+/bin
+
+
+If .bashrc is badly broken
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+export PATH=~/.kubectx:$PATH
+cat /etc/skel/.bashrc
+
+
+*****
+kubectl is in /bin path
+
+cd
+ls -la
+==> cd bin/
+==> ls -l 
+-rwxr-xr-x   1 ec2-user ec2-user 58601656 Apr  8 10:26 kubectl
+
+sudo mv kubectl /usr/local/bin/		 [To move/rename if required]
+cd
+==> kubens
+default
+kube-node-lease
+kube-public
+kube-system
+roboshop
+
+44.200.79.236 | 172.31.68.88 | t3.micro | null
+[ ec2-user@ip-172-31-68-88 ~ ]$ kubens roboshop
+Context "shell@roboshop.us-east-1.eksctl.io" modified.		[Moves to roboshop namespace]
+Active namespace is "roboshop".
+	
+kubectl get pods (kubens roboshop applies for all from here on, without specifying -n roboshop also)
+==> catalogue
+==> mongodb
+
+
+echo $PATH
+
+==> export PATH=~/.kubectx:$PATH where ~/.kubectx = /home/ec2-user/.kubectx  and we adding to the existing path using $PATH
+
+vim .bashrc
+If we change anything and we have to add permanently then we have to use,
+==> source ~/.bashrc
+
+
+*******
+If we want to use roboshop namespace directly, then use:
+==> kubens roboshop
+==> kubectl get pods
+
+If we want to change it to default, then use:
+==> kubens default
+==> kubectl get pods
+
+
+
+k9 install: (Browser --> GitHub --> webi)
+============
+
+curl -sS https://webinstall.dev/k9s | bash
+
+
+>>> Welcome to Webi! - modern tools, instant installs.  <<<
+    We expect your experience to be absolutely perfect!
+
+    Success? Star it!   https://github.com/webinstall/webi-installers
+    Problem? Report it: https://github.com/webinstall/webi-installers/issues
+                        (your system is GNU/Linux/x86_64 with libc & curl+wget)
+
+Bootstrapping Webi
+    Downloading https://webinstall.dev/packages/webi/webi.sh
+        to ~/.local/bin/webi
+    Running ~/.local/bin/webi k9s@stable
+
+Installing k9s ...
+    Found  ~/.local/bin
+    Initializing ~/.config/envman/
+    Edit ~/.bashrc to source ~/.config/envman/load.sh
+    Downloading k9s from
+      https://github.com/derailed/k9s/releases/download/v0.50.18/k9s_Linux_amd64.tar.gz
+    Saved as ~/Downloads/webi/k9s/0.50.18/k9s_Linux_amd64.tar.gz
+    Extracting ~/Downloads/webi/k9s/0.50.18/k9s_Linux_amd64.tar.gz
+    Installing to ~/.local/opt/k9s-v0.50.18/bin/k9s
+
+    Installed 'k9s v0.50.18' as ~/.local/bin/k9s
+
+
+
+curl -sS https://webinstall.dev/k9s | bash
+==> After running this, open a duplicate tab. Type k9s (Here, we can see logs, metrics and we can also delete) ==> Press l for logs, esc for back, s for shell (exit)
+Shift:deployments, namespace ...
+Shift+:
+
+We can see there and it is a decent UI... It is like a visualization.
+
+
+44.200.79.236 | 172.31.68.88 | t3.micro | null
+[ ec2-user@ip-172-31-68-88 ~ ]$ k9s
+ Context: shell@roboshop.us-east-1.eksctl.io [RW]  <0> all        <a>       Attach       <ctrl-k>  Kill            <o> Show Node                               ____  __ ________
+ Cluster: roboshop.us-east-1.eksctl.io             <1> roboshop   <ctrl-d>  Delete       <l>       Logs            <f> Show PortForward                       |    |/  /   __   \______
+ User:    shell@roboshop.us-east-1.eksctl.io       <2> default    <d>       Describe     <p>       Logs Previous   <t> Transfer                               |       /\____    /  ___/
+ K9s Rev: v0.50.18                                                <e>       Edit         <shift-f> Port-Forward    <w> Warp To Namespace                      |    \   \  /    /\___  \
+ K8s Rev: v1.34.4-eks-f69f56f                                     <?>       Help         <z>       Sanitize        <y> YAML                                   |____|\__ \/____//____  /
+ CPU:     0%                                                      <shift-j> Jump Owner   <s>       Shell                                                               \/           \/
+ MEM:     21%
+┌───────────────────────────────────────────────────────────────────────────────── pods(roboshop)[2] ──────────────────────────────────────────────────────────────────────────────────┐
+│ NAME↑                         PF   READY   STATUS       RESTARTS    CPU    %CPU/R    %CPU/L    MEM    %MEM/R    %MEM/L IP                NODE                               AGE     │
+│ catalogue-7fc4dc5454-jp77d    ●    1/1     Running             0      1         1         1     27        21        21 192.168.0.223     ip-192-168-25-7.ec2.internal       35m     │
+│ mongodb-85478bf5c4-d5gwk      ●    1/1     Running             0      3       n/a       n/a    174       n/a       n/a 192.168.59.1      ip-192-168-54-100.ec2.internal     47m     │
+│ redis-76549cffcd-nhjvr        ●    1/1     Running             0      1       n/a       n/a      2       n/a       n/a 192.168.15.96     ip-192-168-25-7.ec2.internal       4m11s      │
+│                                                                                                                                                                                      │
+│                                                                                                                                                                                      │                                                                                                        
+│                                                                                                                                                                                      |
+│                                                                                                                                                                                      │
+│                                                                                                                                                                                      │
+└────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────┘
+  <pod>			
+
+
+We have to optimise the images to run them:
+===========================================
+
+IN DOCKER:
+docker-roboshop folder:
+======================
+
+==> cd
+git clone  https://github.com/javeed-mohd/docker-roboshop.git
+==> cd docker-roboshop/
+cd mongodb/
+==> docker login -u username   ==>  password
+docker build -t javeedmohd214/mongodb:1.4.0 .
+docker push javeedmohd214/mongodb:1.4.0
+
+
+cd catalogue/
+cat Dockerfile
+docker build -t javeedmohd214/catalogue:1.4.0 .  [Make changes, if required]
+
+==> docker login -u javeedmohd214 	==> Password
+docker push javeedmohd214/catalogue:1.4.0
+
+debug: (Dockerfile --> We use this debug file only for health check of components) Root access
+======
+
+==> cd debug/
+docker build -t javeedmohd214/debug:1.4.0 .
+docker push javeedmohd214/debug:1.4.0
+
+Do it alternatively both in docker-roboshop and k8s-roboshop:
+
+git pull
+==> cd cart/
+docker build -t javeedmohd214/cart:1.4.0 .
+docker push javeedmohd214/cart:1.4.0
+
+==> cd user/
+docker build -t javeedmohd214/user:1.4.0 .
+docker push javeedmohd214/user:1.4.0
+
+==> cd mysql/
+docker build -t javeedmohd214/mysql:1.4.0 .
+docker push javeedmohd214/mysql:1.4.0
+
+==> cd shipping/
+docker build -t javeedmohd214/shipping:1.4.0 .
+docker push javeedmohd214/shipping:1.4.0
+
+
+==> cd payment/
+docker build -t javeedmohd214/payment:1.4.0 . ==> Do it we ubuntu and alpine for minimal image building.
+docker push javeedmohd214/payment:1.4.0
+
+==> cd frontend/
+docker build -t javeedmohd214/frontend:1.4.0 .   ==> Not only building the image to (smaller) minimal image but also it should run properly. (21.5 MB)
+docker push javeedmohd214/frontend:1.4.0
+
+
+
+k8s-roboshop:
+=============
+
+cd
+==> git clone https://github.com/javeed-mohd/k8s-roboshop.git
+==> cd k8s-roboshop/
+
+First, we have to create namespace,
+==> kubectl apply -f namespace.yaml
+
+
+==> kubectl apply -f mongodb/manifest.yaml
+deployment.apps/mongodb created
+service/mongodb created
+
+
+==> kubectl apply -f catalogue/manifest.yaml
+configmap/catalogue unchanged
+deployment.apps/catalogue configured
+service/catalogue unchanged
+
+
+==> kubectl apply -f redis/manifest.yaml		(Check in k9s tab)
+deployment.apps/redis created
+service/redis created	
+
+
+cd ~/k8s-roboshop
+git pull
+
+[If anything mistake in k9s, press d to describe the component to check where actually the issue is...]
+==> kubectl apply -f cart/manifest.yaml
+configmap/cart created
+deployment.apps/cart created
+service/cart created
+
+
+
+==> kubectl apply -f user/manifest.yaml
+configmap/user created
+deployment.apps/user created
+service/user created
+
+
+==>  kubectl apply -f mysql/manifest.yaml
+deployment.apps/mysql created
+service/mysql created
+
+
+==> kubectl apply -f shipping/manifest.yaml
+configmap/shipping created
+deployment.apps/shipping created
+service/shipping created
+
+
+==> kubectl apply -f rabbitmq/manifest.yaml
+configmap/rabbitmq created
+deployment.apps/rabbitmq created
+service/rabbitmq created
+
+
+==> kubectl apply -f payment/manifest.yaml
+configmap/payment created
+deployment.apps/payment created
+service/payment created
+
+
+==> kubectl apply -f frontend/manifest.yaml
+configmap/frontend created
+deployment.apps/frontend created
+service/frontend created
+
+
+
+
+DEBUG: (Checking Health)
+======
+
+==> kubectl apply -f debug/manifest.yaml
+pod/debug created
+
+
+
+==> In debug with root access, check connection:
+press s: 
+telnet mongodb 27017
+telnet redis 6379    (nslookup redis)
+telnet mysql 3306
+telnet rabbitmq 5672
+curl http://catalogue:8080/health
+curl http://cart:8080/health 
+curl http://user:8080/health 
+curl http://shipping:8080/health
+curl http://payment:8080/health (exit)
+curl http://frontend:80  (exit) ==> Getting the response without configmap file
+
+shift+: svc ==> Copy DNS url -->  a57d255ed682845bb91aa1ae4144f87e-159068895.us-east-1.elb.amazonaws.com 
+
+With this url check the roboshop application. 
+
+
+K9s-Shell>> Pod: roboshop/debug | Container: debug
+[root@debug /]# telnet mongodb 27017
+Trying 10.100.123.142...
+Connected to mongodb.
+Escape character is '^]'.
+^]
+telnet> quit
+Connection closed.
+[root@debug /]# telnet redis 6379
+Trying 10.100.95.109...
+Connected to redis.
+Escape character is '^]'.
+^]
+telnet> quit
+Connection closed.
+[root@debug /]# telnet mysql 3306
+Trying 10.100.232.187...
+Connected to mysql.
+Escape character is '^]'
+^]
+telnet> quit
+Connection closed.
+[root@debug /]# telnet rabbitmq 5672
+Trying 10.100.136.572...
+Connected to rabbitmq.
+Escape character is '^]'
+^]
+telnet> quit
+Connection closed.
+[root@debug /]# curl http://catalogue:8080/health
+{"app":"OK","mongo":true}[root@debug /]# curl http://cart:8080/health
+{"app":"OK","redis":true}[root@debug /]# curl http://user:8080/health
+{"app":"OK","mongo":true}[root@debug /]# curl http://shipping:8080/health
+OK[root@debug /]# curl http://payment:8080/health
+OK[root@debug /]# curl http://frontend:80 (exit) ==> Getting response.
+
+
+<<K9s-Shell>> Pod: roboshop/mysql-5cd4d687db-96cl5 | Container: mysql
+bash-5.1# mysql -u root -pRoboShop@1
+mysql: [Warning] Using a password on the command line interface can be insecure.
+Welcome to the MySQL monitor.  Commands end with ; or \g.
+Your MySQL connection id is 8
+Server version: 8.0.45 MySQL Community Server - GPL
+
+Copyright (c) 2000, 2026, Oracle and/or its affiliates.
+
+Oracle is a registered trademark of Oracle Corporation and/or its
+affiliates. Other names may be trademarks of their respective
+owners.
+
+Type 'help;' or '\h' for help. Type '\c' to clear the current input statement.
+
+mysql> show databases;
++--------------------+
+| Database           |
++--------------------+
+| cities             |
+| information_schema |
+| mysql              |
+| performance_schema |
+| sys                |
++--------------------+
+5 rows in set (0.01 sec)
+
+mysql> use cities;
+Reading table information for completion of table and column names
+You can turn off this feature to get a quicker startup with -A
+
+Database changed
+mysql> show tables;
++------------------+
+| Tables_in_cities |
++------------------+
+| cities           |
+| codes            |
++------------------+
+2 rows in set (0.00 sec)
+
+mysql> select count(*) from codes;
++----------+
+| count(*) |
++----------+
+|       25 |
++----------+
+1 row in set (0.00 sec)
+
+mysql> select count(*) from cities;
++----------+
+| count(*) |
++----------+
+|   948833 |
++----------+
+1 row in set (0.16 sec)
+
+mysql>exit
+
+
+
+******
+If we made a mistake in config, then in UI it continuous creates new pods so if configmap is changed, we have restart the Pod. We have delete that component using ctrl+D. Then immediately deployment, creates a new pod which will take new configMap as input.
+==> We have delete how many replicas are there with errors, then we need to restart the pod.
+
+******
+We should not delete deployment [If done, all revisions (history of changes made to resources) will be gone], So we should always delete Pod only if any error arises.
+
+catalogue:1.0.0 -> PROD
+
+new release
+============
+
+1.1.0 -> release
+rebuild catalogue same version 1.1.0
+
+ImagePullPolicy: Always [So, that it pulls whenever we request/we change]
+
+
+ImagePullPolicy:
+================
+
+==> In Kubernetes, the imagePullPolicy for a container determines when the kubelet attempts to pull (download) the specified image from a registry. 
+
+Supported Policies
+~~~~~~~~~~~~~~~~~~~
+There are three possible values for this setting:
+
+Always: Every time the container starts, the kubelet queries the registry to check the image's digest. If the local image matches the registry, it uses the cache; otherwise, it pulls the new image. 
+
+IfNotPresent: The image is pulled only if it does not already exist on the node. This is common for production to save bandwidth and speed up startup. 
+
+Never: The kubelet does not attempt to pull the image. It assumes the image is already pre-loaded on the node; if it isn't, the Pod fails with an ErrImageNeverPull error.
+
+
+
+debug:  These are used for debugging purpose in Docker (Install telnet, ping, netstat command, nslookup command in rhel)
+======
+
+Dockerfile:
+
+FROM almalinux:9
+RUN dnf install telnet iputils net-tools bind-utils -y
+CMD ["sleep", "2000"]
+
+
+Only for health check of the components, we use this debug file. When we want to troubleshoot the component, if any issue arises then we check the health.
+
+
+We are using docker and Kubernetes because,
+Docker 		--> Building the image and also optimising it
+Kubernetes 	--> Running the image which is build by docker
+
+
+******
+building image = image develop -> build -> push to hub
+running image = manifest ==> image pull and then run the image using manifest config
+
+
+==> docker images
+                                                                                                                                                                    i Info →   U  In Use
+IMAGE                           ID             DISK USAGE   CONTENT SIZE   EXTRA
+javeedmohd214/cart:1.4.0        94dacf87b2c1        256MB         59.5MB
+javeedmohd214/catalogue:1.4.0   8471034746b8        297MB         61.6MB
+javeedmohd214/debug:1.4.0       8da860fc2cc0        431MB          135MB
+javeedmohd214/user:1.4.0        a38e78bd2a18        307MB           62MB
+
+
+
+****
+Shipping: maven:3.9.14 Means JDK+ Build tool maven ==> We do not require maven build tool (heavy and more memory consumption) for running java here.
+=========
+
+JDK JRE
+
+JRE -> Java runtime environment
+JDK -> Java development kit
+
+JDK = JRE + Development/Build tools
+
+To run in production only JRE is enough...
+
+
+node_js -> npm install -> create node_modules(libraries are here)
+java -> maven package -> create target folder and .jar file inside that
+.jar = bytecode (compiled source code) + dependencies
+
+Recommended image for shipping ==> jre alpine java 17 image (Browse)
+==> eclipse-temurin:17-jre-alpine
+
+*** We use startup probe for shipping component as it takes more time to start the application as it requires high memory space.
+
+
+*****
+Payment: Python is tightly dependent on OS. It is OS dependent.
+========
+
+Python -> dependencies will be installed in python directory -> platform(OS) dependent
+
+==> python path in linux will be in /usr/bin/python3 or /usr/local/bin/python3  ==> This is OS specific
+
+
+
+Requirements while doing improvements in Dockerfile:
+====================================================
+
+1. Install dependencies in different path, so that we can copy into another stage 		(pip install prefix)
+2. Build stage python needs more packages build-base, linux-headers and pcre-dev		(alpine add install packages) (apk -> Alpine Package Keeper)
+3. run time you need pcre package only  (Important)
+
+
+Package Breakdown --> build-base, linux-headers and pcre-dev
+build-base: A meta-package equivalent to Ubuntu's build-essential. It installs the GCC compiler, G++, make, and standard C libraries. 
+
+linux-headers: Provides the header files for the Linux kernel, which are required when a program needs to interact directly with kernel features (e.g., compiling drivers or low-level network tools). 
+
+pcre-dev: Includes the development files for Perl Compatible Regular Expressions (PCRE). These are frequently required for building high-performance web servers like Nginx or HAProxy. 
+
+--no-cache: This flag ensures the package index is downloaded on-the-fly and then deleted after installation.
+
+
+
+==> Check the size of by building the image with old Dockerfile 1.4.0 . (Debian/Ubuntu) will consist of cache, built time and so on will be installed...
+
+==> Now, python (official image -> docker hub) Edit in dockerfile
+
+python:3.9.25-alpine3.22 
+
+
+COPY --from=builder /install /usr/local   ==>  /usr/local --> This path commands are always executable... or (/bin)d
+COPY --chown=roboshop:roboshop   ==> copy instruction in dockerfile is used to copy with which user, we can provide it in one of the layer.
+
+Hardened Image --> Only has what we want and should not have privilege access.
+
+In payment (k9s) -> cd /usr/local/
+ls -l
+cd bin/
+ls -l
+
+***** 
+Payment.ini:
+~~~~~~~~~~~~
+
+uid, gid in payment.ini should be commented for second time building as we are running it with non root user access and they are actually designed for root started processes that need to drop privileges after binding to a port (8080).
+
+
+
+*****
+Frontend: (nginx non root docker image - browse (Running Nginx Official image as non root-General (dockerhub))
+=========
+
+nginx expects a lot of directories log, process instance ID (PID), parent process instance ID (PPID), configuration and so on...
+
+
+RUN rm /etc/nginx/nginx.conf /etc/nginx/conf.d/default.conf
+
+RUN mkdir -p /var/cache/nginx/client_temp && \
+    mkdir -p /var/cache/nginx/proxy_temp && \
+    mkdir -p /var/cache/nginx/fastcgi_temp && \
+    mkdir -p /var/cache/nginx/uwsgi_temp && \
+    mkdir -p /var/cache/nginx/scgi_temp && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /etc/nginx/ && \
+    chmod -R 755 /etc/nginx/ && \
+    chown -R nginx:nginx /var/log/nginx
+
+RUN mkdir -p /etc/nginx/ssl/ && \
+    chown -R nginx:nginx /etc/nginx/ssl/ && \
+    chmod -R 755 /etc/nginx/ssl/
+
+RUN touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid /run/nginx.pid
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY static /usr/share/nginx/html/
+USER nginx
+CMD ["nginx", "-g", "daemon off;"]
+
+nginx:1.24.0-alpine3.17-slim
+
+
+******
+==> Without configmap file (nginx.conf) in frontend/manifest.yaml, we should run and check. We will get the response as loadbalancer url to check the roboshop application on the browser...
+
+But, if we make any configuration changes in nginx.conf file of frontend in docker image, then we have to rebuild the image, push the image to hub and then pull the image by running manifest.yaml file of frontend (restart the Pod).
+
+==> To use in configmap, we cannot keep files in configmap same as key-value pairs. If we want to keep files then we have to add as volume nginx.conf (volume=data=disk), then we tell nginx container to mount nginx.conf file (we will keep it as volume which in turn has data in it). Container to volume mount and get the data from it...
+
+==> Advantage by using this is that we need not rebuild the image from docker... We can directly make changes in configmap and push the changes...
+
+In configMap, we have add volumes in specifications in container level with a proper name and we have to mount it to the container we want by providing volumeMounts and give it a name, mountPath and readOnly as true...
+
+==> By doing this, in future if any configuration changed, we need not rebuild the image in docker rather than doing that we will edit the changes in configMap and restart the container.
+
+
+It should be pod-level in specifications:
+
+volumes:
+- name: nginx-config
+  configMap
+    name: frontend
+
+
+This should be in containers which will help volumes to mount.
+volumeMounts:
+- name: nginx-config
+  # By default it mounts and thinks as directory
+  mountPath: "/etc/nginx/nginx.conf"
+  subPath: nginx.conf
+  readOnly: true
+
+
+**** First, we have to run the manifest.yaml file of frontend without configMap, volumeMounts and volumes and further you can use it after running from next time when we make any changes in configuration, we can directly edit in the configMap itself and restart the container rather than rebuild the image in docker...
+
+==> Then we have to apply frontend/manifest.yaml file after making any configuration changes...
+
+Edit in nginx.conf -> Apply -> Restart the container
+
+==> nginx.conf (key) -> value is the nginx.conf file
+
+
+
+Kubernetes implementation process:
+==================================
+
+--> Containerize the docker images
+--> Creation of Manifest file which contains --> configMap, Deployments, Service and add volumeMounts whereever necessary and also we will be adding the secret...
+
+In real projects, we will replace load balancer with ingress controller... But the process is same.
+
+
+******
+==> If we keep data anywhere in cluster it will be temporary (ephemereal volume). In case, if we want to run stateful applications, we have to keep the data outside the NodeGroup as EBS (Eternal volume). We should not keep data in cluster only. 
+
+If in case, entire cluster got deleted for some reason, then we can create a new cluster and assign it to Pod and mount the data from EBS to NodeGroup.

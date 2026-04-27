@@ -1,0 +1,105 @@
+1. ami_id
+2. sg_id
+
+authenticate
+t3.micro, ami_id, sg_id
+
+aws configure  --> TO setup aws cli, we use it
+
+ls -la
+cd .aws/
+ls -l
+cat credentials
+cat config
+
+aws s3 ls --> To know whether (iam user), it is connected or not. 
+We will create a Script user to use it.
+
+sh roboshop.sh mongodb catalogue
+
+$@
+
+for instance in $@
+do
+	echo $instance
+done
+
+aws ec2 run-instances --image-id <ami-id> --instance-type <instance-type> --security-group-ids <sg-id> --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=MyNewInstance}]' --query 'Instances[0].InstanceId' --output text
+
+aws ec2 run-instances --image-id ami-0220d79f3f480ecf5 --instance-type t3.micro --security-group-ids sg-076ec9ad23dab2b28 --tag-specifications "ResourceType=instance,Tags=[{Key=Name,Value=catalogue(any component)}]" 
+
+instance-id = i-01d7830788a10d3d3
+
+aws ec2 describe-instances --instance-ids i-01d7830788a10d3d3 --query 'Reservations[].Instances[].PublicIpAddress' --output text
+
+create instance and get the instance id..
+
+check if frontend or not
+	if frontend get the public ip
+	else get the private ip
+
+It is used to update aws route53 records --> aws route53 change-resource-record-sets --hosted-zone-id HOSTED-ZONE-ID --change-batch file://change-batch.json
+
+1. Check root user or not
+2. If root user continue, otherwise error
+3. Colors
+4. Logs
+5. Validate function
+
+SED Editor -> Streamline editor:
+================================
+
+insert text after line 1
+
+sed '1a Hi' users -> add the text after line 1, temporary edit only on screen. for perm use -i option
+
+sed '1i Hello' users -> before line 1
+sed '/sbin/d' -> deletes all the lines with text matching sbin
+sed '2d' -> delete 2nd line
+
+sed '2s/sbin/SBIN/g' users -> replace sbin with SBIN in 2nd line all occurrences
+
+sed 's/sbin/SBIN/g' -> all lines all occurrences
+
+sed 'protected mode/c protected mode no" --> Matching Word substitution
+
+
+SED editor:
+===========
+
+streamline editor, non-interactive editor
+
+create the line
+update the line
+delete the line
+
+sed '1i Hello SED' <file-name> -> insert before first line
+sed '1a Hello' -> insert after first line
+sed '2d' -> delete 2nd line
+sed '/Hello/d' -> delete lines where there is Hello
+sed 's/root/ROOT/' -> substitute the first occurence in every line
+sed 's/root/ROOT/g' -> substitute all occurences in every line
+sed '3c Hello change' -> replace 3rd line
+sed '/error/ c NO-ERROR' -> change the line based on pattern
+
+
+Idempotent:
+===========
+
+Scripts should give same results, even if you run them infinite times. This is called idempotency.
+
+GET -> idempotent
+POST -> chance of duplicates or error... we need work for idempotency
+PUT/UPDATE -> not danger, check if already same then don't allow to change
+DELETE -> not danger, but check if already deleted, then tell it is deleted already
+
+check roboshop user already exist or not, if exist skip otherwise create
+
+mongosh --host mongodb.daws86s.fun --quiet --eval "db.getMongo().getDBNames().indexOf('catalogue')"
+
+Idempotency:
+============
+
+If you run the script any number of times, it should give the same result.
+
+It cannot take decisions on its own if already files consists in it.(Unzipping format - Catalogue Component)

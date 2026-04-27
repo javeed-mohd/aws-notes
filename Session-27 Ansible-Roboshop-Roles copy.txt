@@ -22,14 +22,14 @@ DRY --> Don't Repeat Yourself
 
 Ansible Roles:
 ==============
-Ansible role is proper directory structure of creating, managing and reusing playbooks. We can breakdown playbooks into multiple components like tasks, handlers, vars, meta, templates, files, etc. by default ansible loads main.yaml in these directories....
+Ansible role is proper directory structure of creating, managing and reusing playbooks. We can breakdown playbooks into multiple components like tasks, handlers, vars, meta, templates, files, etc. by default ansible loads main.yaml in these directories.
 
 
 ANSIBLE CONFIGURATION:
 ======================
 
 1. ANSIBLE_CONFIG (environment variable if set)
-2. ansible.cfg (PWD -> Current Directory) ===> It is the most convenient way because we can give separate config settings for each repository accordingy...
+2. ansible.cfg (PWD -> Current Directory) ===> It is the most convenient way because we can give separate config settings for each repository accordingly.
 3. .ansible.cfg  (User Home Directory)
 4. /etc/ansible/ansible.cfg
 
@@ -113,14 +113,14 @@ Searched mongo.repo from all these:
 /home/ec2-user/ansible-roboshop-roles/files/mongo.repo
 /home/ec2-user/ansible-roboshop-roles/mongo.repo
 
-Catalogue depends on common folder is defined by META directory, so that we can use whatever required for our component(catalogue, cart, user,....) file.
+Catalogue depends on common folder is defined by META directory, so that we can use whatever required for our component(catalogue, cart, user, shipping, payment) file.
 
 In common folder, we keep:
 -> nodejs_setup -> enable, install nodejs, install dependencies
 -> app_setup -> create directory, create system user, download code, unarchive code
 -> system_setup
 
-In META/main.yaml file we can mention dependencies...
+In META/main.yaml file we can mention dependencies.
 
 1. Load catalogue role
 2. Ansible finds META directory and main.yaml
@@ -162,18 +162,18 @@ roles/
 ANSIBLE-ROBOSHOP-ROLES FLOW EXECUTION PROCESS:
 ==============================================
 
-If not given main.yaml in the folder then we need to call it explicitly....(only if given main.yaml in tasks, then it will be executed otherwise it won't...)
+If not given main.yaml in the folder then we need to call it explicitly....(only if given main.yaml in tasks, then it will be executed otherwise it won't).
 
 =====> ansible-playbook -e component="{{ component }}" roboshop.yaml (No need of inventory.ini, user, password as we already provided in group_vars and inventory.ini files) 
 
-=====> ansible-playbook -vv -e component="{{ component }}" roboshop.yaml (Debug mode, it gives huge logs and gives everything what happens in the background of ansible[If wanted in more detail then use -vvv])....
+=====> ansible-playbook -vv -e component="{{ component }}" roboshop.yaml (Debug mode, it gives huge logs and gives everything what happens in the background of ansible[If wanted in more detail then use -vvv]).
 
 ======> MULTIPLE CREATION: ansible-playbook -e component=catalogue roboshop.yaml ; ansible-playbook -e component=redis roboshop.yaml ; ansible-playbook -e component=user roboshop.yaml ; ansible-playbook -e component=cart roboshop.yaml ; ansible-playbook -e component=mysql roboshop.yaml
 
 
-==> We can also give separate component values file in group_vars or else we can provide them in inventory.ini as well...
+==> We can also give separate component values file in group_vars or else we can provide them in inventory.ini as well.
 
-==> Template has placeholders so we used .j2 extension here to define catalogue.service as template and Files do not have placeholders.... (But .j2 extension is not mandatory)
+==> Template has placeholders so we used .j2 extension here to define catalogue.service as template and Files do not have placeholders. (But .j2 extension is not mandatory)
 
 
 1. MONGODB => ROBOSHOP.YAML (Loads the mongodb component) -> It loads all main.yaml files of MONGODB FOLDER -> ROLES/MONGODB/FILES/mongo.repo -> ROLES/MONGODB/TASKS/main.yaml (main content). [Database]
@@ -201,36 +201,34 @@ If not given main.yaml in the folder then we need to call it explicitly....(only
 handlers
 =========
 
-Handlers are notifiers, you can call task-b when task-a changes. for example when a configuration changes you can restart the application using handlers. (It is required to restart the servers because whenever we run the application(instance) we get new user, download the application, unzipping and so on...So, it is mandatory to restart the application after every new addition....) (If we change then only it restarts the application or else by default it will be as usual when it was first executed)
+Handlers are notifiers, you can call task-b when task-a changes. for example when a configuration changes you can restart the application using handlers. (It is required to restart the servers because whenever we run the application(instance) we get new user, download the application, unzipping and so on. So, it is mandatory to restart the application after every new addition). (If we change then only it restarts the application or else by default it will be as usual when it was first executed).
 
 tags
 =====
 
-If you want a specific tag to run inside playbook, tag it and call it. When we start the component many tasks will be executed which are present inside the playbook, so we use TAGS to run only few or particular tasks whichever are required to be executed...
+If you want a specific tag to run inside playbook, tag it and call it. When we start the component many tasks will be executed which are present inside the playbook, so we use TAGS to run only few or particular tasks whichever are required to be executed.
 
-==>  ansible-playbook -e component=catalogue -t deployment roboshop.yaml  --> Run only which are with tags deployment on it...
+==>  ansible-playbook -e component=catalogue -t deployment roboshop.yaml  --> Run only which are with tags deployment on it.
 
 ==> ansible-playbook -e component=catalogue -t deployment roboshop.yaml -vvv
 
 It will show the exact file and line number causing the issue.
 
+You can keep all the components in one component file which is dependent on other files (Here Frontend). From there, it starts executing one by one as provided.
 
-
-You can keep all the components in one component file which is dependent on other files (Here Frontend). From there, it starts executing one by one as provided...
-
-==> nohup ansible-playbook -e component="{ component }" roboshop.yaml &>/var/log/ansible.log & ==> Use this format
+==> nohup ansible-playbook -e component="{ component }" roboshop.yaml &>/var/log/ansible.log & 	==> Use this format
 
 ==> tail -f nohup.out
 
 ==> less /var/log/ansible.log
 
-==> nohup ansible-playbook -e component="{ component }" roboshop.yaml & ===> nohup and & takes the command into background and it executes in the background....(It ignores the input and appends the output to 'nohup.out') [If used only & it asks after every single command execution]  
+==> nohup ansible-playbook -e component="{ component }" roboshop.yaml & ===> nohup and & takes the command into background and it executes in the background. (It ignores the input and appends the output to 'nohup.out') [If used only & it asks after every single command execution]  
 
 tail -f /var/log/ansible.log
 
 To remove ==> rm -rf ansible-roboshop-roles/
 
-Before becoming: yes it is normal user(ec2-user)....
+Before becoming: yes it is normal user(ec2-user).
 ls -l /var/log/ansible.log
 sudo touch /var/log/ansible.log
 sudo chmod -R 777 /var/log/ansible.log (Use if it is still showing as not writeable)
@@ -246,4 +244,3 @@ ansible [core 2.14.18]
   python version = 3.9.25 (main, Nov 10 2025, 00:00:00) [GCC 11.5.0 20240719 (Red Hat 11.5.0-11)] (/usr/bin/python3)
   jinja version = 3.1.2
   libyaml = True
-

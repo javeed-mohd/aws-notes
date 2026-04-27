@@ -1,0 +1,290 @@
+==> NEVER RUN CONTAINERS WITH THE ROOT ACCESS.
+
+docker ps -a -q  ==> Used to get all the container ids.
+
+docker rm -f `docker ps -a -q` ==> Removes all the containers forcefully
+
+1. Build the image -> Bare minimum OS + System packages + App run time + App Code + App Dependencies ==> Instance/Server/VM ==> AMI ID 
+2. Run the image -> port, name, network, background(-d)/foreground, other component urls, etc. ==> Configurations
+
+
+DOCKER_HOME = /var/lib/docker
+
+docker ps -> running containers
+docker ps -a -> all containers
+docker images -> show the images in server
+docker pull image-name:version
+docker create image-name:version
+docker start container-id
+docker run image-name:version = pull + create + start
+docker rm container-id -> remove the container
+docker rmi image -> Remove the image
+
+docker run -d ==> Taking the container execution to background so that it won't block the foreground terminal.
+docker run -p host-port:container-port
+docker run --name <container-name>
+docker stats -> show the resources memory consumed by containers
+docker inspect <container-id> -> Full information of the container
+
+docker exec -it <container-id> bash ==> Login inside the container
+
+
+Dockerfile -> Declarative way of creating our own custom images by using docker instructions. [dockerfile reference]
+
+FROM -> should be the first instruction, to refer base OS [redhat/ubi9]
+RUN -> used to configure image install packages, create users, etc. used at the time of building the image
+	
+docker build -t url/username/image-name:version .		==> If not given version, it downloads latest version and no need to specify url...[. refers current folder/directory]
+docker login -u <username> (Enter the password)			==> Used to login into dockerhub account
+docker tag image-name:version username/image-name:version	==> Reference files will be shown using docker images (Retag / Another name for reference purpose)
+docker push username/image-name:version  			==> Used to push the image into the docker-hub account
+
+
+
+Commands for docker installation in Linux RHEL (Install Docker):
+================================================================
+
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
+
+FROM -> should be the first instruction, to refer base OS [redhat/ubi9] ==> Redhat Universal Base Image 9
+RUN -> used to configure image install packages, create users, etc. used at the time of building the image
+
+******
+CMD
+====
+
+Used to run the container. It will be executed at the time of running the container. It will not execute at the time of building as that of run command.
+
+We can have multiple RUN instructions inside dockerfile. But only one CMD instruction.
+
+["executable","param1","param2"] ==> ["nginx","-g","daemon off;"]
+
+systemctl start nginx -> It won't work inside images, systemctl is kernel level process.
+
+Your command inside dockerfile should run in foreground, but you can take it into background.
+
+To get the logs of the Instruction:
+====================================
+
+docker exec -it <container-id/name> bash
+[root@d31cce7f273d /]# cd /var/log/nginx/
+[root@d31cce7f273d nginx]# ls -l
+total 8
+-rw-r--r-- 1 root root 1235 Mar 27 15:01 access.log
+-rw-r--r-- 1 root root  468 Mar 27 15:01 error.log
+[root@d31cce7f273d nginx]# cat access.log
+152.57.189.89 - - [27/Mar/2026:14:57:28 +0000] "GET / HTTP/1.1" 200 5909 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" "-"
+[root@d31cce7f273d nginx]# tail -f access.log
+152.57.189.89 - - [27/Mar/2026:14:57:28 +0000] "GET / HTTP/1.1" 200 5909 "-" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/146.0.0.0 Safari/537.36" "-"
+
+View logs:
+==========
+cat access.log
+cat error.log
+
+Live logs:
+==========
+tail -f access.log
+tail -f error.log
+
+
+docker run cmd:1.0.0
+^C
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/CMD ]$ docker run -d -p 80:80 cmd:1.0.0
+f3fb8ef3b8343d9ece8cf38f64c8b430bf2eafc3458aaa315c75f30d45833c15
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/CMD ]$ docker ps
+CONTAINER ID   IMAGE       COMMAND                  CREATED              STATUS              PORTS                                 NAMES
+f3fb8ef3b834   cmd:1.0.0   "nginx -g 'daemon of…"   About a minute ago   Up About a minute   0.0.0.0:80->80/tcp, [::]:80->80/tcp   wonderful_leakey
+
+
+
+LABEL
+=====
+adds the metadata to the image, and also used for filteration. Label is key-value pair. For multiple labels use \.
+
+ex:- 
+FROM almalinux:9
+LABEL COURSE="Docker" \
+      DURATION="12 Hours" \
+      SOURCE="Amazon Web Services"
+
+When large number of images are present in container then we can filter a particular image using ==> docker images --filter "label=COURSE=Docker"
+
+docker images --help ==> Will get all the commands related to images
+
+
+docker run label:1.0.0
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/LABEL ]$ docker ps
+CONTAINER ID   IMAGE       COMMAND                  CREATED          STATUS          PORTS                                 NAMES
+f3fb8ef3b834   cmd:1.0.0   "nginx -g 'daemon of…"   26 minutes ago   Up 26 minutes   0.0.0.0:80->80/tcp, [::]:80->80/tcp   wonderful_leakey
+
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/LABEL ]$ docker run -d label:1.0.0 sleep 23
+95feb90e3d2be8a1bff681aef6ddc228704ff316fcd8b11a0f7354c3f1c40817
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/LABEL ]$ docker ps
+CONTAINER ID   IMAGE         COMMAND                  CREATED          STATUS          PORTS                                 NAMES
+95feb90e3d2b   label:1.0.0   "sleep 23"               4 seconds ago    Up 3 seconds                                          ecstatic_visvesvaraya
+f3fb8ef3b834   cmd:1.0.0     "nginx -g 'daemon of…"   27 minutes ago   Up 27 minutes   0.0.0.0:80->80/tcp, [::]:80->80/tcp   wonderful_leakey
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/LABEL ]$ docker ps -a
+CONTAINER ID   IMAGE         COMMAND                  CREATED          STATUS                      PORTS                                 NAMES
+95feb90e3d2b   label:1.0.0   "sleep 23"               33 seconds ago   Exited (0) 9 seconds ago                                          ecstatic_visvesvaraya
+8fb9bbfa3a3d   label:1.0.0   "/bin/bash"              2 minutes ago    Exited (0) 2 minutes ago                                          festive_dirac
+f3fb8ef3b834   cmd:1.0.0     "nginx -g 'daemon of…"   28 minutes ago   Up 28 minutes               0.0.0.0:80->80/tcp, [::]:80->80/tcp   wonderful_leakey
+9636cc9fc378   cmd:1.0.0     "nginx -g 'daemon of…"   28 minutes ago   Exited (0) 28 minutes ago                                         strange_brown
+
+
+
+EXPOSE
+=====
+Useful to display the port information of container. It will not really open the port but provides information only to the users.
+
+For suppose we are trying to open nginx means,
+80
+8080 -> can't open
+
+docker ps
+CONTAINER ID   IMAGE       COMMAND                  CREATED          STATUS          PORTS                                 NAMES
+f3fb8ef3b834   cmd:1.0.0   "nginx -g 'daemon of…"   39 minutes ago   Up 39 minutes   0.0.0.0:80->80/tcp, [::]:80->80/tcp   wonderful_leakey
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/EXPOSE ]$ docker run -d -p 8080:80 expose:1.0.0
+3b6525f393d6caaf8fe27608480b446f8764385edce2e20bb58df881ca047478
+
+ENV
+====
+to provide env variables to the container. App code can access these env variables and use them.
+
+docker run -d env:1.0.0 sleep 100
+cbbb57e6eb2a839650165adaa5ae291469eb7e6e00c6629b3a548f8a9c608916
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/ENV ]$ docker exec -it <container-id> bash
+[root@cbbb57e6eb2a /]# env
+HOSTNAME=cbbb57e6eb2a
+PWD=/
+MONGO_USER=admin
+HOME=/root
+LANG=C.utf8
+TERM=xterm
+LESSOPEN=||/usr/bin/lesspipe.sh %s
+SHLVL=1
+DEBUGINFOD_IMA_CERT_PATH=/etc/keys/ima:
+PATH=/root/.local/bin:/root/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MONGO_URL=mongodb-dev.devopsdaws.online
+_=/usr/bin/env
+
+COPY
+====
+Used to copy the files from local to image.
+
+docker ps
+CONTAINER ID   IMAGE          COMMAND                  CREATED             STATUS             PORTS                                     NAMES
+3b6525f393d6   expose:1.0.0   "nginx -g 'daemon of…"   32 minutes ago      Up 32 minutes      0.0.0.0:8080->80/tcp, [::]:8080->80/tcp   nervous_chatelet
+f3fb8ef3b834   cmd:1.0.0      "nginx -g 'daemon of…"   About an hour ago   Up About an hour   0.0.0.0:80->80/tcp, [::]:80->80/tcp       wonderful_leakey
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/COPY ]$ docker rm -f `docker ps -a -q`
+cbbb57e6eb2a
+3b6525f393d6
+95feb90e3d2b
+8fb9bbfa3a3d
+f3fb8ef3b834
+9636cc9fc378
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/COPY ]$ docker ps -a -q
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/COPY ]$ docker run -d -p 80:80 copy:1.0.0
+873971048d6fac5615d7cd5511e4ee0a939b55f75c807fb36a6175a5342ad2e8
+
+
+ADD : docker run -d add:1.0.0 sleep 100
+===
+Used to copy the files from local to image, but it has 2 extra capabilities
+1. It can fetch the content directly from internet
+2. It can untar(extracts) the content directly in the image
+
+--> docker build -t add:1.0.0 .
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/ADD ]$ docker run -d add:1.0.0 sleep 100
+2c1995733b0973dededc7c6861774959a4295819e35135a8047b1c47f0c7934d
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/ADD ]$ docker ps -a
+CONTAINER ID   IMAGE        COMMAND                  CREATED          STATUS          PORTS                                 NAMES
+2c1995733b09   add:1.0.0    "sleep 100"              6 seconds ago    Up 5 seconds                                          busy_euler
+873971048d6f   copy:1.0.0   "/docker-entrypoint.…"   25 minutes ago   Up 25 minutes   0.0.0.0:80->80/tcp, [::]:80->80/tcp   pensive_margulis
+
+44.215.112.248 | 172.31.0.82 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-0-82 ~/dockerfiles/ADD ]$ docker exec -it 2c1 bash
+[root@2c1995733b09 /]# cd /tmp/
+[root@2c1995733b09 tmp]# ls -l
+total 4
+-rw------- 1 root root 2620 Jan  1  1970 01-mongodb.MD
+[root@2c1995733b09 tmp]# cat 01-mongodb.MD
+
+
+
+ENTRYPOINT
+===========
+ENTRYPOINT is used to provide the command executed by the container when it is started.
+
+ping google.com ping facebook.com
+
+******
+CMD vs ENTRYPOINT
+==================
+
+We can override the command inside CMD instruction at run time... We can't override ENTRYPOINT command, if you try to do so it will go and append.. 
+==> For best results we can always use both CMD and ENTRYPOINT
+
+CMD can be used to provide the default args/inputs to ENTRYPOINT. 
+If we want our own args, we can always override CMD at runtime.
+
+==> NEVER RUN CONTAINERS WITH THE ROOT ACCESS...
+
+******
+ENV vs ARG
+==========
+ENV -> provide variables to container
+ARG -> provide variables to image
+
+==> ARG variables can't be accessed inside container, they are accessible only at the of image building. 
+
+==> ENV variables can be accessed in container.
+
+==> ARG can be first instruction in a special case to supply the version to base image.
+
+docker build -t --build-arg username=what_user . ==> docker build -t --build-arg version=9 . 
+
+==> ARG instruction of version can't be used beyond FROM instruction. It is allowed until FROM and then it won't apply anything from the very next line of FROM instruction...
+
+USER:
+======
+
+The USER instruction sets the user name (or UID) and optionally the user group (or GID) to use as the default user and group for the remainder of the current stage.
+
+Note: When the user doesn't have a primary group then the image (or the next instructions) will be run with the root group.
+
+WORKDIR:
+========
+
+The WORKDIR instruction sets the working directory for any RUN, CMD, ENTRYPOINT, COPY and ADD instructions that follow it in the Dockerfile. If the WORKDIR doesn't exist, it will be created even if it's not used in any subsequent Dockerfile instruction.

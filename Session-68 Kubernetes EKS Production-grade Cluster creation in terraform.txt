@@ -1,0 +1,482 @@
+ingress -> gateway
+
+db in k8 require statefulset, headless service, normal service, PV, PVC and SC.
+
+
+1. EBS dynamic provisioning requires SC
+
+install ebs drivers
+make sure node has EBSCSIDriverPolicy
+create storage class
+
+(roboshop-infra-eks)
+==> aws configure
+
+--> aws eks update-kubeconfig --region us-east-1 --name roboshop-dev
+
+--> kubectl get nodes
+
+
+==> helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+==> helm repo update
+
+--> helm upgrade --install aws-ebs-csi-driver \
+    --namespace kube-system \
+    aws-ebs-csi-driver/aws-ebs-csi-driver
+
+To check:
+==> In k9s, kube-system namespace, aws drivers running
+
+git clone roboshop-infra-eks/
+
+cd roboshop-infra-eks/60-eks/app/
+ls -l
+--> kubectl apply -f namespace.yaml
+cd 01-storage-class/
+--> kubectl apply -f ebs-sc.yaml
+kubectl get sc
+
+cd ..
+cd 02-databases/
+
+
+Stateful Applications:
+======================
+
+==> kubectl apply -f mongodb/manifest.yaml
+check in k9s, shift+: namespace - roboshop - mongodb (Running)
+
+Flow: 
+~~~~~
+In statefulset pvc is mentioned, pvc will call storage class which creates PV, storage class uses drivers and will create volumes.
+
+
+If we are getting Pending in k9s, we have problem in pv, pvc. We have to check drivers and IAM role policy.
+
+--> kubectl apply -f redis/manifest.yaml
+--> kubectl apply -f rabbitmq/manifest.yaml
+
+
+If interviewer asks will module do you use custom or open-source?
+--> Enterprise applications always prefer custom modules, we don't depend on open-source modules because if you need some changes we have to wait until they release those features.
+Always use custom module.
+
+*********
+Make sure RDS is running and it allows 3306 from bastion and EKS node in 20-sg-rules of roboshop-infra-eks
+MySQL should allow security group attached to EKS node because we don't know in which node it goes. So, we use that rules. (Pods)
+==> To make it even more stricter, companies usually restrict from all the servers from EKS node, we only allow IP address. Then, we have to taint a node and follow earlier steps.
+
+Enterprise or Banking companies go through auditing. One team will come and tell to stop the development, deployment, testing for 1 or 2 weeks. Then they will take the access and will check whether we are properly using the systems or not, security and everything and will make a report, if there are any problems detected that also will be reported in that.
+
+hdfc 2019 issues bank (outage)
+
+******
+==> We can tell that auditing will happen in our company, I have suggested that in nodegroup why to give access for all the servers we might be in a problem at the time of auditing. So, let us create another node, taint it properly and only allow that particular node from EKS cluster to accept traffic. I have proposed this change and implemented.
+
+Issue, some third party members came for auditing and identified the issue and told to implement this. It is a big issue as per security. Team lead has assigned that task to me, then i used taints and tolerations, node affinity and make the security stricter.
+
+
+resource "aws_security_group_rule" "mysql_bastion" {
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  # Where traffic is coming from?
+  source_security_group_id = local.bastion_sg_id # Either cidr block or security group should be used...
+  security_group_id        = local.mysql_sg_id 
+}
+
+resource "aws_security_group_rule" "mysql_eks_node" {
+  type                     = "ingress"
+  from_port                = 3306
+  to_port                  = 3306
+  protocol                 = "tcp"
+  # Where traffic is coming from?
+  source_security_group_id = local.eks_node_sg_id # Either cidr block or security group should be used...
+  security_group_id        = local.mysql_sg_id 
+}
+
+
+gitbash:
+--------
+
+==> cd ../docker-roboshop/shipping/
+==> cd db/		[We have to copy app-user.sql and master-data.sql]
+How to transfer files securely from one server to another server, we use scp command (Secure copy)
+--> scp app-user.sql master-data.sql ec2-user@backend public ip address (robosop-dev-bastion):/tmp	[yes-password]
+
+MySQL is not a container as we keep it in init PV, it is a service.
+
+==> Mobaxterm - ls -l /tmp/
+
+sudo dnf install mysql -y
+We are using this in RDS,
+==> mysql -h <end-point> -u root -PRoboShop#123
+exit
+
+To load the data, we use
+==> mysql -h <end-point> -u root -PRoboShop#123 < /tmp/app-user.sql
+==> mysql -h <end-point> -u root -PRoboShop#123 < /tmp/master-data.sql
+
+To check:
+==> mysql -h <end-point> -u root -PRoboShop#123
+mysql> show databases;
+use cities;
+show tables;
+--> select count(*) from cities;
+--> select count(*) from codes;
+exit
+
+
+*****
+helm charts
+	deployment -> resources, liveness probe, readiness probe, etc..
+	configmap/secret
+	service
+	hpa
+
+
+Add horizontal pod autoscaler (hpa)
+--> cd ../03-backend/
+==> cd catalogue/
+
+--> helm upgrade --install catalogue .
+
+For checking purpose, we use debug:
+==> cd ../debug/
+--> kubectl apply -f manifest.yaml
+
+In k9s, debug - press s --> curl http://catalogue:8080/health
+exit
+
+==> cd ../user/
+
+--> helm upgrade --install user .
+==> cd ../cart/
+--> helm upgrade --install cart .
+==> cd ../shipping/
+--> helm upgrade --install shipping .		[As shipping is a java application, we have to increase initialDelaySeconds and more resources. Java apps uses more resources and takes some time longer than other components]
+==> cd ../payment/
+--> helm upgrade --install payment .
+
+Check in debug component, in k9s:
+curl http://user:8080/health
+curl http://cart:8080/health
+curl http://shipping:8080/health
+curl http://payment:8080/health
+
+
+Stateless Applications:
+=======================
+
+--> helm upgrade --install catalogue .
+--> helm upgrade --install user .
+--> helm upgrade --install cart .
+--> helm upgrade --install shipping .
+--> helm upgrade --install payment .
+
+
+Frontend:
+---------
+
+1. Service type is load balancer -> Classic Load Balancer - It is not an enterprise approach.
+
+Alternative for older approach:
+1. ingress controller -> ingress beta1
+2. aws load balancer controller -> ingress v1
+3. gateway controller
+
+ingress -> API to connect with external resources like load balancer
+
+ingress controller -> drivers. same across all the 3 versions. Service Account has IAM role mapping, it has IAM permissions to create/read/update/delete the resources.
+
+on-premise -> plain Kubernetes -> nginx ingress controller (x)
+
+
+1. Make sure OIDC provider exist
+2. Download IAM policy and create
+3. Create service account for load-balancer-controller
+4. Install aws load-balancer-controller drivers
+5. Create ingress resource and use annotations to select external resources
+
+
+Difference between ingress controller and aws load balancer controller?
+1. apiVersion changes
+2. Initial version can't group load balancers -> Over cost
+3. Target group didn't have IP type, you must add all the instances to the load balancer as targets and nodePort should be opened.
+
+==> cd
+==> curl -o iam-policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v3.2.1/docs/install/iam_policy.json
+
+--> aws iam create-policy \
+    --policy-name AWSLoadBalancerControllerIAMPolicy \
+    --policy-document file://iam-policy.json
+
+eksctl create iamserviceaccount \
+--cluster=roboshop-dev \
+--namespace=kube-system \
+--name=aws-load-balancer-controller \
+--attach-policy-arn=arn:aws:iam::160885265516:policy/AWSLoadBalancerControllerIAMPolicy \
+--override-existing-serviceaccounts \
+--region us-east-1 \
+--approve
+
+<ACCOUNT-ID> --> Replace with your ID
+
+If already exists, delete and create again and also check in cloudformation stack in AWS
+
+eksctl delete iamserviceaccount \
+--cluster=roboshop-dev \
+--namespace=kube-system \
+--name=aws-load-balancer-controller
+
+
+Installing controller using helm:
+==================================
+
+--> helm repo add eks https://aws.github.io/eks-charts
+--> helm repo update
+
+helm install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=roboshop-dev \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller
+
+Make sure drivers are running properly check in k9s, namespace (kube-system) - aws load balancer controller (Running)
+
+
+==> cd roboshop-infra-eks/60-eks/app/
+cd 04-frontend/
+--> helm upgrade --install frontend .
+
+Check in k9s:
+--> Ingress is a resource 
+shift+: namespace - roboshop - ingress (Load balancer will be created)
+
+Ingress resource sends all the configuration to ingress controller. And ingress controller which is having IAM role, service account, IAM policy creates load balancer.
+
+==> ingress controller = ingress api + controller	[Confusion older version]
+
+
+*******
+ingress API and ingress controller. ingress controller never changed
+only ingress api changed
+1. v1beta1 to v1
+
+ingress-v1 [present]
+
+To access load balancer, we have to create Route53 record
+*.devopsdaws.online - edit - us-east-1 - load balancer url
+If someone hits *.devopsdaws.online, then send this to load balancer.
+https://roboshop-dev.devopsdaws.online/ -> ALB -> HTTPS Listener -> Rule -> roboshop-dev.devopsdaws.online -> Target Group -> pods (IP)
+
+
+******
+Our story:
+When ingress API changed from v1beta1 -> v1 [I did all these changes]
+
+1. apiVersion
+2. Grouping with a single group name
+3. Registering pods as IP address in target group
+
+Result:
+Cost optimisation, security (no need to open nodePort)
+
+Why ingress api?
+ingress api is frozen
+1. No new features, No innovations
+2. Only bug fixes and Security patches
+
+python-2.X ( Only bug fixes and Security patches) vs python-3.X
+
+ingress API does not have role separation between developer and devops admin.
+
+To overcome role separation, Kubernetes have created new API called gateway. But controller is same. aws-load-balancer-controller
+Major advantage using gateway API is role separation.
+
+NLB is also there, which is used for networking.
+ALB is used for applications.
+
+
+In gateway API, resources are divided.
+--> gatewayclass -> Which LB to use ALB/NLB
+--> loadbalancerconfiguration -> internal/public
+
+
+devops/eks admin:
+=================
+
+gatewayclass -> Which LB to use ALB/NLB
+loadbalancerconfiguration -> internal/public
+gateway -> listener
+
+rule and target-group ()
+
+
+developer job:
+==============
+
+TargetGroupConfiguration
+HTTPRoute
+
+We have to clean up to move from ingress to gateway api:
+
+But generally we do it parallelly, we have to create another loadbalancer, if we delete earlier one, the application will be down. So, we have to parallelly create another lb and announce 1 day deployment down time and have to change the background load balancer completely.
+
+
+But in poc (Proof of Concept) environment, we do this to clean up and completely shift to gateway api:	ingress ctrl+d
+1. delete ingress	- kubectl delete ingress frontend -n roboshop
+==> Load balancer will be deleted.
+
+2. delete drivers	- helm uninstall aws-load-balancer-controller -n kube-system
+
+
+Gateway setup:
+==============
+
+Install gateway api Custom Resource Definition (CRDs):
+------------------------------------------------------
+
+# Must be v1.5.0 — earlier versions missing TLSRoute v1 which LBC v3.x requires
+kubectl apply --server-side=true \
+  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml
+
+# Verify — should see 8+ CRDs
+kubectl get crd | grep gateway
+
+
+Install AWS-specific CRDs:
+--------------------------
+
+These are extra CRDs that only exist for AWS — LoadBalancerConfiguration, TargetGroupConfiguration, ListenerRuleConfiguration
+
+kubectl apply \
+  -f https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/refs/heads/main/config/crd/gateway/gateway-crds.yaml
+
+# Verify TLSRoute is v1 (required by LBC v3.x)
+kubectl get crd tlsroutes.gateway.networking.k8s.io -o yaml | grep "name: v1"
+# Must show: name: v1
+
+IAM Policy and Service Account already exists for ingress setup.
+
+
+Install AWS Load Balancer Controller:
+=====================================
+
+The Gateway API requires the ALBGatewayAPI and NLBGatewayAPI feature gates to be enabled. We also pass the VPC ID so the controller can discover the VPC correctly.
+
+VPC_ID=$(aws ssm get-parameter --name /roboshop/dev/vpc_id \
+  --region us-east-1 --query Parameter.Value --output text)
+
+ALB -> public
+
+helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+  -n kube-system \
+  --set clusterName=roboshop-dev \
+  --set serviceAccount.create=false \
+  --set serviceAccount.name=aws-load-balancer-controller \
+  --set region=us-east-1 \
+  --set vpcId=$VPC_ID \
+  --set controllerConfig.featureGates.ALBGatewayAPI=true \
+  --set controllerConfig.featureGates.NLBGatewayAPI=true
+  
+--> To check in k9s, namespace (kube-sstem) - gateway api enabled load balancer controller running.
+
+kubectl rollout status deployment aws-load-balancer-controller -n kube-system
+kubectl get pods -n kube-system | grep aws-load-balancer
+
+
+aws metadata url (search) - curl http://169.254.169.254/latest/meta-data/ [It consists of vpc, subnet information everything]
+hops
+
+VPC Subnets
+--> LBC is a pod, pod is running in instance
+--> Pod means two levels, it should come out of pod and hit the instance called as hops.
+Generally, for security purpose only one hop is allowed and don't give access to pod.
+To make it more stricter, it won't give access even to hit the instance. BY default hop is 1.
+
+--> cd ..
+==> cd 05-gateway/
+
+
+Create GatewayClass:
+====================
+
+One per cluster. Tells Kubernetes that anything referencing roboshop-aws-alb should be handled by the AWS LBC.
+
+==> kubectl apply -f gatewayclass.yaml
+
+# Wait for ACCEPTED=True before moving on
+kubectl get gatewayclass roboshop-aws-alb
+
+
+Create LoadBalancerConfiguration:
+=================================
+
+ALB-level settings — scheme (internet-facing vs internal) and IP type. In LBC v3.x, annotations on the Gateway are ignored, so all ALB settings must go here.
+
+--> kubectl apply -f loadbalancerconfiguration.yaml
+
+
+Create Gateway:
+===============
+
+This actually creates the ALB in AWS. Takes 1-2 minutes. The ADDRESS field shows the ALB DNS once it is ready.
+
+--> kubectl apply -f gateway.yaml
+
+# Watch until PROGRAMMED=True and ADDRESS appears
+kubectl get gateway -w
+
+Expose the Frontend:
+====================
+
+Creates the TargetGroupConfiguration (registers pod IPs in the ALB target group) and the HTTPRoute (routes traffic from the domain to the frontend service).
+
+kubectl apply -f frontend.yaml
+
+--> We will just updae route53 record from old to new url.
+
+
+************
+We have to tell, we have to create gateways, crds then i thought why should we give Kubernetes more resources than it actually required?
+I proposed this solution,
+
+1. Create ALB, Listener, Rule, Target Group
+2. Then you just add targetgroupbinding to attach pods
+
+
+==> We need to create load balancer outside of Kubernetes and remove gateway
+
+==> kubectl delete -f frontend.yaml
+delete in reverse order
+==> kubectl delete -f gateway.yaml
+==> kubectl delete -f loadbalancerconfiguration.yaml
+==> kubectl delete -f gatewayclass.yaml
+
+Remove CRD's also:
+------------------
+
+kubectl delete \
+  -f https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/refs/heads/main/config/crd/gateway/gateway-crds.yaml
+  
+kubectl delete --server-side=true \
+  -f https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.5.0/standard-install.yaml
+
+git-ops. project and application at single place. If changes also single place. no chance of forgetting. DNS update takes time.
+
+ALB ACM -> git
+
+Check any infra changes -> 1st step
+Check k8 manifest -> 2nd step
+
+init containers
+fetching secret from secretmanager by pod
+networking
+
+eks targetgroupbinding search
+
+git
+
+cicd using jenkins

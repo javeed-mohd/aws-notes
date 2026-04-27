@@ -1,0 +1,394 @@
+ingress old api vs new api
+ingress api vs gateway api
+
+Do this for roboshop-infra-eks for cluster creation:
+----------------------------------------------------
+
+for i in 00-vpc/ and all;do cd $i; terraform apply -auto-approve; cd ..;done
+target group binding
+
+1. OIDC provider
+2. IAM Policy and service account creation
+3. aws load balancer controller drivers
+
+eks aws load balancer controller (browse) - git (kubernetes-sigs/aws-load-balancer-controller), website - Welcome - AWS Load Balancer Controller
+
+
+[It is already present in eks cluster creation]
+
+eksctl utils associate-iam-oidc-provider \
+    --region us-east-1 \
+    --cluster roboshop \
+    --approve
+
+eksctl create iamserviceaccount \
+--cluster=roboshop-dev \
+--namespace=kube-system \
+--name=aws-load-balancer-controller \
+--attach-policy-arn=arn:aws:iam::160885265516:policy/AWSLoadBalancerControllerIAMPolicy \
+--override-existing-serviceaccounts \
+--region us-east-1 \
+--approve
+
+eksctl delete iamserviceaccount \
+--cluster=roboshop-dev \
+--namespace=kube-system \
+--name=aws-load-balancer-controller
+
+==> aws eks updatekubeconfig --region us-east-1 --name roboshop-dev
+--> kubectl get nodes
+--> helm repo add eks https://aws.github.io/eks-charts
+
+--> helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=roboshop-dev --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
+
+Duplicate tab:
+-------------
+k9s
+namespace (kube-system) - aws lb running
+
+**********
+eks targetgroupbinding (search)
+
+
+comment loadbalancer type in frontend
+==> git clone k8s-roboshop
+--> cd k8s-roboshop/
+kubectl apply -f namespace.yaml
+for i in mongodb/ redis/ rabbbitmq/ msql/ catalogue/ cart/ user/ shipping/ payment/ debug/ frontend/;do cd $i; kubectl apply -f manifest.yaml; cd ..;done
+copy the targetgroup arn and place it in tgb.yaml in eks of roboshop-infra-eks
+
+git clone roboshop-infra-eks
+==> cd roboshop-infra-eks/50-eks/app/
+--> kubectl apply -f tgb.yaml
+
+To delete,
+--> kubectl delete -f tgb.yaml
+--> kubectl delete namespace roboshop
+
+
+
+search deployment strategy (6)
+*****
+blue green deployment:
+======================
+
+Recreate	-> stop the servers, remove old code, download new code, then start again	[Legacy applications]
+RollingUpdate	-> slowly installing new servers/pods and removing old server/pods
+no downtime, 
+Disadvantage - at this point of upgrade app serves both old and new version
+
+Blue/Green -> To overcome the disadvantage of rollingupdate, we use this,
+
+1. main service		-> Running version
+2. preview service 	-> Pointing to upcoming version
+
+running version = blue
+main service -> blue
+
+new version = green
+Attach preview service to green
+Check internally, some health checks
+If response is good
+Switch the route
+Then point main service to green -> live traffic
+Make blue replicas as 0
+
+If rollback
+Make blue replicas as 2
+Again point main service to blue
+
+double resources - double cost, by making replicas to 0 when preview service is good
+
+
+==> cd
+git clone k8s-blue-green
+cd k8s-blue-green/
+==> docker build -t javeedmohd214/blue-green:0.0.1 .
+docker login -u javeedmohd214 - password
+docker push javeedmohd214/blue-green:0.0.1
+
+--> kubectl apply -f 01-blue-deployment.yaml
+check in default namespace in k9s 4 pods should run
+
+--> kubectl apply -f 02-main-service.yaml
+check in k9s using svc nginx should run with load balancer
+
+--> kubectl delete -f 02-main-service.yaml
+Uninstall drivers if it is showing network load balancer - helm uninstall aws-load-balancer-controller -n kube-system
+
+--> kubectl apply -f 02-main-service.yaml
+check in k9s using svc nginx should run with load balancer --> We will get classic load balancer now.
+
+copy the url and hit the browser to get the response of nginx.
+
+version 0.0.1 -> blue
+
+docker build -t javeedmohd214/blue-green:0.0.2 .
+docker push javeedmohd214/blue-green:0.0.2
+
+--> kubectl apply -f 03-green-deployment.yaml
+check in default namespace in k9s 4 pods should run
+
+--> kubectl apply -f 0-preview-service.yaml
+check in k9s using svc nginx should run with load balancer
+
+Check in any pod-> press s => curl http://nginx-preview
+
+
+kubectl patch service blue-green search:
+-----------------------------------------
+
+kubectl patch service nginx -p '{"spec":{"selector":{"version":"green"}}}'
+After doing this, it will pointing to new version.
+
+kubectl patch deployment replicas search:
+------------------------------------------
+
+kubectl patch deployment nginx-blue -p '{"spec":{"replicas":0}}'
+
+if problem arises rollback to previous version,
+scale back to 4
+--> kubectl patch deployment nginx-blue -p '{"spec":{"replicas":4}}'
+
+==> kubectl patch service nginx -p '{"spec":{"selector":{"version":"blue"}}}'
+
+--> kubectl patch deployment nginx-green -p '{"spec":{"replicas":0}}'
+
+
+==> This is blue-green strategy, zero downtime only disadvantage is double resources which means double the cost. But we can address them using replicas setting to 0.
+
+
+Deployment strategies:
+=======================
+
+Recreate --> Version A is terminated then version B is rolled out.
+Ramped (also known as rolling-update or incremental) --> Version B is slowly rolled out and replacing version A.
+Blue/Green --> Version B is released alongside version A, then the traffic is switched to version B.
+Canary --> Version B is released to a subset of users, then proceed to a full rollout.
+A/B testing --> Version B is released to a subset of users under specific condition.
+Shadow --> Version B receives real-world traffic alongside version A and doesn’t impact the response.
+
+
+Recreate
+---------
+
+The recreate strategy is a dummy deployment which consists of shutting down version A then deploying version B after version A is turned off. This technique implies downtime of the service that depends on both shutdown and boot duration of the application.
+
+
+Advantages:
+--> Easy to setup.
+--> Application state entirely renewed.
+
+Disadvantages:
+--> High impact on the user, expect downtime that depends on both shutdown and boot duration of the application.
+
+
+Ramped/RollingUpdate:
+----------------------
+
+The ramped deployment strategy consists of slowly rolling out a version of an application by replacing instances one after the other until all the instances are rolled out. It usually follows the following process: with a pool of version A behind a load balancer, one instance of version B is deployed. When the service is ready to accept traffic, the instance is added to the pool. Then, one instance of version A is removed from the pool and shut down.
+
+Advantages:
+--> Easy to set up.
+--> Version is slowly released across instances.
+--> Convenient for stateful applications that can handle rebalancing of the data.
+
+Disadvantages:
+--> Rollout/rollback can take time.
+--> Supporting multiple APIs is hard.
+--> No control over traffic.
+
+Blue/Green:
+-----------
+
+The blue/green deployment strategy differs from a ramped deployment, version B (green) is deployed alongside version A (blue) with exactly the same amount of instances. After testing that the new version meets all the requirements the traffic is switched from version A to version B at the load balancer level.
+
+
+Advantages:
+--> Instant rollout/rollback.
+--> Avoid versioning issue, the entire application state is changed in one go.
+
+Disadvantages:
+--> Expensive as it requires double the resources.
+--> Proper test of the entire platform should be done before releasing to production.
+--> Handling stateful applications can be hard.
+
+Canary:
+-------
+
+A canary deployment consists of gradually shifting production traffic from version A to version B. Usually the traffic is split based on weight. For example, 90 percent of the requests go to version A, 10 percent go to version B.
+
+This technique is mostly used when the tests are lacking or not reliable or if there is little confidence about the stability of the new release on the platform.
+
+Advantages:
+--> Version released for a subset of users.
+--> Convenient for error rate and performance monitoring.
+--> Fast rollback.
+
+Disadvantage:
+--> Slow rollout.
+
+A/B testing:
+------------
+
+A/B testing deployments consists of routing a subset of users to a new functionality under specific conditions. It is usually a technique for making business decisions based on statistics, rather than a deployment strategy. However, it is related and can be implemented by adding extra functionality to a canary deployment so we will briefly discuss it here.
+
+This technique is widely used to test conversion of a given feature and only roll-out the version that converts the most.
+
+Here is a list of conditions that can be used to distribute traffic amongst the versions:
+
+-> By browser cookie
+-> Query parameters
+-> Geolocalisation
+-> Technology support: browser version, screen size, operating system, etc.
+-> Language
+
+Advantages:
+--> Several versions run in parallel.
+--> Full control over the traffic distribution.
+
+Disadvantages:
+--> Requires intelligent load balancer.
+--> Hard to troubleshoot errors for a given session, distributed tracing becomes mandatory.
+
+Shadow:
+-------
+
+A shadow deployment consists of releasing version B alongside version A, fork version A’s incoming requests and send them to version B as well without impacting production traffic. This is particularly useful to test production load on a new feature. A rollout of the application is triggered when stability and performance meet the requirements.
+
+This technique is fairly complex to setup and needs special requirements, especially with egress traffic. For example, given a shopping cart platform, if you want to shadow test the payment service you can end-up having customers paying twice for their order. In this case, you can solve it by creating a mocking service that replicates the response from the provider.
+
+Advantages:
+--> Performance testing of the application with production traffic.
+--> No impact on the user.
+--> No rollout until the stability and performance of the application meet the requirements.
+
+Disadvantages:
+--> Expensive as it requires double the resources.
+--> Not a true user test and can be misleading.
+--> Complex to setup.
+--> Requires mocking service for certain cases.
+
+
+There are multiple ways to deploy a new version of an application and it really depends on the needs and budget. When releasing to development/staging environments, a recreate or ramped deployment is usually a good choice. When it comes to production, a ramped or blue/green deployment is usually a good fit, but proper testing of the new platform is necessary.
+
+Blue/green and shadow strategies have more impact on the budget as it requires double resource capacity. If the application lacks in tests or if there is little confidence about the impact/stability of the software, then a canary, a/ b testing or shadow release can be used. If your business requires testing of a new feature amongst a specific pool of users that can be filtered depending on some parameters like geolocation, language, operating system or browser features, then you may want to use the a/b testing technique.
+
+Last but not least, a shadow release is complex and requires extra work to mock egress traffic which is mandatory when calling external dependencies with mutable actions (email, bank, etc.). However, this technique can be useful when migrating to a new database technology and use shadow traffic to monitor system performance under load.
+
+*******
+In our project, we do rollingupdate for few applications and blue-green for other applications.
+
+
+present running -> green
+
+new version blue -> 0.0.3
+point preview service to blue
+test it
+
+If fine, then switch main service to blue
+
+--> If single application upgrades it won't affect much. But, if we want to upgrade the cluster, it affects all the applications running in it. So,
+
+EKS Control plane is used to manage eks nodes, it doesn't have any responsibility related to application requests.
+When EKS master node (Control plane) is down, it can't do any new updates like kubectl apply but the application runs as it is. We can't do anything in Kubernetes like creation, deletion, updation, read and pushing of manifest files like new deployment. We can't connect to cluster. But, our application runs as it is.
+
+--> No downtime to application traffic, if your platform has some issues or doing some upgrade.
+
+
+
+***************
+EKS Cluster upgradation Process:
+1. EKS platform, blue-nodegroup
+2. Upgrade platform to new version 1.35 keep the blue-ng running in 1.34
+3. Create another nodegroup green 1.35 (this is automatic, because eks in 1.35)
+
+kubectl drain node command
+4. cordon (scheduling disabled) blue nodes, then drain blue node slowly
+
+--> When there are platform upgrades, we announce definitely downtime. 30min - 6hours		[If application upgrade means we can do 100% zero downtime]
+
+*******
+Now everyone are telling this instead of announcing downtime, you may face intermittent issues -> no downtime
+
+
+git bash:
+----------
+
+--> cd terraform-aws-eks/50-eks/
+terraform apply \
+  -var="eks_version=1.35" \
+  -var="eks_nodegroup_blue_version=1.34"	(yes)	[It generally takes 10-15 minutes for creation]
+
+==> Control plane is now 1.35, blue nodes still on 1.34 — AWS allows this (within 2 versions)
+
+
+1. Internal project teams, send your schedule -> Before 3 months
+2. Update SG, cut the access to other teams	[Only through our bastion we can access, others can't once we update the security group. So, they can't connect to their applications through the cluster]
+
+--> We don't know the exact time when upgrade handles in aws background. We don't do any activities at the time of upgrading. As administrators, we also don't do any activity at that time.
+
+
+Mobaxterm:
+----------
+
+--> cd
+==> We have to upgrade addons also for safety purpose through our bastion host.
+
+for addon in vpc-cni eks-pod-identity-agent coredns kube-proxy metrics-server; do
+  LATEST=$(aws eks describe-addon-versions \
+    --kubernetes-version 1.35 \
+    --addon-name $addon \
+    --query 'addons[0].addonVersions[0].addonVersion' \
+    --output text)
+
+  aws eks update-addon \
+    --cluster-name roboshop-dev \
+    --addon-name $addon \
+    --addon-version $LATEST \
+    --resolve-conflicts OVERWRITE \
+    --region us-east-1
+done
+
+
+git bash:
+---------
+
+--> Bring green up on the new version and keep the blue as it is
+
+terraform apply \
+  -var="eks_version=1.35" \
+  -var="eks_nodegroup_blue_version=1.34" \
+  -var="enable_green=true" \
+  -var="eks_nodegroup_green_version=1.35"
+
+
+--> kubectl get nodes [4 nodes should run]
+
+******
+==> I can upgrade the EKS cluster using blue-green and also I can upgrade the application. I can do both.
+
+In the mean time, we can access our application through load balancer url (dns name). Application won't become problem until we upgrade.
+
+
+--> Cordon all blue nodes — stops new pods scheduling on them
+kubectl cordon -l nodegroup=blue
+
+--> Drain blue nodes one by one — pods reschedule to green,
+
+==> kubectl drain $node --ignore-daemonsets --delete-emptydir-data	[In place of $node add node1 ip and then node2 ip separately]
+We have to do it individually otherwise the application will have downtime. If we have drained all the nodes at a time then we come across downtime for the application so to avoid it we drain each node separately. Because each node contains pod running in it. So, if we drain individually we don't face any downtime.
+
+
+--> Verify all pods are running on green before removing blue
+kubectl get pods -o wide
+
+PDB --> Pod Disruption Budget
+
+In gitbash:
+-----------
+--> Remove blue nodes
+terraform apply \
+  -var="eks_version=1.35" \
+  -var="enable_blue=false" \
+  -var="enable_green=true"

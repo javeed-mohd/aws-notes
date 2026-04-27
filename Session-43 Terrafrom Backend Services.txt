@@ -10,9 +10,9 @@ Git-bash -> 00(31) 10(26) 20(10) 30(4) 50(3)  MobaXterm -> 40(16), 60(6)
 Connection Establishment for the Instance/Server:
 ==================================================
 
-ssh ec2-user@private_ip of the instance 'netstat -lntp'				--> Checking network connection for the instance.
-ssh ec2-user@private_ip of the instance 'systemctl status instance'		--> Status check of the instance whether it is active or not.
-ssh ec2-user@private_ip of the instance 'curl http://localhost:8080/health'	--> Health check of the instance.
+ssh ec2-user@private_ip of the instance 'netstat -lntp'							--> Checking network connection for the instance.
+ssh ec2-user@private_ip of the instance 'systemctl status instance'				--> Status check of the instance whether it is active or not.
+ssh ec2-user@private_ip of the instance 'curl http://localhost:8080/health'		--> Health check of the instance.
 
 
 1. Launch catalogue instance
@@ -151,9 +151,9 @@ Example Configuration:
 
 Setting	Value	Meaning
 =============	=======
-Minimum	2	Always keep at least 2 instances
-Desired	4	Maintain 4 instances normally
-Maximum	10	Scale up to 10 during high load
+Minimum	2		Always keep at least 2 instances
+Desired	4		Maintain 4 instances normally
+Maximum	10		Scale up to 10 during high load
 
 ==> How Scaling Works
 

@@ -345,13 +345,13 @@ Disadvantages:
 --> Port conflicts (can’t run two apps on same port)
 
 
-Feature			Bridge Network 		Host Network 
-=======			==============		============
-IP Address		Separate		Same as host
-Isolation		High			Low
-Performance		Slightly lower		Higher
-Port Mapping		Required		Not needed
-Use Case		Most apps		High-performance or testing
+Feature         Bridge Network          Host Network 
+========        ==============          ============
+IP Address      Separate                Same as host
+Isolation       High                    Low
+Performance     Slightly lower          Higher
+Port Mapping    Required                Not needed
+Use Case        Most apps               High-performance or testing
 
 
 Docker uses by default bridge network

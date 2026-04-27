@@ -1,0 +1,245 @@
+state and remote state:
+=======================
+
+data.tf
+ec2.tf
+locals.tf
+variables.tf
+
+resource "aws_instance" "frontend" {
+
+}
+
+locals:
+=======
+
+local-exec -> Where terraform executes
+remote-exec -> Executes inside the resources created by terraform
+
+Multiple environments using terraform:
+
+1. workspaces (Tell as we have used earlier)
+2. tfvars
+3. separate repos
+
+
+1. Workspaces:
+==============
+
+If we want to create multiple environments, we can make use of terraform workspaces. Terraform will give us special variable called terraform.workspace. Using this variable, we can control the values in different environments.
+
+We should have different names in every resource, otherwise we may encounter duplicates or errors.
+
+terraform.workspace=dev
+terraform.workspace=default
+terraform.workspace=prod
+
+terraform workspace select dev/prod
+
+dev -> t3.micro
+uat -> t3.small
+prod -> t3.medium
+
+==> terraform workspace --help
+Usage: terraform [global options] workspace
+
+  new, list, show, select and delete Terraform workspaces.
+
+Subcommands:
+    delete    Delete a workspace
+    list      List Workspaces
+    new       Create a new workspace
+    select    Select a workspace
+    show      Show the name of the current workspace
+
+
+TERRAFORM WORKSPACE:
+====================
+
+Each workspace has its own state file.
+
+Example:
+-> default → main state
+-> dev → separate state
+-> prod → separate state
+
+This allows you to deploy the same infrastructure code multiple times without conflicts....
+
+1. terraform workspace list:
+============================
+
+Lists all available workspaces.
+
+CMD: 
+~~~~
+terraform workspace list
+
+Example output:
+->   default
+-> * dev
+->   prod
+
+* → currently selected workspace. 
+
+2. terraform workspace new:
+===========================
+
+Creates a new workspace.
+
+CMD:
+~~~~
+terraform workspace new dev
+
+After running this:
+-> A new state file is created for dev
+-> You automatically switch to it
+
+3. terraform workspace select:
+==============================
+
+Switch to an existing workspace.
+
+CMD:
+~~~~
+terraform workspace select prod
+
+Now Terraform will use the prod state file.
+
+4. terraform workspace show:
+============================
+
+Shows the current workspace.
+
+CMD:
+~~~~
+terraform workspace show
+
+Output:
+-> dev 
+
+5. terraform workspace delete:
+==============================
+
+Deletes a workspace.
+
+CMD:
+~~~~
+terraform workspace delete dev
+
+-> You cannot delete the currently selected workspace.
+-> You cannot delete default.
+
+
+Advantages:
+===========
+
+1. Same code
+2. Consistent environments
+
+Disadvantages:
+==============
+
+-> Since code is same, we should be very careful, because it applies to prod also.
+
+
+2. tfvars (TFVARS):
+===================
+
+Advantages:
+===========
+
+1. Same code
+2. consistent environments
+
+Disadvantages:
+==============
+
+-> Since code is same, we should be very careful, because it applies to prod also.
+
+[I am in prod,
+I applied dev values]
+
+
+1. command line
+2. tfvars
+3. env variable
+4. default values
+5. prompt
+
+- dev
+- prod
+
+isolation -> non-prod and prod
+different accounts for different environments
+different repository
+
+aws configure
+terraform workspace select dev
+
+
+3. SEPARATE REPOS:
+==================
+
+terraform-ec2-dev
+terraform-ec2-prod
+
+Advantages:
+===========
+
+-> Clear isolation
+-> Blast radius(how much infrastructure is affected by a change) is zero
+-> Separate states
+
+Disadvantages:
+==============
+
+-> Repeat code (Duplication)
+
+
+
+TERRAFORM MODULES:
+==================
+
+==> To overcome the workspaces, tfvars and separate repos we use terraform modules....
+
+*** Functions -> A repeated task, it will be executed whenever we call. It will take inputs and give outputs...
+
+a.sh
+common.sh
+
+a -> function common.sh
+
+1. Enforce(Implement) best standards
+2. Code reuse (No duplicate code)
+3. Easy maintenance
+
+Branch names -> dev, uat and prod
+Feature and main
+Code and Configuration
+
+tfvars/
+	dev.tfvars
+	uat.tfvars
+	prod.tfvars
+
+
+
+TFVARS:
+=======
+
+==> terraform init --help
+
+==> terraform init -backend-config=dev/backend.tf (You can do it for multiple environments accordingly). It is for pointing to the environment which has to be configured.
+==> terraform init -reconfigure -backend-config=dev/backend.tf (To configure prod folder) 
+We use reconfigure to change the environment from one(dev) to other(prod).
+
+
+==> terraform plan --help
+
+Check accordingly to which it is pointed to while planning or applying terraform.... We have control for only values not keys because keys are fixed by terraform
+
+==> terraform plan -var-file=dev/dev.tfvars
+==> terraform plan -var-file=prod/prod.tfvars
+
+==> terraform apply -auto-approve -var-file=dev/dev.tfvars
+==> terraform apply -auto-approve -var-file=prod/prod.tfvars

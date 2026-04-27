@@ -1,0 +1,419 @@
+DOCKER_HOME = /var/lib/docker
+
+docker rm -f $(docker ps -aq) ==> To Remove all the containers which are created and running.
+
+docker rmi -f $(docker images -aq) ==> To Remove all the created images.
+
+
+docker run -d -p 80:80 --network roboshop --name frontend frontend:1.0.0 ==> Important, We are using port 80:80 to expose it to the public so that they can access it.
+
+1. Build the image
+2. Run the image, before running the image we need to make sure custom bridge network is created. (docker network create roboshop)
+
+If we do any changes in the docker files, then we need to rebuild the container...
+
+We should not use containers, if there size is more than 1 GB...
+
+Best practice is that container/image size should be less...Maximum less than 1GB or even less.
+
+If image is less the scaling will be fast so that we access it faster.
+
+FROM -> refer base OS
+RUN -> to configure image
+CMD -> command executed at the time of container creation
+LABEL -> metadata of the image
+EXPOSE -> port information
+ADD -> same as COPY but 2 extra capabilities. can download content directly from internet and untar the file.
+COPY -> copy the files from local to image
+USER -> to mention the user that container should be running on
+WORKDIR -> working directory of the image/container
+ENV -> env variables to the container
+ARG -> variables to the image at build time, can't be accessed inside container. ARG can be first instruction before 	FROM to supply the version
+ENTRYPOINT -> command to be executed while creating container. it can't be overridden, if we try it will go append. CMD can be overridden. CMD can supply default args for ENTRYPOINT. If we want our own args, we can always override CMD at run time.
+
+Commands for docker installation in Linux RHEL (Install Docker):
+================================================================
+
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
+
+ONBUILD:
+========
+Our image can be used by someone else. but we want to put some conditions to use our image. that can be enforced using ONBUILD instruction.
+
+our nginx image expects index.html while it is used by others.
+
+OS -> 8,9,10, etc.,
+Configurations -> packages update
+Programming languages -> nodejs 20,21, etc.,
+
+If we want to manage OS, we have to use Ansible... It becomes heavy maintenance. So, we use docker to avoid os maintenance as docker handles by its own. This is the major advantage in docker containerization. We don't need to manage OS while using Docker.
+
+Ansible is mainly used by Linux Administration.
+
+We can DOWNLOAD each component folder from their files in roboshop-documentation
+
+
+Docker uses by default bridge network
+Default bridge network containers can't communicate with each other.
+
+you should create your own bridge network, so that they can communicate with each other ==> docker network create roboshop
+
+docker network create roboshop
+e59d9c6f2f8df6f165ec28fa9b1957506709ded08e1653f6cd60f30c6671b20f
+
+
+docker network ls
+NETWORK ID     NAME       DRIVER    SCOPE
+fc98b5b25b3f   bridge     bridge    local
+ecab0dc77d1d   host       host      local
+c6fa9089ee43   none       null      local
+e59d9c6f2f8d   roboshop   bridge    local
+
+docker network disconnect bridge mongodb
+docker network disconnect bridge catalogue
+docker network connect roboshop mongodb
+docker network connect roboshop catalogue
+
+
+1. MONGODB:
+===========
+
+cd docker-roboshop/
+ls -l
+cd mongodb/
+docker build -t mongodb:1.0.0 .
+--> docker images
+
+--> docker run -d --name mongodb mongodb:1.0.0
+
+--> docker ps
+
+2. CATALOGUE:
+=============
+
+cd docker-roboshop/
+ls -l
+cd catalogue/
+docker build -t catalogue:1.0.0 .
+docker images
+ 
+docker run -d --name catalogue catalogue:1.0.0
+
+docker ps
+
+docker exec -it catalogue bash
+root@812d7177957e:/app# curl http://localhost:8080/health
+{"app":"OK","mongo":false}root@812d7177957e:/app# exit
+exit
+
+docker logs catalogue
+
+ifconfig --> To see IP Information in server.
+
+
+ifconfig
+br-e59d9c6f2f8d: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 172.18.0.1  netmask 255.255.0.0  broadcast 172.18.255.255
+        inet6 fe80::b802:aaff:fee8:c89d  prefixlen 64  scopeid 0x20<link>
+        ether ba:02:aa:e8:c8:9d  txqueuelen 0  (Ethernet)
+        RX packets 15990  bytes 1180236 (1.1 MiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 17559  bytes 69963796 (66.7 MiB)
+        TX errors 0  dropped 3 overruns 0  carrier 0  collisions 0
+
+docker inspect mongodb 		==> Runs on IP --> "Gateway": "172.18.0.1", "IPAddress": "172.18.0.2" where gateway=our own bridge network
+docker inspect catalogue	==> Runs on IP --> "Gateway": "172.18.0.1", "IPAddress": "172.18.0.3" where gateway=our own bridge network
+
+Now, we can able to connect catalogue component,
+ 
+==> docker exec -it catalogue bash
+root@812d7177957e:/app# curl http://localhost:8080/health
+{"app":"OK","mongo":true}root@812d7177957e:/app#
+
+
+3. FRONTEND:
+============
+
+cd docker-roboshop/
+ls -l
+cd frontend/
+docker build -t frontend:1.0.0 .
+docker images
+
+docker run -d -p 80:80 --network roboshop --name frontend frontend:1.0.0 ==> Important, We are using port 80:80 to expose it to the public so that they can access it.
+
+docker ps
+
+docker logs frontend
+
+docker exec -it frontend bash 
+root@4f75bb0e4a6b:/# cat /etc/nginx/nginx.conf
+
+root@4f75bb0e4a6b:/# cd /etc/nginx/
+root@4f75bb0e4a6b:/etc/nginx# ls -l
+root@4f75bb0e4a6b:/etc/nginx# cd conf.d/
+root@4f75bb0e4a6b:/etc/nginx/conf.d# ls -l
+total 4
+-rw-r--r-- 1 root root 1093 Mar 28 11:32 default.conf
+
+root@4f75bb0e4a6b:/etc/nginx/conf.d# cat default.conf ==> WE NEED TO CHANGE THIS OTHERWISE CATEGORIES WON'T LOAD IN THE CATALOGUE COMPONENT... REMOVE IT. and follow from starting process and remove the earlier frontend container and create new one.
+
+
+4. REDIS:
+=========
+
+We can run directly as we are not doing any changes to the image.
+
+docker run -d --network roboshop --name redis redis:7
+
+docker ps
+
+
+5. USER:
+========
+
+cd docker-roboshop/
+ls -l
+cd user/
+docker build -t user:1.0.0 .
+
+docker run -d --network roboshop --name user user:1.0.0
+
+Now, we can able to connect user component,
+ 
+==> docker exec -it user bash
+root@812d7177957e:/app# curl http://localhost:8080/health
+{"app":"OK","mongo":true}root@812d7177957e:/app#
+
+
+6. CART:
+========
+
+cd docker-roboshop/
+ls -l
+cd cart/
+docker build -t cart:1.0.0 .
+
+docker run -d --network roboshop --name cart cart:1.0.0
+
+Now, we can able to connect cart component,
+ 
+==> docker exec -it cart bash
+root@812d7177957e:/app# curl http://localhost:8080/health
+{"app":"OK","mongo":true}root@812d7177957e:/app#
+
+
+docker ps
+
+docker images
+
+
+7. MYSQL:
+==========
+
+docker build -t mysql:1.0.0 .
+
+docker run -d --network roboshop --name MySQL MySQL:1.0.0
+
+(OR)
+
+We can run directly as we are not doing any changes to the image.
+
+docker run -d --network roboshop -e MYSQL_ROOT_PASSWORD=RoboShop@1 -v "$(pwd)/db:/tmp/sql_files" --name mysql mysql:8.0
+
+docker ps
+
+
+8. SHIPPING:
+============
+
+cd docker-roboshop/
+ls -l
+cd shipping/
+docker build -t shipping:1.0.0 .
+
+docker run -d --network roboshop --name shipping shipping:1.0.0
+
+docker ps
+
+docker exec -it shipping bash
+root@4b2f1cf75c06:/app# curl http://localhost:8080/health
+OKroot@4b2f1cf75c06:/app#
+
+
+9. RABBITMQ:
+============
+
+We can run directly as we are not doing any changes to the image.
+
+docker run -d --network roboshop -p 5672:5672 -p 15672:15672 -e RABBITMQ_DEFAULT_USER=roboshop -e RABBITMQ_DEFAULT_PASS=roboshop123 --name rabbitmq rabbitmq:3-management
+
+docker ps
+
+10. PAYMENT:
+============
+
+cd docker-roboshop/
+ls -l
+cd payment/
+docker build -t payment:1.0.0 .
+
+docker run -d --network roboshop --name payment payment:1.0.0
+
+docker exec -it payment bash
+[root@0bd813e93180 app]# curl http://localhost:8080/health
+OK[root@0bd813e93180 app]#
+
+
+--> docker ps
+
+--> docker images
+
+DOCKER NETWORK:
+=================
+
+docker network ls
+NETWORK ID     NAME      DRIVER    SCOPE
+fc98b5b25b3f   bridge    bridge    local
+ecab0dc77d1d   host      host      local
+c6fa9089ee43   none      null      local
+
+Bridge Network
+==============
+
+A bridge network creates a virtual network inside your system.
+
+How it works:
+
+--> Your VM/container gets its own IP address
+--> It connects through a virtual bridge (like a mini router inside your machine)
+Traffic goes:
+Container → Bridge → Host → Internet
+
+Example:-
+=======
+In Docker:
+
+Default network = bridge
+Containers can talk to each other using internal IPs
+
+Advantages:
+
+--> Isolation (containers are separate from host)
+--> Safer (not directly exposed)
+--> Multiple containers can communicate internally
+
+Disadvantages:
+
+--> Slightly more complex
+--> Requires port mapping (e.g., -p 8080:80)
+
+
+Host Network:
+=============
+
+A host network means the container/VM uses the same network as your computer directly.
+
+How it works:
+
+--> No separate IP
+--> Uses the host’s IP address
+--> Acts like a normal app running on your system
+
+Example:-
+========
+In Docker:
+
+--network host
+
+==> App inside container runs directly on your machine’s ports
+
+Advantages:
+
+--> Faster (no network translation)
+--> Simpler (no port mapping needed)
+
+Disadvantages:
+
+--> Less secure (no isolation)
+--> Port conflicts (can’t run two apps on same port)
+
+
+Feature			Bridge Network 		Host Network 
+=======			==============		============
+IP Address		Separate		Same as host
+Isolation		High			Low
+Performance		Slightly lower		Higher
+Port Mapping		Required		Not needed
+Use Case		Most apps		High-performance or testing
+
+
+Docker uses by default bridge network
+Default bridge network containers can't communicate with each other.
+
+you should create your own bridge network, so that they can communicate with each other ==> docker network create roboshop
+
+docker network create roboshop
+e59d9c6f2f8df6f165ec28fa9b1957506709ded08e1653f6cd60f30c6671b20f
+
+docker network ls
+NETWORK ID     NAME       DRIVER    SCOPE
+fc98b5b25b3f   bridge     bridge    local
+ecab0dc77d1d   host       host      local
+c6fa9089ee43   none       null      local
+e59d9c6f2f8d   roboshop   bridge    local
+
+docker network disconnect bridge mongodb
+docker network disconnect bridge catalogue
+docker network connect roboshop mongodb
+docker network connect roboshop catalogue
+
+ifconfig
+br-e59d9c6f2f8d: flags=4163<UP,BROADCAST,RUNNING,MULTICAST>  mtu 1500
+        inet 172.18.0.1  netmask 255.255.0.0  broadcast 172.18.255.255
+        inet6 fe80::b802:aaff:fee8:c89d  prefixlen 64  scopeid 0x20<link>
+        ether ba:02:aa:e8:c8:9d  txqueuelen 0  (Ethernet)
+        RX packets 15990  bytes 1180236 (1.1 MiB)
+        RX errors 0  dropped 0  overruns 0  frame 0
+        TX packets 17559  bytes 69963796 (66.7 MiB)
+        TX errors 0  dropped 3 overruns 0  carrier 0  collisions 0
+
+docker inspect mongodb 		==> Runs on IP --> "Gateway": "172.18.0.1", "IPAddress": "172.18.0.2" where gateway=our own bridge network
+docker inspect catalogue	==> Runs on IP --> "Gateway": "172.18.0.1", "IPAddress": "172.18.0.3" where gateway=our own bridge network
+
+Now, we can able to connect catalogue component,
+ 
+==> docker exec -it catalogue bash
+root@812d7177957e:/app# curl http://localhost:8080/health
+{"app":"OK","mongo":true}root@812d7177957e:/app#
+
+
+
+1. host -> you no need docker interface, directly connect to host.
+2. bridge -> docker creates another virtual network interface inside server and allocates the IP address to containers.
+
+docker run --network host nginx ==> If we don't want default network then use host network.
+
+==> If we use host network, it is not secure and also we cannot use multiple ports.
+
+docker default bridge network can't communicate between containers
+
+1. use bridge network
+2. create your own network interface
+
+docker run -d --network roboshop -p 5672:5672 -p 15672:15672-e RABBITMQ_DEFAULT_USER=roboshop -e RABBITMQ_DEFAULT_PASS=roboshop123 --name rabbitmq rabbitmq:3
+
+roboshop bridge: 172.18.0.1
+172.18.0.2
+172.18.0.3
+
+--> When you install docker, it creates one bridge network with name also as bridge
+--> By default containers get IP address from this network with name bridge
+--> If you use default bridge network you can not communicate between the containers using names
+--> You should create your own bridge network to communicate with each other.

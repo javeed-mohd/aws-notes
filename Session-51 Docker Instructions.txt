@@ -275,7 +275,7 @@ ARG -> provide variables to image
 
 docker build -t --build-arg username=what_user . ==> docker build -t --build-arg version=9 . 
 
-==> ARG instruction of version can't be used beyond FROM instruction. It is allowed until FROM and then it won't apply anything from the very next line of FROM instruction...
+==> ARG instruction of version can't be used beyond FROM instruction. It is allowed until FROM and then it won't apply anything from the very next line of FROM instruction.
 
 USER:
 ======

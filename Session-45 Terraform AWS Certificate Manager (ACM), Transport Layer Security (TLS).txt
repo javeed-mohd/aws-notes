@@ -1,0 +1,137 @@
+-> HTTPS (443)(Hyper Text Transfer Protocol Secure).
+-> TLS (Transport Layer Security) [Update Version of SSL(Secure Sockets Layer)]
+
+==>  scp ca_bundle.crt ec2-user@44.220.153.183:/tmp = Source copy of ZeroSSL
+
+FACTS:
+======
+
+--> Any message encrypted with Ramesh's public key can only be decrypted with Ramesh's private key.
+
+==> 30 locks with the same key.
+
+--> Anyone with access to Ramesh's public key can verify that a message could only have been created by someone with access to Ramesh's private key.
+
+==> AWS Certification -> certificate -> ID and Website to validate
+
+--> A private key can always derive the public key. A public key can never derive the private key.
+
+==> private key = public key + other elements (For accessing) [ Public key can never derive the private key]
+
+***
+One line to remember: HTTPS is the goal. TLS is how it works. SSL was the original attempt, now retired.
+
+TLS is the encryption standard. HTTP uses TLS to become HTTPS. Similarly, TLS can work with many other protocols to encrypt data in communication between devices.
+***
+
+STAKEHOLDERS:
+=============
+
+Website owner -> The company or developer who generates keys, obtains the certificate and deploys it on the server.
+End user      -> The visitor — their browser silently validates the certificate before any data flows.
+
+Declaration -> Self declaration
+
+Attestation notary
+
+CA (Certificate Authority)	-> joindevops.com -> Provide TLS Certificate -> Verifies domain ownership and issues the signed certificate. Ex:- Let's Encrypt, DigiCert, ZeroSSL.
+Domain registrar		-> Where the domain name is registered — used during domain ownership validation Ex:- GoDaddy, Namecheap.
+
+
+KEY OBJECTS:
+============
+
+Private Key		-> Main, used to sign the certificate signing request and decrypt SSL sessions -> Never Shared to anyone.
+Public Key		-> Derived from private key, present inside the certificate                    -> Can be shared with anyone.
+CSR			-> Certificate Signing Request has public key, identity(company) information, signature which is sent to CA to get TLS certificate.
+Certificate(.crt)	-> Issued by CA after domain validation which contains public key, domain, validity dates and CA's signature.
+
+
+CERTIFICATE CHAIN:
+==================
+
+Manufacture (US) -> UAE (Exports) -> India (Main distributor) -> Wholesale -> Retail/Local Seller -> End User
+
+Certificate Authority -> Only few CA browsers and OS trust
+
+Intermediate Certificate Authorities (Reseller of Root CA)
+
+Root CA -> Intermediate CA -> Certificate
+
+
+Self-Signed Certificates:
+=========================
+
+It is used only for testing and dev environment.
+
+We will create public and private key for our website. We generate Certificate Signing Request(CSR)
+Certificate Signing Request(CSR) = Public key signed by our private key + Identity(Company) information + Validity + Domain information
+
+From private key we can generate public key but vice-versa is not possible(public key can not generate private key).
+
+SAN configuration:
+openssl req -new -key private.pem -config san.cnf -out csr.pem
+
+
+Process (From HTTP to HTTPS):
+=============================
+
+1. Browser(Client) Hello.
+2. Server acknowledge and sends the certificate.
+3. Browser validates whether common name inside certificate and client entered website(domain) are same.
+   Certificate Signing Request(CSR) = Public key signed by our private key + Identity(Company) information + Validity + Domain information
+4. If same, it generates a random key and encrypt with public key.
+5. Server decrypts that key with private key and send response to the client(browser).
+6. If response matches, then browser confirms that it is connecting to the proper(exact) server.
+7. From now onwards, every data between browser and server will be encrypted with that random key.
+
+Nginx(Web Server) -> Website
+Nginx(Web Server) -> Certificate + Public Key
+
+where the validation happens, there termination happens[SSL termination] until then it uses encryption, after terminating we use decryption inside the project.
+
+SSL termination
+
+devopsdaws.online
+*.devopsdaws.online
+www.devopsdaws.online
+
+
+https://frontend-dev.devopsdaws.online
+
+
+ROOT CA List:
+=============
+
+Commonly Trusted Root CAs (As of 2025-2026):
+
+DigiCert: Known for a wide range of roots (e.g., DigiCert Assured ID Root CA) used in enterprise and government sectors.
+Let's Encrypt: Extremely common for free web certificates (Root: ISRG Root X1).
+Sectigo (formerly Comodo): A major provider of various SSL certificate types.
+GlobalSign: Frequently used for domain validation and organization validation.
+Entrust: Known for high-assurance and EV certificates.
+Amazon Trust Services: Commonly used for AWS and web services (e.g., Amazon Root CA 2, 3, 4).
+GoDaddy: A major, widely trusted root authority.
+SwissSign: Trusted for European compliance.
+
+
+ZEROSSL Account:
+================
+
+devopsdaws.online only one [www.devopsdaws.online]
+Create by AWS Certificates Manager - *.devopsdaws.online
+
+https://frontend-dev.devopsdaws.online want to create certificate for this which matches *.devopsdaws.online
+
+We can use AWS Certificate Manager(ACM) which is also one of the root CA...
+
+
+Certificate chain:
+==================
+
+-> certificate
+-> ca_bundle
+-> private key
+
+==> certificate + ca_bundle = public= final certificate chain
+==> private key = private

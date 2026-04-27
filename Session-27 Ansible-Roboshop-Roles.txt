@@ -1,0 +1,249 @@
+Important for configuration:
+============================
+
+aws configure (Provide aws id, key, region)
+git clone https://github.com/javeed-mohd/ansible-roboshop.git
+cd ansible-roboshop/
+pip3.9 install botocore boto3
+
+
+tree roles/MySQL ==> to check the output of MYSQL component
+
+Issues in Ansible:
+==================
+
+code and configuration
+1. not confidential -> URL, variables
+2. confidential -> username, passwords
+
+mongodb-dev.devopsdaws.online
+
+DRY --> Don't Repeat Yourself
+
+Ansible Roles:
+==============
+Ansible role is proper directory structure of creating, managing and reusing playbooks. We can breakdown playbooks into multiple components like tasks, handlers, vars, meta, templates, files, etc. by default ansible loads main.yaml in these directories....
+
+
+ANSIBLE CONFIGURATION:
+======================
+
+1. ANSIBLE_CONFIG (environment variable if set)
+2. ansible.cfg (PWD -> Current Directory) ===> It is the most convenient way because we can give separate config settings for each repository accordingy...
+3. .ansible.cfg  (User Home Directory)
+4. /etc/ansible/ansible.cfg
+
+DEFAULT ==> /etc/ansible/ansible.cfg
+
+1. ANSIBLE_CONFIG:
+==================
+
+-> mkdir test
+-> cd test/
+-> touch ansible.cfg
+-> cd
+-> export ANSIBLE_CONFIG=/home/ec2-user/test/ansible.cfg
+-> ansible --version
+
+ansible [core 2.14.18]
+  config file = /home/ec2-user/test/ansible.cfg
+  configured module search path = ['/home/ec2-user/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /usr/lib/python3.9/site-packages/ansible
+  ansible collection location = /home/ec2-user/.ansible/collections:/usr/share/ansible/collections
+  executable location = /usr/bin/ansible
+  python version = 3.9.25 (main, Nov 10 2025, 00:00:00) [GCC 11.5.0 20240719 (Red Hat 11.5.0-11)] (/usr/bin/python3)
+  jinja version = 3.1.2
+  libyaml = True
+
+To unset the config ==> unset ANSIBLE_CONFIG
+
+2. ansible.cfg (PWD -> Current Directory):
+==========================================
+
+-> ls -l
+total 0
+drwxr-xr-x 4 ec2-user ec2-user 69 Feb 19 08:41 ansible-roboshop-roles
+drwxr-xr-x 2 ec2-user ec2-user 25 Feb 19 08:52 test
+-> cd test/
+-> ls -l
+total 0
+-rw-r--r-- 1 ec2-user ec2-user 0 Feb 19 08:52 ansible.cfg  (Because, we have created it earlier).
+-> ansible --version
+
+ansible [core 2.14.18]
+  config file = /home/ec2-user/test/ansible.cfg
+  configured module search path = ['/home/ec2-user/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /usr/lib/python3.9/site-packages/ansible
+  ansible collection location = /home/ec2-user/.ansible/collections:/usr/share/ansible/collections
+  executable location = /usr/bin/ansible
+  python version = 3.9.25 (main, Nov 10 2025, 00:00:00) [GCC 11.5.0 20240719 (Red Hat 11.5.0-11)] (/usr/bin/python3)
+  jinja version = 3.1.2
+  libyaml = True
+
+To unset move a step back ==> cd ..
+
+3. .ansible.cfg (User Home Directory):
+======================================
+
+-> ls -l
+total 0
+drwxr-xr-x 4 ec2-user ec2-user 69 Feb 19 08:41 ansible-roboshop-roles
+drwxr-xr-x 2 ec2-user ec2-user 25 Feb 19 08:52 test
+-> touch .ansible.cfg
+-> ansible --version
+
+ansible [core 2.14.18]
+  config file = /home/ec2-user/.ansible.cfg
+  configured module search path = ['/home/ec2-user/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /usr/lib/python3.9/site-packages/ansible
+  ansible collection location = /home/ec2-user/.ansible/collections:/usr/share/ansible/collections
+  executable location = /usr/bin/ansible
+  python version = 3.9.25 (main, Nov 10 2025, 00:00:00) [GCC 11.5.0 20240719 (Red Hat 11.5.0-11)] (/usr/bin/python3)
+  jinja version = 3.1.2
+  libyaml = True
+
+
+Searched mongo.repo from all these:
+===================================
+
+/home/ec2-user/ansible-roboshop-roles/roles/mongodb/files/mongo.repo
+/home/ec2-user/ansible-roboshop-roles/roles/mongodb/mongo.repo
+/home/ec2-user/ansible-roboshop-roles/roles/mongodb/tasks/files/mongo.repo
+/home/ec2-user/ansible-roboshop-roles/roles/mongodb/tasks/mongo.repo
+/home/ec2-user/ansible-roboshop-roles/files/mongo.repo
+/home/ec2-user/ansible-roboshop-roles/mongo.repo
+
+Catalogue depends on common folder is defined by META directory, so that we can use whatever required for our component(catalogue, cart, user,....) file.
+
+In common folder, we keep:
+-> nodejs_setup -> enable, install nodejs, install dependencies
+-> app_setup -> create directory, create system user, download code, unarchive code
+-> system_setup
+
+In META/main.yaml file we can mention dependencies...
+
+1. Load catalogue role
+2. Ansible finds META directory and main.yaml
+3. It depends on common role
+4. Ansible executes main.yaml in common/tasks folder
+5. Now ansible starts executing catalogue/tasks/main.yaml
+6. We extracted common code into common/app-setup.yaml
+7. Ansible imports this into catalogue/tasks/main
+
+failed_when: If you want to fail the task, ansible exit
+changed_when: If rc=0, ansible considers as changed
+
+
+ANSIBLE ROLES:
+==============
+
+roles/
+    common/               # this hierarchy represents a "role"
+        tasks/            #
+            main.yml      #  <-- tasks file can include smaller files if warranted
+        handlers/         #
+            main.yml      #  <-- handlers file
+        templates/        #  <-- files for use with the template resource
+            ntp.conf.j2   #  <------- templates end in .j2
+        files/            #
+            bar.txt       #  <-- files for use with the copy resource
+            foo.sh        #  <-- script files for use with the script resource
+        vars/             #
+            main.yml      #  <-- variables associated with this role
+        defaults/         #
+            main.yml      #  <-- default lower priority variables for this role
+        meta/             #
+            main.yml      #  <-- role dependencies
+        library/          # roles can also include custom modules
+        module_utils/     # roles can also include custom module_utils
+        lookup_plugins/   # or other types of plugins, like lookup in this case
+
+
+ANSIBLE-ROBOSHOP-ROLES FLOW EXECUTION PROCESS:
+==============================================
+
+If not given main.yaml in the folder then we need to call it explicitly....(only if given main.yaml in tasks, then it will be executed otherwise it won't...)
+
+=====> ansible-playbook -e component="{{ component }}" roboshop.yaml (No need of inventory.ini, user, password as we already provided in group_vars and inventory.ini files) 
+
+=====> ansible-playbook -vv -e component="{{ component }}" roboshop.yaml (Debug mode, it gives huge logs and gives everything what happens in the background of ansible[If wanted in more detail then use -vvv])....
+
+======> MULTIPLE CREATION: ansible-playbook -e component=catalogue roboshop.yaml ; ansible-playbook -e component=redis roboshop.yaml ; ansible-playbook -e component=user roboshop.yaml ; ansible-playbook -e component=cart roboshop.yaml ; ansible-playbook -e component=mysql roboshop.yaml
+
+
+==> We can also give separate component values file in group_vars or else we can provide them in inventory.ini as well...
+
+==> Template has placeholders so we used .j2 extension here to define catalogue.service as template and Files do not have placeholders.... (But .j2 extension is not mandatory)
+
+
+1. MONGODB => ROBOSHOP.YAML (Loads the mongodb component) -> It loads all main.yaml files of MONGODB FOLDER -> ROLES/MONGODB/FILES/mongo.repo -> ROLES/MONGODB/TASKS/main.yaml (main content). [Database]
+
+2. CATALOGUE => ROBOSHOP.YAML (Loads the catalogue component) -> It loads all main.yaml files of CATALOGUE FOLDER -> ROLES/CATALOGUE/META/main.yaml (which consists dependencies[role: common]) -> [ROLES/COMMON/TASKS/main.yaml(Pre setup)(No-need use if required accordingly...)] -> ROLES/CATALOGUE/TASKS/main.yaml -> ROLES/COMMON/app-setup.yaml (Common code extraction and other process too) -> ROLES/CATALOGUE/TASKS/main.yaml (Extracted common code will be imported into this file) -> ROLES/CATALOGUE/TEMPLATES/main.yaml (catalogue.service.j2 file) -> ROLES/CATALOGUE/TASKS/main.yaml -> ROLES/CATALOGUE/FILES/mongo.repo (To load the products) -> ROLES/CATALOGUE/TASKS/main.yaml (main content). [It is dependent on MongoDB] {Backend Service}
+
+3. REDIS => ROBOSHOP.YAML (Loads the redis component) -> It loads all main.yaml files of REDIS FOLDER -> ROLES/REDIS/TASKS/main.yaml (main content) [Database]
+
+4. USER => ROBOSHOP.YAML (Loads the user component) -> It loads all main.yaml files of USER FOLDER -> ROLES/USER/META/main.yaml (which consists dependencies[role: common]) -> ROLES/USER/TASKS/main.yaml -> ROLES/COMMON/app-setup.yaml (Common code extraction and other process too) -> ROLES/USER/TASKS/main.yaml (Extracted common code will be imported into this file) -> ROLES/USER/TEMPLATES/main.yaml (user.service.j2 file) -> ROLES/USER/TASKS/main.yaml  [It is dependent on MongoDB] {Backend Service}
+
+5. CART => ROBOSHOP.YAML (Loads the cart component) -> It loads all main.yaml files of CART FOLDER -> ROLES/CART/META/main.yaml (which consists dependencies[role: common]) -> ROLES/CART/TASKS/main.yaml -> ROLES/COMMON/app-setup.yaml (Common code extraction and other process too) -> ROLES/CART/TASKS/main.yaml (Extracted common code will be imported into this file) -> ROLES/CART/TEMPLATES/main.yaml (cart.service.j2 file) -> ROLES/CART/TASKS/main.yaml [It is dependent on Redis] {Backend Service}
+
+6. MYSQL => ROBOSHOP.YAML (Loads the mysql component) -> It loads all main.yaml files of MYSQL FOLDER -> ROLES/MYSQL/TASKS/main.yaml (main content) [Database]
+
+7. RABBITMQ => ROBOSHOP.YAML (Loads the rabbitmq component) -> It loads all main.yaml files of RABBITMQ FOLDER -> ROLES/RABBITMQ/FILES/rabbitmq.repo (It loads RabbitMQ repository) -> ROLES/RABBITMQ/TASKS/main.yaml (main content). [Message Queue]
+
+8. SHIIPPING => ROBOSHOP.YAML (Loads the shipping component) -> It loads all main.yaml files of SHIPPING FOLDER -> ROLES/SHIIPING/META/main.yaml (which consists dependencies[role: common]) -> ROLES/SHIPPING/TASKS/main.yaml -> ROLES/COMMON/app-setup.yaml (Common code extraction and other process too) -> ROLES/SHIPPING/TASKS/main.yaml (Extracted common code will be imported into this file) -> ROLES/SHIPPING/TEMPLATES/main.yaml (shipping.service.j2 file) -> ROLES/SHIPPING/TASKS/main.yaml {Backend Service}
+
+9. PAYMENT => ROBOSHOP.YAML (Loads the payment component) -> It loads all main.yaml files of PAYMENT FOLDER -> ROLES/PAYMENT/META/main.yaml (which consists dependencies[role: common]) -> ROLES/PAYMENT/TASKS/main.yaml -> ROLES/COMMON/app-setup.yaml (Common code extraction and other process too) -> ROLES/PAYMENT/TASKS/main.yaml (Extracted common code will be imported into this file) -> ROLES/PAYMENT/TEMPLATES/main.yaml (payment.service.j2 file) -> ROLES/PAYMENT/TASKS/main.yaml {Backend Service}
+
+10. FRONTEND => ROBOSHOP.YAML (Loads the frontend component) -> It loads all main.yaml files of FRONTEND FOLDER -> ROLES/FRONTEND/TASKS/main.yaml -> ROLES/COMMON/app-setup.yaml (Common code extraction and other process too) -> ROLES/FRONTEND/TASKS/main.yaml (Extracted common code will be imported into this file) -> ROLES/FRONTEND/TEMPLATES/main.yaml (nginx.conf.j2 file) -> ROLES/FRONTEND/TASKS/main.yaml -> ROLES/FRONTEND/HANDLERS/main.yaml -> ROLES/FRONTEND/TASKS/main.yaml {Frontend Service}
+
+
+
+handlers
+=========
+
+Handlers are notifiers, you can call task-b when task-a changes. for example when a configuration changes you can restart the application using handlers. (It is required to restart the servers because whenever we run the application(instance) we get new user, download the application, unzipping and so on...So, it is mandatory to restart the application after every new addition....) (If we change then only it restarts the application or else by default it will be as usual when it was first executed)
+
+tags
+=====
+
+If you want a specific tag to run inside playbook, tag it and call it. When we start the component many tasks will be executed which are present inside the playbook, so we use TAGS to run only few or particular tasks whichever are required to be executed...
+
+==>  ansible-playbook -e component=catalogue -t deployment roboshop.yaml  --> Run only which are with tags deployment on it...
+
+==> ansible-playbook -e component=catalogue -t deployment roboshop.yaml -vvv
+
+It will show the exact file and line number causing the issue.
+
+
+
+You can keep all the components in one component file which is dependent on other files (Here Frontend). From there, it starts executing one by one as provided...
+
+==> nohup ansible-playbook -e component="{ component }" roboshop.yaml &>/var/log/ansible.log & ==> Use this format
+
+==> tail -f nohup.out
+
+==> less /var/log/ansible.log
+
+==> nohup ansible-playbook -e component="{ component }" roboshop.yaml & ===> nohup and & takes the command into background and it executes in the background....(It ignores the input and appends the output to 'nohup.out') [If used only & it asks after every single command execution]  
+
+tail -f /var/log/ansible.log
+
+To remove ==> rm -rf ansible-roboshop-roles/
+
+Before becoming: yes it is normal user(ec2-user)....
+ls -l /var/log/ansible.log
+sudo touch /var/log/ansible.log
+sudo chmod -R 777 /var/log/ansible.log (Use if it is still showing as not writeable)
+
+ansible --version
+
+ansible [core 2.14.18]
+  config file = /home/ec2-user/ansible-roboshop-roles/ansible.cfg
+  configured module search path = ['/home/ec2-user/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /usr/lib/python3.9/site-packages/ansible
+  ansible collection location = /home/ec2-user/.ansible/collections:/usr/share/ansible/collections
+  executable location = /usr/bin/ansible
+  python version = 3.9.25 (main, Nov 10 2025, 00:00:00) [GCC 11.5.0 20240719 (Red Hat 11.5.0-11)] (/usr/bin/python3)
+  jinja version = 3.1.2
+  libyaml = True
+

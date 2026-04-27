@@ -1,0 +1,153 @@
+Disadvantages of Shell-Scripting:
+=================================
+
+1. No idempotency
+2. No error handling
+3. Little complex
+4. Large scale servers handling is tough
+5. Distribution specific, homogenous(It only works for one Linux)
+
+1. Copy mongo repo, mongodb.sh
+2. Execute them
+
+ssh ec2-user@172.31.21.100 'touch /tmp/shell.txt' --> Logging in with the Private Ipv4 address of other server in present working server, without actually logging into that server. It is called as Remote Logging.
+
+Copying files from one server to other server --> Example:-  scp mongo.repo mongodb.sh ec2-user@172.31.21.100:/tmp, where scp--> source copy, mongo.repo & mongodb.sh are source files, ec2-user@private ip address of other server, /tmp --> location to store the files.
+
+ssh ec2-user@172.31.21.100 'cd /tmp && sudo sh mongodb.sh' --> For executing the file from other server
+
+
+Configuration Management (Ansible):
+===================================
+
+Ansible is command line tool. It is developed in python. It is from redhat.
+
+Provisioning Server -> baseline it according to our needs
+
+Baseling/Configuring server is nothing but making it ready to host the application
+
+1. Installing programming language
+2. Creating system users and folders
+3. Installing some system packages
+4. Downloading the code
+5. Unzipping the code
+6. Installing dependencies
+7. Creating systemctl services
+8. Enable and starting the services
+
+CRUD --> Create, Read, Update and Delete
+
+Deployment -> Downtime:
+=======================
+
+1. Stop the application
+2. Remove the old code
+3. Download new code
+4. Install dependencies
+5. Restart the application
+
+Push vs Pull:
+=============
+
+Push -> Ansible is popular, it recently implemented pull too
+Pull -> Chef
+
+Push vs Pull
+============
+HYD -> Delhi
+
+1. Person in Delhi go to DTDC office everyday and check for letter
+2. Person stays home, DTDC delivers letter whenever it arrive
+
+protocol
+port
+username
+password
+IP
+
+Event Driven/Push:
+==================
+--> You carry on, when you get courier it will be delivered
+
+SYS-1 -> Broadcast
+SYS-1 -> SYS-2
+
+Linux commands == Ansible Modules/Collections
+
+Linux Server STATE-1 -> STATE change STATE-2 (Yellow color means SUCCESS but something changed, Green color means SUCCESS but nothing changed)
+
+rc == exit code or return code (0=success)
+
+YAML -> Yet Another Markup Language
+
+dnf install nginx -y
+dnf is a command
+install and nginx -> arguments
+
+keep all the commands in a file, we call it as shell and run the script
+
+Playbook -> collections of plays, a play is a list of tasks to be executed on the target server OR We keep all the commands/modules in a file for execution purpose is called Playbook.
+
+{
+	"name": "siva",
+	"email": "siva@gmail.com" 
+	"password": "siva123"
+}
+
+
+DTO -> Data Transfer Objects:
+=============================
+XML, YAML, JSON
+
+100 Years back go to Bank
+=========================
+name -> sivakumar
+acc no
+amount
+date
+branch
+denomination
+date 
+sign
+
+1. Easy to do mistakes
+2. Time consuming
+
+Forms and Templates
+===================
+Name
+Acc No
+Date
+Amount
+Sign
+
+Markup Languages:
+=================
+--> HTML -> Hyper text markup language
+
+<h1>This is main heading</h1>
+<h2>This is side heading</h2>
+
+HTML, XML
+
+--> XML -> Extensible Markup Language
+
+<Register>
+	<Name>Sivakumar</Name>
+	<Mobile>12345678</Mobile>
+	<Email>info@joindevops.com</Email>
+</Register>
+
+JSON --> Java-Script Object Notation (Programming)
+
+YAML --> Yet Another Markup Language (Scripting)
+
+indentation -> spacing
+
+ansible all -i Ip address of other server private, -e ansible_user=ec2-user -e ansible_password=DevOps321 -m ping --> Where m for modules, e for extra arguments
+
+ansible all -i 172.31.21.100, -e ansible_user=ec2-user -e ansible_password=DevOps321 -m dnf -a "name=nginx state=installed" --> Where a for arguments and this output will be failed as it is not a root user
+
+ansible all -i 172.31.21.100, -e ansible_user=ec2-user -e ansible_password=DevOps321 -b -m dnf -a "name=nginx state=installed"  --> Where b for become root user and the output will be successful
+
+ansible all -i 172.31.21.100, -e ansible_user=ec2-user -e ansible_password=DevOps321 -b -m service -a "name=nginx state=started" --> To show output on the browser

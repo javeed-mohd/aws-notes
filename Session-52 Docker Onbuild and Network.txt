@@ -346,7 +346,7 @@ Disadvantages:
 
 
 Feature         Bridge Network          Host Network 
-========        ==============          ============
+========        ===============         ===========
 IP Address      Separate                Same as host
 Isolation       High                    Low
 Performance     Slightly lower          Higher

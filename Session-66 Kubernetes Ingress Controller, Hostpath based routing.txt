@@ -1,0 +1,344 @@
+RBAC:
+=====
+
+Role -> Authorisation service in k8s which can control permissions. which api group, which resource inside api group, what actions user can perform on resources
+Role Binding -> Map user to role
+aws auth -> Map IAM users to K8 users
+Cluster Role -> Cluster level resources permissions control
+Cluster Role Binding -> Map user to cluster role
+Service Account -> An identity to pod, pod can have service account that maps with IAM role
+
+
+*********
+Ingress controller: (Service)
+===================
+
+type: LoadBalancer
+classic LoadBalancer -> legacy, not intelligent [Services in kubernetes]
+
+
+Application load balancer:
+--------------------------
+
+hostpath based routing:
+=======================
+
+amazon.joindevops.com -> amazon
+roboshop.joindevops.com -> roboshop
+
+ALB -> Listener -> evaluate rule -> target group -> VM - Instances
+ALB -> Listener -> evaluate rule -> target group -> Pod - IP
+
+Instance mode:
+ALB talks to machines, machines route to containers.
+IP mode:
+ALB talks directly to containers (pods).
+
+AWS load balancer controller - Ingress controller
+
+1. We need single controller
+2. https://app1.devopsdaws.online -> app1 pods
+3. https://app2.devopsdaws.online -> app2 pods
+
+1. OIDC provider installation -> external resources authentication
+2. Create IAM policy and service account -> maps IAM role with permission that can create AWS resources
+3. We need to install ingress controller drivers
+**********
+4. We need ingress resource to provide networking rules to the applications -> It can expose applications inside k8 to the outside world, it can define the routing rules, it can create AWS resources using annotations -> ingress resource (search important)
+
+==> INGRESS is a network service inside kubernetes that can expose our application to the internet...
+
+--> Labels -> Selectors inside Kubernetes cluster.
+--> Annotations -> Selectors outside Kubernetes cluster like Load balancer.
+
+==> git clone k8s-ingress/
+==> cd k8s-ingress/app1
+--> docker login -u username -> password
+==> docker build -t javeedmohd214/app1:1.0.0 .
+==> docker push javeedmohd214/app1:1.0.0
+==> cd ../app2
+==> docker build -t javeedmohd214/app2:1.0.0 .
+==> docker push javeedmohd214/app2:1.0.0
+--> cd
+
+(Search aws load balancer controller -> Welcome - AWS Load Balancer Controller -> Deployment installation guide to get all this)
+
+Follow this steps:
+===================
+
+==> aws eks update-kubeconfig --region us-east-1 --name roboshop
+==> kubectl get nodes
+
+
+1. Install OIDC provider:
+-------------------------
+
+eksctl utils associate-iam-oidc-provider \
+    --region us-east-1 \
+    --cluster roboshop \
+    --approve
+
+
+2. Create IAM Policy:
+---------------------
+
+--> curl -o iam-policy.json https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/v3.2.1/docs/install/iam_policy.json
+
+--> aws iam create-policy \
+    --policy-name AWSLoadBalancerControllerIAMPolicy \
+    --policy-document file://iam-policy.json
+
+{
+    "Policy": {
+        "PolicyName": "AWSLoadBalancerControllerIAMPolicy",
+        "PolicyId": "ANPA6QDRDUA22LBOUZTIU",
+        "Arn": "arn:aws:iam::996669628469:policy/AWSLoadBalancerControllerIAMPolicy",
+        "Path": "/",
+        "DefaultVersionId": "v1",
+        "AttachmentCount": 0,
+        "PermissionsBoundaryUsageCount": 0,
+        "IsAttachable": true,
+        "CreateDate": "2026-04-17T09:12:11+00:00",
+        "UpdateDate": "2026-04-17T09:12:11+00:00"
+    }
+}
+
+
+
+3. Create service account:
+---------------------------
+
+eksctl create iamserviceaccount \
+--cluster=roboshop \
+--namespace=kube-system \
+--name=aws-load-balancer-controller \
+--attach-policy-arn=arn:aws:iam::<AWS_ACCOUNT_ID>:policy/AWSLoadBalancerControllerIAMPolicy \
+--override-existing-serviceaccounts \
+--region us-east-1 \
+--approve
+
+<AWS_ACCOUNT_ID> -- 996669628469 --> replace with your AWS ID
+
+4. Install helm:
+-----------------
+
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+
+--> check using: helm version
+
+
+5. Install drivers:
+--------------------
+
+--> helm repo add eks https://aws.github.io/eks-charts
+
+--> helm install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=roboshop --set serviceAccount.create=false --set serviceAccount.name=aws-load-balancer-controller
+
+
+drivers = actions 
+All this will be done by drivers.
+
+===> In k9s, shift+: namespace - kube-system - aws load balancer controller drivers installed and running
+
+
+eksctl create iamserviceaccount \
+--cluster=roboshop \
+--namespace=kube-system \
+--name=aws-load-balancer-controller \
+--attach-policy-arn=arn:aws:iam::160885265516:policy/AWSLoadBalancerControllerIAMPolicy \
+--override-existing-serviceaccounts \
+--region us-east-1 \
+--approve
+
+
+IRSA => IAM Role Service Account
+
+
+==> Search ingress k8s: Take service/networking/ingress-wildcard-host.yaml
+Upto deployment and service in app1
+
+git pull
+--> cd k8s-ingress/app1/
+[default namespace]
+==> kubectl apply -f manifest.yaml
+deployment.apps/app1 created
+service/app1 created
+
+--> In k9s, shift+: namespace - default - app1 running 	[Internally running] --> To expose it to internet, we use Ingress Controler [ external resource we use, annotations].
+
+
+******
+If we want application running inside k8 to be exposed to internet, we need ingress resource that can route http/https requests to pods. Actually through annotations, we can select external resources like Application Load Balancer (alb), listener, target group, certificate arn, etc.
+
+--> Ingress talks to ingress controller drivers, that will have service account mapped to IAM role and permission to create the resources like reading secret values.
+
+Service account is Pod identity, instead of configuring human credentials we can attach service account to the pod that can access external resources like reading secret values -> It is non human role.
+
+
+==> After applying Ingress Controller, we get:
+
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: app1
+  annotations:
+    alb.ingress.kubernetes.io/listen-ports: '[{"HTTPS": 443}]'
+    alb.ingress.kubernetes.io/certificate-arn: 'arn:aws:acm:us-east-1:996669628469:certificate/b6983d9a-848d-4898-8335-81c74db10bc3'
+    alb.ingress.kubernetes.io/scheme: internet-facing
+    alb.ingress.kubernetes.io/tags: Environment=dev,Project=roboshop 
+    alb.ingress.kubernetes.io/target-type: ip
+    alb.ingress.kubernetes.io/group.name: roboshop
+spec:
+  ingressClassName: alb
+  rules:
+  - host: "app1.daws88s.online"
+    http:
+      paths:
+      - pathType: Prefix
+        path: "/"
+        backend:
+          service:
+            name: app1
+            port:
+              number: 80
+
+
+******
+==> First try without this for app1, alb.ingress.kubernetes.io/group.name: roboshop
+And then from next onwards, we will be getting only one load balancer for our entire project/application.
+
+To get those annotations, use (Search aws load balancer controller -> Welcome - AWS Load Balancer Controller -> Guide annotations to get all those annotations with https)
+
+To create certificate-arn in aws, follow:
+
+--> AWS Certificate Manager ACM - Request
+--> domain name = *.devopsdaws.online - Request		[app1.devopsdaws.online]
+==> Create records in Route53 - create records [For validation purpose]
+Copy ARN of acm --> arn:aws:acm:us-east-1:996669628469:certificate/4ea52a1d-6008-4a84-9e12-ecc50c2de4a9
+
+==> listener rule - app1.devopsdaws.online
+
+==> alb.ingress.kubernetes.io/scheme: internet-facing 		==> To expose to the outside environment.
+==> alb.ingress.kubernetes.io/target-type: ip			==> We use IP address because Pods are not instances, they are IP address.
+
+******
+==> If any error comes in resource creation, check the logs of drivers --> In k9s, shift+: namespace - kube-system - aws load balancer controller.
+
+
+[After adding ingress controller service without group name]
+==> kubectl apply -f manifest.yaml
+deployment.apps/app1 unchanged
+service/app1 unchanged
+ingress.networking.k8s.io/app1 created
+
+
+After applying once check in aws load balancer whether it is created or not. (Check all listener rule, target group (2 IP addresses registered) [Pods] - check in k9s 2 Ip's are same in default namespace.
+
+
+We have to create Route53 record to access through internet,
+--> app1.devopsdaws.online
+--> A type record
+--> Alias to Application and Classic Load Balancer (On Alias)
+--> us-east-1
+--> use the load balancer which comes - create [dualstack.k8s-default-app1-99e0015e1e-1145654417.us-east-1.elb.amazonaws.com]
+
+Hit the browser ==> https://app1.devopsdaws.online	[We will get the response]
+
+Flow: app1 (since we gave to https listener rule) - app1.devopsdaws.online (rule matched) - Forwarded to Target group [Already pods are registered]
+
+If we delete a pod in k9s, automatically service adds another pod... If this is done in VM's, it would have taken some more time compared to this.
+
+
+For app2:
+--> git pull
+--> cd ../app2/
+--> kubectl apply -f manifest.yaml
+
+We got another load balancer, lb are highly abailable services accepts atleast lakhs of requests per second, which results in cost effective.
+
+******
+==> First try without this for app1, alb.ingress.kubernetes.io/group.name: roboshop
+And then from next onwards, we will be getting only one load balancer for our entire project/application.
+
+==> For all the applications, that you want to use single LOAD BALANCER then give group.name to all of them, then Kubernetes will try to understand and provide us with if any load balancer is created already on that specified group name and will add the rules to it.
+
+--> Ingress controller means how you bring the traffic from outside to the applications that are running on k8s.
+
+--> kubectl delete -f manifest.yaml 	[For app2 because of 2 load balancers]
+--> cd ../app1/
+git pull
+-->  kubectl apply -f manifest.yaml
+deployment.apps/app1 unchanged
+service/app1 unchanged
+ingress.networking.k8s.io/app1 configured		[Check in aws load balancer]
+
+Tags:
+~~~~~~
+
+elbv2.k8s.aws/cluster		roboshop	(LB added this)
+Environment			dev		(We created this)
+ingress.k8s.aws/resource	LoadBalancer	(LB added this)
+ingress.k8s.aws/stack		roboshop	(LB added this)
+Project				roboshop	(We created this)
+
+
+--> We have to update the existing route53 with the new load balancer.
+
+==> Hit the browser ==> https://app1.devopsdaws.online	[We will get the response]
+
+--> cd ../app2/
+--> kubectl apply -f manifest.yaml
+deployment.apps/app2 created
+service/app2 created
+ingress.networking.k8s.io/app2 created
+
+Finally, if we want our application to be exposed to internet, administrator takes all the details and will create a record.
+We have to create Route53 record to access through internet,
+--> app2.devopsdaws.online
+--> A type record
+--> Alias to Application and Classic Load Balancer (On Alias)
+--> us-east-1
+--> use the new load balancer which we have created for both pods
+
+==> Hit the browser ==> https://app2.devopsdaws.online	[We will get the response]
+or else try in online curl with,
+--> curl https://app2.devopsdaws.online	[We will get the response]
+
+******
+--> I used ingress resource, we have oidc provider already running, i created IAM policy attached with IAM service role and installed ingress controller drivers through helm charts and created ingress resource.
+
+Ingress resource and ingress controller drivers are important.
+Ingress controller drivers have to be in running state means we have to create all those resources. (OIDC, IAM Policy and Service Account).
+
+--> kubectl delete -f manifestl 	[In both pods]
+
+
+
+Terraform-AWS-EKS:
+==================
+
+Replacing the entire VM's used in roboshop-infra-updated with a single component EKS. Databases will be outside only, they are not part of EKS Cluster as they are stateful.
+
+In private subnet, we are replacing all the applications which are in it, with EKS Cluster.
+
+In public subnet, we are placing application load balancer.
+
+We will connect with eks cluster with the help of bastion or any client (workstation).
+
+==> It is not safe to create resources which are not part of eks cluster like load balancer, listener, rule, target groups... It leads to unnecessary creation of service account, iam roles and givening permissions to them.
+
+Rather than doing all this, we can create them through terraform.
+--> We can create them before hand like lbs, bastion and simply attach our pods to the target group.
+
+Above one app1, app2 are for practice purpose, now we create production grade cluster using terraform.
+
+
+search target group binding in aws load balancer controller, this is safe to use when we are in cloud platform.
+
+Using this, if we give target group arn, simply our pods go and attach to target group rather than creation and deletion in route53. But we require ingress controller drivers.
+
+
+10.0.0.0/16 -> VPC CIDR range => Range will be in that limit only whether it come from load balancer, database and so on.
+EKS_NODE_SG should allow traffic from 10.0.0.0/16

@@ -1,0 +1,119 @@
+Process Management:
+===================
+
+DM -> He creates some task in his to-do list and assign to TL
+TL -> He creates some task in his to-do list and assign to SE
+SE -> He creates some task in his to-do list and assign to JE
+Fresher -> He creates some task in his to-do list and complete the task
+
+Parent -> Child
+Who is parent for TL -> DM
+
+root process
+0 -> PID
+1 -> PID
+
+PID (Process Instance ID)		PPID (Parent Process Instance ID)
+2					0
+3					1
+
+ps -> process started by current user
+
+ps -ef -> all processes in server
+
+Whatever the task, you give to Linux. First, it will create one PID then work on it, give the results and complete the process.
+
+UID          PID    PPID  C STIME TTY          TIME CMD
+root           1       0  0 01:52 ?        00:00:01 /usr/lib/systemd/systemd --switched-root --system --deserialize=32
+root           2       0  0 01:52 ?        00:00:00 [kthreadd]
+root           3       2  0 01:52 ?        00:00:00 [rcu_gp]
+root           4       2  0 01:52 ?        00:00:00 [rcu_par_gp]
+root           5       2  0 01:52 ?        00:00:00 [slub_flushwq]
+
+
+1. Background process --> We can use background process just by adding & at the end of the command, so that we can use on the screen without getting blocked as foreground process
+Ex: sleep 10 &
+
+2. foreground process --> Blocks the screen, we can't do anything.
+Ex: sleep 10
+
+top --> To check which process is consuming cpu, time ...etc
+
+kill <PID> --> PID which is to be deleted not parent --> Normal procedure to stop the process
+
+kill -9 <PID> --> Forceful procedure to stop the process
+
+
+PLSQL -> 30 min
+
+Each time a process is created -> CPU, RAM and HD consumed.
+
+get all the logs server logs, app logs, DB logs, heap dump, etc.,
+
+kill the process and restart services
+
+5% 10% 20% 80%
+
+
+3-Tier Architecture:
+====================
+
+Desktop applications
+
+--> Consumes more resources
+--> Install, upgrade, repairs
+--> Data is stored in local computer
+--> You should install antivirus
+--> What if laptop crashes?
+--> Can't access from remote
+
+Applications are move to web
+
+1-tier -> 2-tier -> 3-tier
+
+road side hotel
+===============
+
+single person
+
+max 5 persons
+what if 20 persons suddenly came
+
+Hotel
+======
+
+cashier -> cash management
+cook -> only to cook, queue management and order management
+15 members
+
+50 members
+
+Restaurant
+==========
+
+Captain -> welcomes us
+Table -> Waiter -> takes order
+Chef -> Prepares the order
+Waiter -> Onions, Lemon, Keera, etc decorate
+Customer
+
+Raw food items -> Chef cooks them -> Decorates them -> customer eats them
+
+Database Server -> Application servers can access the data -> Handovers the data to webserver -> Webserver decorates them with HTML, CSS and JS -> Show to user
+
+username and password
+
+select * from user where username="sivakumar" and password="siva123"
+if found -> 1
+if not found -> 0
+
+1. Maintenance issue (Cannot handle everything)
+2. Queue management
+3. Security problem
+
+
+devops-practice
+ami-09c813fb71547fc4f
+RHEL-9 -> enterprise, community
+RHEL-9-DevOps-Practice
+ec2-user DevOps321

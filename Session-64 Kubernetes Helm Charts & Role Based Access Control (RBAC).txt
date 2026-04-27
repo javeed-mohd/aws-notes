@@ -597,7 +597,6 @@ create roboshop namespace and give access to us.
 
 roboshop-eks-client -> kubectl install -> authenticate with cluster -> run their workloads
 
-
 1.30 -> build
 
 --set imageVersion=1.30 --description "Upgrading to 1.30"

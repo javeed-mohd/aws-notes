@@ -1,0 +1,572 @@
+Bare metal 	--> Individual House
+Virtual Machine --> Apartment
+Container	--> Each room (Shared)
+
+On-premise means your servers, software, and infrastructure are hosted physically at your own location (office, data center), not in the cloud.
+
+You own and manage everything yourself:
+
+-> Servers
+-> Storage
+-> Networking
+-> Security
+
+Characteristics:
+================
+
+-> Physical hardware is on-site
+-> Full control over infrastructure
+-> Managed by in-house IT team
+
+Advantages:
+===========
+
+-> Better control & security (data stays inside company)
+-> Customization possible
+-> No dependency on internet for internal apps
+
+Disadvantages:
+==============
+
+-> High setup cost (servers, cooling, space)
+-> Maintenance responsibility (updates, repairs)
+-> Harder to scale compared to cloud
+
+Family History
+
+100 years back
+
+Joint families
+
+5 Couples
+20 Children
+25-30 members
+Individual big houses
+
+Advantages:
+===========
+
+-> No shared, we have freedom
+-> Privacy
+-> Everything in our control, we can design
+
+Disadvantages:
+==============
+
+-> Too much cost
+-> Maintenance on us
+-> Time taking process
+
+
+1 Couple
+2 or 3 kids
+a flat is enough
+
+Advantages:
+===========
+
+-> Low maintenance
+-> Less cost
+-> Just pay and join
+-> Less time
+
+Disadvantages:
+==============
+
+-> Less privacy
+-> Space is shared
+-> We don't have control
+-> More rules
+
+
+Individuals:
+============
+
+-> Single person
+-> Shared room/PG
+
+
+Advantages:
+===========
+
+-> Less time
+-> No maintenance at all
+-> No responsibility
+-> Too less cost
+
+Disadvantages:
+===============
+
+-> No privacy
+-> Everything is shared
+-> Zero control
+
+
+Legacy = Frontend + Backend
+JSP (Java Server Pages) + Servlets + HTML
+Application Size - 150Mb
+
+Advantages:
+===========
+
+-> Proven Stability
+-> Cost savings
+-> Business logic is mature
+-> User familiarity
+-> Data consistency and performance
+
+Even though they have advantages:
+
+-> Hard to maintain
+-> Limited scalability
+-> Security risks
+
+So, it is slowly replaced with MICROSERVICES...
+
+Disadvantages:
+==============
+
+-> A small problem in frontend/backend everything crashes.
+-> A small change should create new version, new application release. (Time taking process)
+-> Size is very big (Legacy)
+-> Physical bare-metal servers
+
+
+Monolithic --> Monolithic architecture means building an entire application as one single unit (one codebase + one deployment). 
+==========
+
+All parts of the app (UI, business logic, database access) are tightly connected and run together.
+
+Characteristics:
+================
+
+-> Single codebase
+-> Single deployment (one server or container)
+-> Components are tightly coupled
+
+Advantages:
+===========
+
+-> Easy to build
+-> Simple deployment
+-> Faster development initially
+
+Disadvantages:
+==============
+
+-> Hard to scale specific parts
+-> Difficult to maintain as it grows
+-> One bug can affect the entire system
+-> Slower updates (redeploy whole app)
+
+*****
+Frontend  -> API -> Backend (catalogue + user + cart + ratings etc.,)
+angular.js
+
+Advantages:
+===========
+
+-> Problem in frontend can not create problems in backend. Both are different
+-> Release process is different
+-> Size is 50% reduced
+-> Speed of provisioning (boot time) is reduced
+
+**** Virtualization -> 100GB RAM, 2TB HD, 16 cores, host OS (VMware ESXi)
+				VM	-> 1GB RAM, 8GB HD, 1 processor, Guest OS (Windows)
+				VM	-> 2GB RAM, 20GB HD, 2 processor, Guest OS (Linux)
+
+Virtualization is the process of creating virtual (software-based) versions of physical resources like servers, storage, or networks.
+
+==> One physical machine can run multiple virtual machines (VMs), each acting like a separate computer.
+
+How it works:
+=============
+
+A special software called a hypervisor manages virtualization.
+
+Examples:
+
+VMware
+VirtualBox
+KVM (Kernel based virtual machine)
+
+Disadvantages:
+==============
+
+-> All components must use same programming language
+-> Single component problem can crash entire backend
+
+
+Microservices:
+==============
+
+-> App is split into small independent services
+-> Each service can be deployed separately
+
+Microservices architecture means building an application as a collection of small, independent services, where each service handles a specific function.
+
+Instead of one big app (monolithic), you split it into multiple mini-apps that:
+
+-> Run independently
+-> Communicate via APIs
+
+Characteristics:
+================
+
+-> Independent services
+-> Each service has its own database
+-> Communication via REST APIs / messaging
+-> Can be deployed separately
+
+Advantages:
+===========
+
+-> Easy to scale specific services
+-> Faster deployments (update one service only)
+-> Technology flexibility
+-> Better fault isolation (one service fails, others continue)
+
+Disadvantages:
+==============
+
+-> Complex to manage
+-> Requires specific skills
+-> Network latency between services
+-> Harder debugging and monitoring
+
+
+frontend -> user, cart, catalogue, ratings, etc..
+
+Advantages:
+===========
+
+-> Multiple programming languages
+-> Release process is different
+-> Problem in a single component still keeps the application running
+-> Less downtime
+-> Connected through API
+	URL (Uniform Resource Locator), Method, Sample request, Expected response, Status code
+	
+
+Containerization:
+=================
+
+Containerization is a technology that allows you to package an application along with all its dependencies (libraries, configs, runtime) into a single unit called a container.
+
+==> Build once, run anywhere.
+
+Your app will run the same way on any system because everything it needs is inside the container.
+
+Containers share the host OS but stay isolated from each other.
+
+Popular tools:
+
+--> Docker
+--> Kubernetes (for managing many containers)
+
+1. No resource allocation, can use dynamically
+2. Less cost
+3. Less boot time
+4. Less size
+5. Portable and immutable
+6. Scalable and reliable
+7. Less privacy, but we can address this
+
+
+Virtualization					Containerization
+==============					================
+Costly							Cheaper
+More boot time					Less boot time
+More size						Less size
+Resource utilisation is less	Resource utilisation is more
+More privacy					Less privacy
+Less portable					More portable
+
+
+Docker:
+=======
+
+Docker is a tool used for containerisation, which lets you package and run applications in containers.
+
+Docker allows you to:
+
+-> Build an app once
+-> Run it anywhere (your laptop, server, cloud)
+
+What is a container?
+
+A container is:
+
+-> Lightweight
+-> Includes app + dependencies
+-> Runs consistently across environments
+
+Key components of Docker:
+=========================
+
+1. Docker Image
+
+==> Blueprint of your application
+==> Contains code + libraries
+
+2. Docker Container
+
+==>Running instance of an image
+
+3. Dockerfile
+
+==> Script with instructions to build an image
+
+4. Docker Hub
+
+==> Online repository to store images
+
+Example workflow:
+=================
+
+Write your app
+Create a Dockerfile
+Build image
+Run container
+
+--> Your app works the same everywhere
+
+Advantages:
+===========
+
+--> Fast and lightweight
+--> Consistent environments
+--> Easy deployment
+--> Great for microservices
+
+Disadvantages:
+==============
+
+-> Needs learning (Docker commands, concepts)
+-> Security must be managed properly
+-> Not ideal for all workloads
+
+Docker = Tool that packages application + dependencies into lightweight containers for fast, consistent deployment.
+
+-> Docker uses containerization, not virtualization
+-> Containers share host OS kernel
+-> Image is blueprint, container is runtime
+-> Faster than VMs because no full OS boot
+-> Used in microservices architecture
+
+AMI = OS + System packages + App run time + App code + App dependencies -> Instance/Server/VM -> AMI ID
+Docker Image = Bare minimum OS + System packages + App run time + App code + App dependencies -> Container (Running version of image)
+
+OS + System packages
+
+
+Commands for docker installation in Linux RHEL (Install Docker):
+================================================================
+
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
+logout and login again
+
+sudo systemctl enable --now docker / sudo systemctl enable docker
+sudo systemctl status docker --> Status checking --> Active/not
+
+Docker commands:
+================
+
+Docker commands help you manage images, containers, networks, and volumes efficiently.
+
+Basic Commands:
+~~~~~~~~~~~~~~~
+
+docker --version			-> Check version
+docker version				-> Detailed version information
+docker info					-> System information
+docker help					-> List all commands
+
+Container Commands:
+~~~~~~~~~~~~~~~~~~~
+
+docker ps 						-> Running containers
+docker ps -a					-> All the containers
+docker create nginx 			-> Creates the containers, status is created
+docker start <container-id> 	-> Start the container
+docker stop <container-id>		-> Stop the container
+docker rm <container-id> 		-> Remove the container
+docker run nginx 				-> pull + create + start
+
+Image Commands:
+~~~~~~~~~~~~~~~
+
+docker images 				-> Available Images
+docker pull nginx 			-> Pull the image from dockerhub (download)
+docker rmi nginx 			-> Remove the image
+
+nginx (image) = OS + system packages + nginx software
+
+
+1. Docker Info & Version
+=========================
+
+Command				Description
+~~~~~~~				~~~~~~~~~~~~
+docker --version	Show Docker version
+docker version		Detailed version info
+docker info			System-wide information
+docker help			List all commands
+
+
+2. Image Commands
+==================
+
+Command								Description
+~~~~~~~								~~~~~~~~~~~~
+docker images						List all images
+docker pull <image>					Download image
+docker push <image>					Upload image to registry
+docker rmi <image>					Remove image
+docker build -t <name> .			Build image from Dockerfile
+docker tag <image> <new_name>		Tag image
+docker inspect <image>				Detailed info
+docker history <image>				Image layers history
+docker save -o file.tar <image>		Save image to file
+docker load -i file.tar				Load image from file
+
+
+3. Container Commands
+=====================
+
+Command									Description
+~~~~~~~~								~~~~~~~~~~~~
+docker ps								Running containers
+docker ps -a							All containers
+docker run <image>						Run container
+docker run -it <image>					Interactive mode
+docker run -d <image>					Detached mode
+docker run -p 8080:80 <image>			Port mapping
+docker run --name mycontainer <image>	Name container
+docker start <id>						Start container
+docker stop <id>						Stop container
+docker restart <id>						Restart container
+docker kill <id>						Force stop
+docker rm <id>							Remove container
+docker rm -f <id>						Force remove
+docker exec -it <id> /bin/bash			Access container
+docker logs <id>						View logs
+docker top <id>							Running processes
+docker stats							Resource usage
+docker inspect <id>						Detailed info
+
+
+4. Cleanup Commands
+===================
+
+Command					Description
+~~~~~~~					~~~~~~~~~~~~
+docker system prune		Remove unused data
+docker container prune	Remove stopped containers
+docker image prune		Remove unused images
+docker volume prune		Remove unused volumes
+docker network prune	Remove unused networks
+
+
+5. Network Commands
+====================
+
+Command											Description
+~~~~~~~											~~~~~~~~~~~~
+docker network ls								List networks
+docker network create mynet						Create network
+docker network inspect mynet					Network details
+docker network connect mynet <container>		Connect container
+docker network disconnect mynet <container>		Disconnect container
+docker network rm mynet							Remove network
+
+
+6. Volume Commands
+===================
+
+Command							Description
+~~~~~~~~						~~~~~~~~~~~
+docker volume ls				List volumes
+docker volume create myvol		Create volume
+docker volume inspect myvol		Volume details
+docker volume rm myvol			Remove volume
+
+
+7. File Copy Commands
+=====================
+
+Command									Description
+~~~~~~~									~~~~~~~~~~~~
+docker cp file.txt <container>:/path	Copy to container
+docker cp <container>:/path file.txt	Copy from container
+
+
+8. Login & Registry
+===================
+
+Command					Description
+~~~~~~~					~~~~~~~~~~~
+docker login			Login to Docker Hub
+docker logout			Logout
+docker search nginx		Search images
+
+
+9. Docker Build & Run Advanced
+==============================
+
+Command									Description
+~~~~~~~									~~~~~~~~~~~
+docker build -t app:v1 .				Build with version
+docker run -e VAR=value <image>			Set environment variable
+docker run -v myvol:/data <image>		Mount volume
+docker run --network=mynet <image>		Use network
+docker run --cpu-shares=512 <image>		CPU limit
+docker run --memory=512m <image>		Memory limit
+
+
+10. Docker Logs & Monitoring
+============================
+
+Command					Description
+~~~~~~~					~~~~~~~~~~~~
+docker logs <id>		Show logs
+docker logs -f <id>		Live logs
+docker events			Real-time events
+docker stats			Live resource usage
+
+
+11. Docker Compose (Multi-container)
+=====================================
+
+Command					Description
+~~~~~~~					~~~~~~~~~~~~
+docker compose up		Start services
+docker compose up -d	Detached mode
+docker compose down		Stop services
+docker compose ps		List services
+docker compose logs		View logs
+
+
+*******
+Most Used Commands:
+===================
+
+docker pull nginx
+docker run -d -p 8080:80 nginx
+docker ps
+docker exec -it <id> /bin/bash
+docker stop <id>
+docker rm <id>
+docker rmi nginx
+
+docker run = pull + create + start
+Containers are ephemeral (temporary)
+Use volumes for persistent data
+Use networks for communication
+Use compose for multi-container apps

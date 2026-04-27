@@ -1,0 +1,91 @@
+Elastic Block Store (EBS) --> Increasing the disk space 
+check using df -hT and lsblk
+#!/bin/bash
+sudo growpart /dev/nvme0n1 4
+sudo lvextend -L +30G /dev/RootVG/varVol
+sudo xfs_growfs /var
+
+
+Commands for docker installation in Linux RHEL (Install Docker):
+================================================================
+
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
+
+usermod    --> Modifies a user account.
+-aG docker --> -G → Adds user to a group,  -a → Append (don’t remove existing groups),  docker → Docker user group.
+ec2-user   --> Username.
+
+
+
+1. Build the image
+2. Run the image, before running the image we need to make sure custom bridge network is created. (docker network create roboshop)
+
+There are dependencies between components. They should be implemented in a sequence like database, backend services, and frontend service.
+
+==> docker compose sample file [docker compose quickstart]
+
+docker compose --> YAML file
+--> It can build the images
+--> It can define the dependencies between the components
+--> It can starts all the components at a time
+--> It can remove all the components at a time
+--> You can define network and volume also here
+
+It will make our job easy and accurate.
+
+docker run -d --network roboshop --name mongodb joindevops/mongodb:1.0.0 
+
+
+docker compose build 	==> Only builds the images, without starting the containers.
+
+docker compose up 	==> Starts containers from pre-built images.
+
+docker compose up -d 	==> It is used to create the given containers ==> It means it runs the container in the background to free up the terminal for usage. [LAST] 
+
+docker compose down 	==> It is used to remove the created containers
+
+docker rm -f `docker ps -a -q` 		==> To remove the containers
+
+docker rmi -f `docker images -a -q`	==> To remove the images
+
+docker compose up -d --build		==>  It is used to build the containers and will run only built containers. [USE this]
+
+
+To build specific component, we use	==> docker compose build component (Use this, when we make changes to a specific component)
+
+==> IT IS BETTER TO BUILD THE COMPONENTS OUTSIDE using (docker compose build) AND WE NEED TO GIVE ONLY RUNNING FOR DOCKER COMPOSE using (docker compose up -d) for better understanding and accuracy.
+
+
+After building and running the containers, if we want to push the built containers to our dockerhub account then we have to login and push the images
+
+==> docker login -u <username>, and enter password and then we can push,
+
+==> docker compose push --> It pushes all the images to dockerhub
+
+We can use this anywhere accordingly in future.
+
+After this,
+
+==> docker compose down 	==> It is used to remove the created containers
+
+==> docker rmi -f `docker images -a -q`	==> To remove the images
+
+==> docker compose up -d 	==> It is used to create the given containers, from this we can pull the images from our account. That's why it is called as portable. We can directly pull to any server and run, once the image is pushed in the dockerhub. If someone want to use our image, we need to give onbuild instruction.
+
+
+By default, docker containers are ephemeral (Temporary). Once we remove the container, it will remove entire data.
+
+We need to use volumes to keep the DATA even containers are removed.
+
+
+docker exec -it mongodb bash
+mongosh
+show dbs
+use catalogue (products)
+use users (users, orders)

@@ -1,0 +1,304 @@
+terraform-aws-workstation after creating everything we need to run this command with workstation instance to get the authentication information because we are automatically creating the cluster so we need to define it. 
+If we would have done manually creating cluster using, eksctl create cluster --config-file=eks.yaml, then no need to run it.
+
+==> But, it is created automatically by terraform, so we have to run this command:
+
+==> aws eks update-kubeconfig --region us-east-1 --name roboshop 
+
+
+Ephemeral volumes:
+==================
+
+- Configmap as volume (nginx-config)
+- emptyDir -> at pod level -> sidecar containers
+- hostPath -> underlying host level -> daemonset (a pod replica runs on each and every node) -> Collects host level logs and metrics
+
+volumes:
+- name: <some-name>
+  source-of-volume
+  
+  volumeMounts:
+  - name:
+    mountPath:
+	
+Static provisioning
+Dynamic provisioning
+
+EBS and EFS
+
+
+Static provisioning:
+====================
+
+PV (Persistent Volume)		-> Physical representation of the underlying disk, it is equivalent k8 resource to the disk. we can work with pv to manage the disk
+PVC (Persistent Volume Claim)	-> Claiming the disk from PV
+SC (Storage Class)		-> Part of dynamic provisioning. it creates disk and pv on behalf of us.
+
+
+EBS static Provisioning:
+========================
+
+1. Install EBS drivers
+2. Attach EBS IAM role to the instances
+3. Create disk
+4. Create pv and pvc
+5. Mount volume in pod
+
+
+EBS Dynamic Provisioning:
+=========================
+
+1. Install EBS drivers
+2. Attach EBS IAM role to the instances
+3. Create storage class (Creates Disk and PV)
+4. Create pvc and pod
+
+*******
+If EBS, Volume should be in same availability zone (AZ) as server.
+
+
+Authentication:
+===============
+
+--> aws eks update-kubeconfig --region us-east-1 --name roboshop
+
+Verify:
+=======
+
+--> kubectl get nodes
+
+
+==> git clone https://github.com/javeed-mohd/k8s-resources.git
+==> cd k8s-resources/volumes/
+
+
+Drivers Installation:
+=====================
+
+--> kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.58"
+
+
+--> kubectl apply -f 03-ebs-static.yaml
+--> kubectl get pv
+--> kubectl get pvc
+--> kubectl get pods
+To describe
+==> kubectl describe pv <pv-name> [ebs-static]
+==> kubectl describe pvc <pvc-name> [ebs-static]
+==> kubectl describe pod <pod-name> [app]
+
+First, create drivers and in any node attach iam policy as AMAZONEBSCLIDriverPolicy, then manually create volume in which specific az you want to attach volume same as instance az. (Delete after use manually)
+
+To delete, kubectl delete -f 03-ebs-static.yaml
+In static, which means manual after deletion of container/Pod, manually we have to delete the volume which we have created. [Important].
+
+To uninstall the driver:
+--> kubectl delete -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.58"
+
+
+EBS vs EFS:
+===========
+
+1. EBS is like Hard disk, EFS is like drive following NFS (Network File Sharing) protocol
+2. EBS should be in same AZ but EFS can be anywhere in the network
+3. EBS is faster than EFS
+4. EBS is suitable for Operating System and Databases, EFS is suitable to store some files 
+5. EBS is fixed size, EFS can grow automatically (efs size = 50TB) [In project, for os and db we use EBS and for files we use EFS]
+6. EBS we can select fs type (ebs fs types in linux), EFS is set to NFS
+7. EBS SG is not required, EFS SG is mandatory
+
+
+Elastic File System (EFS) static provisioning: 	  ==> Works like a shared folder accessible by many servers.
+==============================================
+
+1. Install drivers (efs static provisioning (browse) - git - readme.md - driver installation))
+2. Add IAM role
+3. Create filesystem
+4. Make sure filesystem SG allows 2049(NFS port)
+5. Create PV, PVC and Pod
+
+kubectl kustomize \
+    "github.com/kubernetes-sigs/aws-efs-csi-driver/deploy/kubernetes/overlays/stable/ecr/?ref=release-2.3" > private-ecr-driver.yaml		[release-2.3] (If errors)
+
+kubectl apply -f private-ecr-driver.yaml 	(Delete if any error, and remove it using, rm private-ecr-driver.yaml).
+
+
+To check:
+==> kubectl get pods -n kube-system
+
+
+==> kubectl kustomize \
+    "github.com/kubernetes-sigs/aws-efs-csi-driver/deploy/kubernetes/overlays/stable/ecr/?ref=release-2.3" > private-ecr-driver.yaml
+# Warning: 'bases' is deprecated. Please use 'resources' instead. Run 'kustomize edit fix' to update your Kustomization automatically.
+
+3.89.162.36 | 172.31.27.95 | t3.micro | null
+[ ec2-user@ip-172-31-27-95 ~ ]$ kubectl apply -f private-ecr-driver.yaml
+serviceaccount/efs-csi-controller-sa created
+serviceaccount/efs-csi-node-sa created
+clusterrole.rbac.authorization.k8s.io/efs-csi-external-provisioner-role created
+clusterrole.rbac.authorization.k8s.io/efs-csi-external-provisioner-role-describe-secrets created
+clusterrole.rbac.authorization.k8s.io/efs-csi-node-role created
+rolebinding.rbac.authorization.k8s.io/efs-csi-provisioner-binding-describe-secrets created
+clusterrolebinding.rbac.authorization.k8s.io/efs-csi-node-binding created
+clusterrolebinding.rbac.authorization.k8s.io/efs-csi-provisioner-binding created
+deployment.apps/efs-csi-controller created
+daemonset.apps/efs-csi-node created
+csidriver.storage.k8s.io/efs.csi.aws.com configured
+
+==> aws eks update-kubeconfig --region us-east-1 --name roboshop
+Updated context arn:aws:eks:us-east-1:996669628469:cluster/roboshop in /home/ec2-user/.kube/config
+
+3.89.162.36 | 172.31.27.95 | t3.micro | null
+[ ec2-user@ip-172-31-27-95 ~ ]$  kubectl get pods -n kube-system
+NAME                                  READY   STATUS    RESTARTS   AGE
+aws-node-flpk2                        2/2     Running   0          2m
+aws-node-xj286                        2/2     Running   0          112s
+coredns-7d58d485c9-qhkh4              1/1     Running   0          5m15s
+coredns-7d58d485c9-tk26p              1/1     Running   0          5m15s
+efs-csi-controller-5bf89f5bcb-vp4vr   3/3     Running   0          30s
+efs-csi-controller-5bf89f5bcb-x5fgw   3/3     Running   0          30s
+efs-csi-node-7rfzs                    3/3     Running   0          30s
+efs-csi-node-cw92v                    3/3     Running   0          30s
+kube-proxy-474pl                      1/1     Running   0          112s
+kube-proxy-wr9v7                      1/1     Running   0          2m
+metrics-server-5fbdb48986-29vgw       0/1     Running   0          18s
+metrics-server-5fbdb48986-hgrfm       0/1     Running   0          18s
+
+
+==> After installing the drivers, now Kubernetes cluster can communicate with efs drivers.
+
+At the same time, we do require permission for the above,
+Click on any worker node -> Security group (we can see iam role url), in IAM role we need to add the permission to attach to EFS. [Add Permission -> Attach Policies -> AmazonEFSCSIDriverPolicy]
+
+Create Filesystem: EFS (Type EFS in aws search bar - Create EFS, Name - roboshop, vpc - eksctl-roboshop-cluster/VPC)
+--> Initially, it will be few bytes and it can grow upto 50TB.
+
+--> In filesystem, network, we will get security groups (default) and we have to add them port from our instances. Wait till it creates/mounts.
+After file becomes available, we have to copy security group id (default) and we should move to security groups and add inbound rule for that default security group id.
+
+Then, Type - NFS, Port - 2049, Sg Id (Source): We should take the sg id of any worker node.
+
+How Traffic is coming out from Pod:
+If traffic is reaching Pod, first it reaches ec2 and then Pod. Because Pod is running in EC2. So, traffic comes out from Pod through EC2.
+
+It means, we are asking Elastic File system to allow port number 2049 (NFS) from our desired worker nodes.
+
+
+==> Change volumeHandle: Your FS ID (fs-0c4e63f768a948586)
+
+--> cd k8s-resources/volumes/
+--> kubectl apply -f 06-efs-static.yaml
+persistentvolume/efs-static created
+--> kubectl get pv
+NAME         CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+efs-static   5Gi        RWO            Retain           Available                          <unset>                          82s
+
+
+--> kubectl apply -f 06-efs-static.yaml
+persistentvolume/efs-static configured
+persistentvolumeclaim/efs-static created
+
+--> kubectl get pvc
+NAME         STATUS   VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+efs-static   Bound    efs-static   5Gi        RWO                           <unset>                 58s
+
+--> kubectl get pv
+NAME         CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+efs-static   5Gi        RWO            Retain           Bound    default/efs-static                  <unset>                          6m7s
+
+
+--> kubectl apply -f 06-efs-static.yaml
+persistentvolume/efs-static configured
+persistentvolumeclaim/efs-static unchanged
+pod/app created
+
+-->  kubectl get pods
+NAME   READY   STATUS    RESTARTS   AGE
+app    1/1     Running   0          39s
+
+
+--> If VOLUME doesn't mount properly, it will continuously give as ContainerCreating status only. To check this, we use:
+kubectl describe pod <pod-name>   [app]
+
+First delete pod, then pvc, pv if any error comes, 
+--> kubectl delete pod <pod-name>   [app]
+--> kubectl delete pvc <pvc-name>   [efs-static]
+--> kubectl delete pv  <pv-name>    [efs-static]
+
+Then, Now apply again,
+--> kubectl apply -f 06-efs-static.yaml
+persistentvolume/efs-static created
+persistentvolumeclaim/efs-static created
+pod/app created
+
+--> kubectl get pods
+--> kubectl describe pod <pod-name> (app)
+--> kubectl describe pvc <pvc-name> (efs-static) 
+
+
+*******
+If volume attach did not appear, we can check through default namespace, pod (app)
+type s-> cd /usr/share/nginx/html/
+ls -l
+touch hi.html
+exit
+Ctrl+d delete pod (app) and then recreate again: kubectl apply -f 06-efs-static.yaml
+
+We can check through default namespace, pod (app)
+type s-> cd /usr/share/nginx/html/
+ls -l (hi.html)
+exit
+
+--> kubectl delete -f 06-efs-static.yaml
+--> DELETE the EFS File System Disk also which was created manually.
+
+
+Elastic File System (EFS) Dynamic Provisioning:
+===============================================
+
+Create Filesystem: EFS (Type EFS in aws search bar - Create EFS, Name - roboshop, vpc - eksctl-roboshop-cluster/VPC)
+--> Initially, it will be few bytes and it can grow upto 50TB.
+
+Like EBS, everytime we don't create the File system and we will create a file system named with roboshop and we should give this fs to storage class.
+File system is like a folder, in that access points, if we are adding each component for it like application, for application a point will be created (Like a sub-folder). File system can grow upto 50TB. For entire roboshop project, we create a single fs and give that fs id to storage class, then our pvc comes to that fs and creates necessary mount points for each component.
+
+ ==> kubectl apply -f 07-efs-sc.yaml
+storageclass.storage.k8s.io/roboshop-efs created
+
+==> kubectl get sc
+NAME           PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+gp2            kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer   false                  70m
+roboshop-efs   efs.csi.aws.com         Delete          Immediate              false                  25s
+
+
+==> kubectl apply -f 08-efs-dynamic.yaml
+persistentvolumeclaim/efs-dynamic created
+pod/efs-app created
+
+==> kubectl get pod <pod-name> [efs-app]
+kubectl get pod efs-app
+NAME      READY   STATUS    RESTARTS   AGE
+efs-app   1/1     Running   0          45s
+
+==> kubectl get pvc <pvc-name> [efs-dynamic]
+kubectl get pvc efs-dynamic
+NAME          STATUS   VOLUME                                     CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+efs-dynamic   Bound    pvc-1c06c751-9052-4c1f-a486-6d3932feae6a   5Gi        RWX            roboshop-efs   <unset>                 6m41s
+
+
+==> kubectl get pv
+NAME                                       CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS   CLAIM                 STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+pvc-1c06c751-9052-4c1f-a486-6d3932feae6a   5Gi        RWX            Delete           Bound    default/efs-dynamic   roboshop-efs   <unset>                          117s
+
+
+==> Access points will be created in efs for roboshop with pv name.
+Name 			Access point ID			Path							POSIX user		Creation info		State
+-			fsap-034c0e1ce10cfce21		/roboshop/pvc-1c06c751-9052-4c1f-a486-6d3932feae6a	50000 : 50000		50000 : 50000 (700)	Available
+
+
+==> kubectl delete -f 08-efs-dynamic.yaml
+persistentvolumeclaim "efs-dynamic" deleted from default namespace
+pod "efs-app" deleted from default namespace
+
+******
+[Access points will be deleted if we do not specify reclaimPolicy in sc which created pv (by default it will be delete mode)].

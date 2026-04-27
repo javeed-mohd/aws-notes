@@ -1,0 +1,122 @@
+Git-bash -> 00(31) 10(26) 20(10) 30(4) 50(4)  MobaXterm -> 40(16), 60(10) = 101 Resources
+
+Deleting the Instance using Instance Id in terraform:
+=====================================================
+
+==> We are having only stopping the instance in terraform, not deleting. 
+==> By using aws command we can terminate the instance using "instance id" in terraform and we also know terraform destroy in cli.
+
+aws ec2 terminate-instances --instance-ids <Your Instance Id> ==> Need to be provide in local-exec (where terraform executes) provisioner to delete the instance along with the terraform data(null resource) which uses triggers_replace, used for creating, updating and deleting the instance but won't create any resources.
+
+
+.terraform.lock.hcl -> It should be available in git
+
+rm .terraform.lock.hcl ==> Remove if getting error (It is mandatory).
+
+
+Important:
+===========
+terraform init -reconfigure ==> It is mainly used to read the provider.tf file and downloads the provider version and connects to backend s3 (simple storage service) and also creates the log file.(Which means the code is developed using the version provided there).
+
+Wherever you pull terraform code, you should run terraform init (-reconfigure)
+
+curl http://catalogue.backend-alb-dev.daws88s.online/health ==> health check
+
+1. R53, If someone hits *.backend-alb-dev.daws88s.online -> forward this request to backend alb
+2. Listener, This is http listener 80
+3. Rule, catalogue rule matches
+4. Target group, catalogue instance port number 8080
+5. Before sending, alb sends only to healthy instances
+
+terraform-roboshop-component ==> We can create this common module and parameterise the components, only we need to change port numbers and listener rules may change (catalogue-10, user-20, cart-30,....)
+
+frontend - port number and health check url change.
+
+Region 		-> AZ
+us-east-1	-> us-east-1a
+
+TTL(Time To Live) -> update TTL 1 day before to 1sec
+
+Terrafrom apply is usually run for every production release not all the time. (Important).
+
+
+Stress CPU utilisation RHEL:
+============================
+
+Command line tool
+
+Install stress-ng: sudo dnf install stress-ng -y
+
+Percentage-Based Load: stress-ng --cpu 2 --cpu-load 80
+
+
+GIT:
+====
+
+1. clone the repo -> first time download
+
+main/master is the default branch
+.git is the difference between normal folder and git repo
+
+normal folder --> plain file
+repo folder   --> branch name highlight ex: main/master
+
+
+2. add files to staging area
+
+git add <file-name>
+
+git rm --cached <file-name> --> remove from staging area
+
+git config --global user.email "info@joindevops.com"
+git config --global user.name "Sivakumar Reddy M"
+
+3. commit to local repo
+
+git commit -m "hello world completed"
+
+git log --> For the first time user to show who has made changes in the git (Credential manager)
+
+git push origin main
+
+git pull
+
+don't edit files inside LINUX SERVER.
+
+
+Create a new repository on the command line:
+============================================
+
+echo "# shell-practice" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/javeed-mohd/shell-practice.git
+git push -u origin main
+
+
+Push an existing repository from the command line:
+==================================================
+
+git remote add origin https://github.com/javeed-mohd/shell-practice.git
+git branch -M main
+git push -u origin main
+
+git clone https://github.com/javeed-mohd/shell-practice.git
+git pull
+
+rm -r shell-practice/ --> If cloned multiple times to remove them and we can clone again, no data will be lost.
+
+git status --> Staging area (Green), Red --> It is in your workspace not in staging area
+
+git rm --cached <file-name> --> remove from staging area
+
+
+If we are already created a folder in the workspace then what we should do?
+
+--> cd /c/devops/daws-88s/repos/ansible/ ==> Go to that folder
+--> git init ==> Initializing empty git repository in C:/devops/daws-88s/repos/ansible/.git/
+--> git branch -M main (From master to main conversion)
+--> git remote add origin https://github.com/javeed-mohd/ansible.git ==> In this way, we need to add the folder into git if we created in our workspace.
+--> git add . ; git commit -m "actions" ; git push origin main

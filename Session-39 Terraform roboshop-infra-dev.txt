@@ -44,14 +44,14 @@ Permissions
 DevOps team
 ===========
 
-Role              Permissions
-=====		          ============
-Trainee  		      only read access
-Junior Engineer 	read + create
-Senior Engineer 	read + create + update
-Team Lead 		    read + create + update + delete
-Architect 		    read + create + update + delete
-Team Manager  		read + create + update + delete
+Role                Permissions
+=====               ============
+Trainee             only read access
+Junior Engineer     read + create
+Senior Engineer     read + create + update
+Team Lead           read + create + update + delete
+Architect 		      read + create + update + delete
+Team Manager  		  read + create + update + delete
 
 
 User -> roboshop-trainee(group) -> only read access

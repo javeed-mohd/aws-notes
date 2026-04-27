@@ -1,0 +1,16 @@
+--> Delete old logs
+--> Backup
+--> Disk utilisation and trigger email
+
+1. Which directory
+2. Does the directory exist?
+3. Find the files *.log older than 14 days
+4. Remove them
+
+Log the script execution
+
+find . -name "*.log" --> All files which are having .log
+
+find . -name "*.log" -mtime +14 --> All files and directories/folders 
+
+find . -name "*.log" -type f -mtime +14 --> Files which are 14 days older logs 

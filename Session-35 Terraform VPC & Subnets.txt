@@ -1,0 +1,342 @@
+workspace -> terraform.workspace
+
+terraform workspace new dev
+terraform workspace select dev
+
+variables keys should be based on the env names
+
+terraform init -reconfigure -backend-config=dev/backend.config
+terraform plan -var-file=dev/dev.tfvars
+terraform apply -auto-approve -var-file=dev/dev.tfvars
+
+
+CICD tools are useful to reduce human errors here.
+
+Advantages:
+===========
+
+-> Code reuse
+
+Disadvantages:
+==============
+
+-> Mistakes can be taken into production
+-> No isolation
+-> Blast radius(how much infrastructure is affected by a change) is very high
+
+You can create multiple repos for NON-PROD and PROD
+
+Disadvantages:
+==============
+-> Duplicate code
+
+roboshop-infra-dev
+roboshop-infra-prod
+
+We can use modules feature to
+-> reuse
+-> enforce standards across projects
+-> central place to push the updates
+-> easy maintenance
+
+name_of_module can be given as per your requirement.
+module "name_of_module" {
+	source = "git-repo" 
+}
+
+Terraform naming conventions:
+=============================
+
+name_of_module -> programs (Terraform)
+
+name-of-module -> humans
+
+resource "aws_instance" "catalogue" {
+
+
+}
+
+No need to write catalogue_instance because is already mentioned as aws_instance for creation of ec2 instance.
+Ramesh
+Human Ramesh
+
+Only one resource => this/main
+
+main -> where program starts executing (main code is here)
+
+list of sg_id -> sg_ids (plural)
+
+1 resource -> singular name
+multiple/list -> plural name
+
+for_each, count should be at the beginning of program.
+tags(common tags, sg_tgas, ec2_tags...) should be almost at the end of program.
+
+
+After developing the module, we need to provide documentation....(Mandatory)
+
+TERRAFORM AWS INSTANCE:
+=======================
+
+This module creates EC2 instance in AWS.
+
+Inputs
+
+project - (Required) string type, user must provide project name ex. roboshop, expense, etc.
+environment - (Required) string type, user must provide environment ex. dev, uat, prod, etc.
+ami_id - (Required) string type, user must provide ami_id of the instance.
+instance_type - (Optional) string type, default value is t3.micro. Users can override.
+sg_ids - (Required) list of string, users must provide list of security group ids instance should have.
+tags - (Optional) map type, user can provide the tags they want to have.
+
+Outputs
+
+instance_id - ID of the instance created
+public_ip - Public IP of the instance created
+private_ip - Private IP of the instance created
+
+
+Module Developers: There only job is to develop modules for entire organization...
+
+Module users doesn't mean that I don't know terraform...
+
+
+VPC(Virtual Private Cloud):
+===========================
+--> Virtual Private Cloud is like a data center where we can create resources to our project in an isolated space. It is completely in our control.
+
+data center
+network connection
+subnets
+servers
+
+Example:
+~~~~~~~~
+
+-> Select one village
+-> Select one street
+-> Get one house number
+-> Then construct
+
+
+SUBNETS:
+========
+
+A subnet is simply a logical division of a network to improve:
+-> Security
+-> Organization
+-> Performance
+-> Maintenance
+
+We create partitions in our network for maintenance and security. 
+
+==> If not secure then end users connect directly then it is public subnet.
+==> If secure like backend or databases then it is private subnet.
+
+We create subnets in a network for maintenance, security, and organization.
+
+-> If a subnet has a route to the internet(Web server/Frontend)(0.0.0.0/0), it is called a public subnet.
+
+-> If a subnet does not allow direct internet access (used for backend or databases), it is called a private subnet.
+
+Arch -> Internet gateway/modem
+
+Pincode -> CIDR (Classless Inter-Domain Routing)
+
+Classless Inter-Domain Routing(CIDR): (Not required)
+======================================
+
+CIDR is a method used in IP networking to allocate IP addresses and define IP networks more efficiently than the old class-based system (Class A, B, C).
+
+It was introduced to:
+-> Reduce IP address waste
+-> Slow down IPv4 exhaustion
+-> Simplify routing tables
+
+IPv4 Address
+
+32 bits binary system
+
+unary -> 1(1), 11(2), 111(3), etc (Single digit)
+binary -> 0 1 -> 2 (Double digit)
+decimal -> 0 1 2 3 4 5 6 7 8 9 -> 10
+
+168 -> face value and place value
+8 -> 8*10^0 = 8*1   = 8
+6 -> 6*10^1 = 6*10  = 60
+1 -> 1*10^2 = 1*100 = 100
+
+1	6	8
+=	=	=
+2	1	0
+(power)
+
+4 parts each part contains 8 bits(Octet/1 byte).
+
+192.168.145.132 -> decimal number system
+
+128 	64  	32  	16 	8   	4   	2   	1
+7	6	5	4	3	2	1	0  --> Binary system
+=	=	=	=	=	=	=	=
+1 	0	1	1	0	1	1	1 	= 1*2^0 + 1*2^1 + 1*2^2 + 0*2^3 + 1*2^4 + 1*2^5 + 0*2^6 + 1*2^7
+							  	= 1 + 2 + 4 + 0 + 16 + 32 + 0 + 128
+							  	= 183
+
+Decimal to binary conversion:
+=============================		
+					  
+183/2 -> 91(Quotient) -> 1(Remainder)
+91/2  -> 45 -> 1
+45/2  -> 22 -> 1
+22/2  -> 11 -> 0
+11/2  -> 5  -> 1
+5/2   -> 2  -> 1
+2/2   -> 1  -> 0
+1/2   -> 0  -> 1
+
+Bottom to top conversion  ==> 10110111
+
+So, 7 6 5 4 3 2 1 0
+    1 0 1 1 0 1 1 1
+
+Ex: 45
+~~~
+
+45/2  -> 22 -> 1
+22/2  -> 11 -> 0
+11/2  -> 5  -> 1
+5/2   -> 2  -> 1
+2/2   -> 1  -> 0
+1/2   -> 0  -> 1
+
+Bottom to top conversion  ==> 101101 
+
+5 4 3 2 1 0
+1 0 1 1 0 1 => 1*2^5 + 0*2^4 + 1*2^3 + 1*2^2 + 0*2^1 + 1*2^0
+	    => 32 + 0 + 8 + 4 + 0 + 1
+	    => 45
+
+192/2 -> 96 -> 0
+96/2  -> 48 -> 0
+48/2  -> 24 -> 0
+24/2  -> 12 -> 0
+12/2  -> 6  -> 0
+6/2   -> 3  -> 0
+3/2   -> 1  -> 1
+1/2   -> 0  -> 1
+
+192 => 11000000 (Bottom to top approach)
+
+168/2 -> 84 -> 0
+84/2  -> 42 -> 0
+42/2  -> 21 -> 0
+21/2  -> 10 -> 1
+10/2  -> 5  -> 0
+5/2   -> 2  -> 1
+2/2   -> 1  -> 0
+1/2   -> 0  -> 1
+
+168 => 10101000 (Bottom to top approach)
+
+145/2 -> 72 -> 1
+72/2  -> 36 -> 0
+36/2  -> 18 -> 0
+18/2  -> 9  -> 0
+9/2   -> 4  -> 1
+4/2   -> 2  -> 0
+2/2   -> 1  -> 0
+1/2   -> 0  -> 1
+
+145 => 10010001 (Bottom to top approach)
+
+132/2 -> 66 -> 0
+66/2  -> 33 -> 0
+33/2  -> 16 -> 1
+16/2  -> 8  -> 0
+8/2   -> 4  -> 0
+4/2   -> 2  -> 0
+2/2   -> 1  -> 0
+1/2   -> 0  -> 1
+
+132 => 10000100 (Bottom to top approach)
+
+128 	64  	32  	16  	8   	4   	2   	1
+7	6	5	4	3	2	1	0  --> Binary system
+=	=	=	=	=	=	=	=
+1 	0	1	1	0	1	1	1 	= 1*2^0 + 1*2^1 + 1*2^2 + 0*2^3 + 1*2^4 + 1*2^5 + 0*2^6 + 1*2^7
+							  	= 1 + 2 + 4 + 0 + 16 + 32 + 0 + 128
+							  	= 183
+
+192.168.145.132 = 11000000.10101000.10010001.10000100 
+==> (128+64=192 -> 128,64 places should be 1, rest all 0).(128+32+8=168 -> 128,32,8 places should be 1, rest all 0).(128+16+1=145 -> 128,16,1 places should be 1, rest all 0).(128+4=132 -> 128,4 should be 1, rest all 0)...
+	
+Inside computers						
+0.0.0.0
+.
+.
+.
+.
+255.255.255.255
+
+1bit
+====
+0
+-
+1
+-
+
+2 = 2^number-of-bits (Possibilities)
+
+2 bits
+======
+0	0 -> 00
+-	-
+0	1 -> 01
+-	-
+1	0 -> 10
+-	-
+1	1 -> 11
+-	-
+
+4 Possibilities
+
+32 bits = 2^32 = 4.29 billion IP address
+
+NAT(Network Address Translation) -> 1 -> Private ip addresses inside network
+
+IP = Network + Host
+
+500082-20-30
+
+Total = 32 bits
+===============
+
+10.0.0.0/16 -> 16 bits are reserved for network, 16 bits are reserved for host/server
+2^16 = 65,536 IP address possible
+
+10.0.0.0/24 -> 24 network bits, remaining 8 bits are allocated for host -> 2^8 -> 256 Ip address possible = 256 Servers
+
+192.168.1.0/24 -> 24 network bits, 256 devices can be connected to your modem
+
+192.168.1.0 -> modem (remaining all users will use)
+192.168.1.1
+192.168.1.2
+.
+.
+.
+.
+192.168.1.255 -> 256 devices
+
+16 - 28 range CIDR
+
+10.0.0.0/16 -> VPC CIDR
+
+10.0.0.0/24 -> 8 bits for subnets -> 2^8=256 subnets -> each subnet can have 2^8 IP address
+10.0.1.0/24
+10.0.2.0/24
+.
+.
+.
+.
+.
+10.0.255.0/24

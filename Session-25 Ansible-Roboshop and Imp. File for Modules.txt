@@ -1,0 +1,489 @@
+action = create
+passing the instances names in list
+1. create instances, loop instance names. item is the keyword
+	register the output in variable -> ec2_output
+	
+	ec2_output.results -> output as list
+	
+2. loop ec2_output.results list of map
+	item -> first map
+	
+	{{ item.item }} => name
+	{{ item.instances[0].private_ip_address }}
+	
+	frontend-dev.daws88s.online -> private_ip_address
+	
+	roboshop-dev.daws88s.online -> public_ip_address
+	loop: ec2_output.results
+	when: 
+	- item.item == "frontend"
+	- action == "create"
+
+
+CREATE and DELETE EC2_INSTANCES ALONG WITH ROUTE 53 RECORDS:
+============================================================
+
+1. ansible-playbook -i localhost, -e '{"instances":["mongodb","catalogue","redis","user","cart","mysql","shipping","rabbitmq","payment","frontend"]}' roboshop.yaml
+			(OR)
+   ansible-playbook -i localhost, -e "instances:['mongodb','catalogue','redis','user','cart','mysql','shipping','rabbitmq','payment','frontend']" roboshop.yaml
+
+==> It is used to create the ec2_instances and route 53 records...
+
+2. ansible-playbook -i localhost(If we don' want to give inventory file then give -i localhost or multiple ip addresses using , ),   -e '{"instances":["mongodb","catalogue","redis","user","cart","mysql","shipping","rabbitmq","payment","frontend"]}'  -e action=destroy roboshop.yaml
+
+   ansible-playbook -i localhost, -e '{"instances":["mongodb","catalogue","redis","user","cart","mysql","shipping","rabbitmq","payment","frontend"]}'  -e action=destroy roboshop.yaml
+
+			(OR)
+
+   ansible-playbook -i localhost, -e "instances:['mongodb','catalogue','redis','user','cart','mysql','shipping','rabbitmq','payment','frontend']" -e action=destroy roboshop.yaml
+
+==> It is used to delete the instances after usage.
+
+==> First it creates ec2_instances and then route 53 records.
+==> It deletes route 53 records first and then deletes ec2_instances next.
+
+
+Modules/Tasks/Collections (Important):
+======================================
+
+1. ansible.builtin.copy: --> It is used to copy files from the control node (your machine) to remote target machines (OR) It is used to transfer files from the Ansible control node to managed nodes while optionally setting permissions and ownership.
+
+2. ansible.builtin.template: --> It is like copy, but it supports dynamic values (variables) (OR) It is used to generate configuration files dynamically using jinja2 templating and deploy them to remote systems.
+
+3. ansible.builtin.user: --> It is used to manage user accounts on remote systems (OR) It is used to create, modify, or delete user accounts on target systems in an automated and idempotent way.
+
+4. ansible.builtin.file: --> It is used to manage files and directories on remote machines (OR) It is used to manage file properties like creation, deletion, permissions, ownership, and symbolic links on target machines.
+
+5. ansible.builtin.dnf: --> It is used to manage packages on systems that use the DNF package manager.
+
+DNF is used in:
+-> Fedora
+-> Red Hat Enterprise Linux (RHEL 8+)
+-> CentOS (8+)
+
+It installs, removes, updates packages.
+
+		(OR)
+
+It is used to manage software packages on DNF-based Linux systems like RHEL 8 and CentOS 8 in an idempotent way.
+
+6. ansible.builtin.debug: --> It is used to print messages or variable values during playbook execution (OR) It is used to display messages or variable values during playbook execution for troubleshooting and validation.
+
+7. amazon.aws.ec2_instance: --> It is used to create, manage, start, stop, or terminate EC2 instances in AWS.
+
+It belongs to the Amazon AWS collection, not the built-in modules.
+
+8. amazon.aws.route53: --> It is used to manage DNS records in Amazon Route 53.
+
+It belongs to the Amazon AWS collection and is used to create, update, or delete DNS records automatically.
+
+9. ansible.builtin.command: --> It is used to execute a command on a remote machine.
+
+It runs Linux/Unix commands but does NOT use a shell.
+
+			(OR)
+
+It is used to execute simple commands on remote hosts without invoking a shell, making it more secure than the shell module.
+
+10. ansible.builtin.shell: --> It is used to execute commands on remote machines through a shell (like #!/bin/bash).
+
+Unlike command, this module uses a shell, so it supports:
+
+-> Pipes (|)
+-> Redirection (>, >>)
+-> Wildcards (*)
+-> Environment variables ($HOME)
+-> Multiple commands (&&)
+
+11. ansible.builtin.get_url: --> It is used to download files from a URL (HTTP, HTTPS, FTP) to a remote machine.
+
+It downloads files directly on the target host, not from control node like copy.
+
+				(OR)
+
+It is used to download files from remote URLs directly onto managed nodes in an idempotent way.
+
+12. ansible.builtin.unarchive: --> It is used to extract compressed archive files on remote machines.
+
+It supports formats like:
+-> .tar
+-> .tar.gz
+-> .tgz
+-> .zip
+-> .tar.bz2
+
+(OR)
+
+It is used to extract compressed archive files on managed nodes, optionally copying them from the control node.
+
+13. community.general.npm: --> It is used to manage Node.js packages using NPM (Node Package Manager).
+
+It belongs to the community.general collection, not built-in modules.
+
+			(OR)
+
+It is used to manage Node.js packages using npm on remote hosts in an idempotent way.
+
+14. ansible.builtin.service: --> It is used to manage services on remote systems.
+
+It can:
+-> Start services
+-> Stop services
+-> Restart services
+-> Enable services at boot
+-> Disable services
+
+It works with service managers like:
+-> systemd
+-> init
+-> upstart
+
+(OR)
+
+It is used to manage the state and enablement of services on managed nodes in an idempotent way.
+
+15. ansible.builtin.systemd_service: --> It is used to manage services specifically on systems that use systemd.
+
+It is designed only for systemd-based Linux systems, such as:
+-> Red Hat Enterprise Linux 7+
+-> CentOS 7+
+-> Ubuntu 16.04+
+
+It provides more precise control than ansible.builtin.service.
+
+			(OR)
+
+It is used to manage systemd-based services with advanced control such as daemon reload and enablement.
+
+16. ansible.builtin.replace: --> It is used to search and replace text inside a file using regular expressions (regex).
+
+It modifies existing files on remote machines.
+It does:
+-> Search for a pattern
+-> Replace matching text
+-> Use regex
+-> Modify config files dynamically
+
+		(OR)
+
+It is used to search and replace text patterns inside files using regular expressions in an idempotent way.
+
+17. ansible.builtin.lineinfile: --> It is used to ensure a specific line exists (or is modified) in a file.
+
+It works line by line, not full regex replacement like REPLACE.
+It does:
+-> Add a line if not present
+-> Modify a matching line
+-> Remove a line
+-> Insert line before/after another line
+-> Works idempotently (won’t duplicate lines)
+
+(OR)
+
+It ensures a particular line is present, modified, or removed in a file in an idempotent way.
+
+18. ansible.builtin.pip: --> It is used to install, upgrade, or remove Python packages.
+
+-> ansible.builtin.pip
+-> ansible.builtin.package
+-> ansible.builtin.apt / yum
+
+pip → Installs Python packages
+package → Installs OS-level packages
+
+19. ansible.builtin.package: --> It is a generic OS package manager module.
+
+It installs, removes, or updates system-level packages (like nginx, git, java, maven).
+
+It automatically detects the OS and uses:
+-> apt → Ubuntu/Debian
+-> yum / dnf → RHEL/CentOS
+-> zypper → SUSE
+
+20. community.mysql.mysql_db: --> It is used to create, delete, import, or export MySQL databases.
+
+It belongs to the community.mysql(database) collection, not the builtin modules of Ansible.
+
+21. community.mysql.mysql_user: --. It is used to create users and gives permissions.
+
+It belongs to community.mysql(database) collection, not the builtin ansible module.
+
+22. community.rabbitmq.rabbitmq_user: --> It is used to create, delete, and manage users in RabbitMQ.
+
+It belongs to the community.rabbitmq collection, not the builtin modules of Ansible.
+
+23. ansible.builtin.ping: --> It is used to test connectivity to managed hosts.
+
+It verifies:
+-> Ansible can connect to the target host
+-> Python is available on the remote machine
+-> Authentication works correctly
+
+ansible all -m ping (OR) ansible all -m ansible.builtin.ping (Both are same).
+
+24. ansible.builtin.set_fact: --> It is used to define or update variables (facts) during playbook execution.
+
+It allows you to create variables dynamically and reuse them later in the same play.
+
+Common Use Cases:
+
+-> Store command output
+-> Transform registered variables
+-> Build dynamic lists
+-> Create flags for conditional logic
+-> Modify variables during loops
+
+
+REPLACE				LINEINFILE
+========			===========	
+Replaces matching text		Ensures a specific line exists(whole line)
+Works on patterns		Works line-by-line
+More flexible			Simpler use cases
+Only replaces matches		Adds if missing
+
+
+Small config change → lineinfile
+
+Regex replacement → replace
+
+Large config template → template
+
+
+FOR CHECKING THE SERVER WHETHER IT IS CONNECTED OR NOT, WE USE:
+===============================================================
+
+netstat -lntp  --> Network Management
+
+curl http://catalogue-dev.devopsdaws.online:8080/health
+
+telnet redis-dev.devopsdaws.online 6379
+Control]
+quit
+
+TELNET:
+=======
+Telnet is a network protocol and command-line tool used to connect to a remote server. It is a TCP-based protocol and tool used to test remote server connectivity and port availability.
+
+
+MONGODB - 27017 (Database)							telnet mongodb-dev.devopsdaws.online 27017, netstat -lntp
+REDIS - 6379 (Cache)								telnet redis-dev.devopsdaws.online 6379, netstat -lntp
+MYSQL - 3306 (Database)								telnet mysql-dev.devopsdaws.online 3306, netstat -lntp
+CATALOGUE, CART, USER, SHIPPING, PAYMENT - 8080 (Application service)		curl http://catalogue-dev.devopsdaws.online:8080/health, telnet, netstat -lntp		
+RABBITMQ - 5672 (Message queue)							telnet rabbitmq-dev.devopsdaws.online 5672, netstat -lntp
+RABBITMQ UI - 15672 (Web console)						telnet rabbitmqui-dev.devopsdaws.online 15672, netstat -lntp
+==> 5672 → Application communication
+==> 15672 → Web management console
+FRONTEND - 80/443 (Web server)							telnet frontend-dev.devopsdaws.online 80, netstat -lntp
+
+
+Layer										Port		Access
+=====										=====		=======
+Frontend (HTTP/Nginx)								80		Public
+Frontend (HTTPS)								443		Public
+Backend services (CATALOGUE, CART, USER, SHIPPING, PAYMENT)			8080		Private
+Databases(Mongodb/MySQL)							27017 / 3306	Private
+Cache (Redis)									6379		Private
+
+Port 22 → SSH access
+Port 80 → Web access
+Port 443 → Secure web access
+
+
+Redirections and reading input:
+==============================
+
+<	Read input from a file
+<<<	Read input from a string
+>	Redirect output (overwrite)
+>>	Redirect output (append)
+
+
+Parameter and Meaning:
+======================
+
+name		Package name
+path		Project directory
+global		Install globally
+state		present / absent / latest
+production	Install only production deps
+
+src		Archive file
+dest		Destination directory
+remote_src	File is already on remote
+owner		File owner
+group		File group
+mode		Permissions
+creates		Skip if file already exists
+
+path		File path
+regexp		Regex pattern to match
+replace		Replacement text
+backup		Backup original file
+line		Line to ensure
+insertbefore	Insert before matching pattern
+insertafter	Insert after matching pattern
+
+absent		Delete file/directory
+directory	Create directory
+file		Ensure file exists
+touch		Create empty file
+link		Create symlink
+
+mysql_db	Create/Delete/Import DB
+mysql_user	Create users & grant privileges
+
+
+Core / Built-in Modules:
+========================
+
+File Management
+===============
+
+ansible.builtin.file
+
+ansible.builtin.copy
+
+ansible.builtin.template
+
+ansible.builtin.lineinfile
+
+ansible.builtin.replace
+
+ansible.builtin.blockinfile
+
+ansible.builtin.stat
+
+ansible.builtin.get_url
+
+ansible.builtin.unarchive
+
+
+User & Permissions
+===================
+
+ansible.builtin.user
+
+ansible.builtin.group
+
+ansible.builtin.authorized_key
+
+
+Package Management
+==================
+
+ansible.builtin.dnf
+
+ansible.builtin.yum
+
+ansible.builtin.apt
+
+ansible.builtin.package
+
+
+Service Management
+==================
+
+ansible.builtin.service
+
+ansible.builtin.systemd_service
+
+
+Command Execution
+=================
+
+ansible.builtin.command
+
+ansible.builtin.shell
+
+ansible.builtin.script
+
+ansible.builtin.raw
+
+
+Network / HTTP
+==============
+
+ansible.builtin.uri
+
+
+Debugging & Control
+===================
+
+ansible.builtin.debug
+
+ansible.builtin.fail
+
+ansible.builtin.assert
+
+ansible.builtin.set_fact
+
+ansible.builtin.include_tasks
+
+ansible.builtin.import_tasks
+
+
+Cloud Modules:
+==============
+Ansible now uses Collections.
+
+AWS Collection:
+===============
+
+Collection: Amazon AWS Ansible Collection
+
+Common modules:
+===============
+
+amazon.aws.ec2_instance
+
+amazon.aws.ec2_vpc_net
+
+amazon.aws.ec2_security_group
+
+amazon.aws.route53
+
+amazon.aws.s3_bucket
+
+Azure Collection:
+=================
+
+Collection: Azure Ansible Collection
+
+GCP Collection:
+===============
+
+Collection: Google Cloud Ansible Collection
+
+
+Database Modules:
+=================
+
+community.mysql.mysql_db
+
+community.mysql.mysql_user
+
+community.mongodb.mongodb_user
+
+community.postgresql.postgresql_db
+
+
+Application / DevOps Modules:
+=============================
+
+community.general.npm
+
+community.general.pip
+
+community.docker.docker_container
+
+kubernetes.core.k8s
+
+
+Networking Modules:
+===================
+
+cisco.ios.ios_config
+
+arista.eos.eos_config
+
+junipernetworks.junos.junos_config

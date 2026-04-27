@@ -305,7 +305,7 @@ When you'd use it:
 Summary:
 ========
 
-Old way (deprecated)		New way
+Old way (deprecated)    New way
 ====================    =======
 terraform taint         terraform apply -replace
 Separate step           Single step

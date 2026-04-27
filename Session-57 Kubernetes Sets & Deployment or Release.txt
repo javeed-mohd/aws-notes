@@ -1,0 +1,523 @@
+1. Build the image -- Docker
+2. Run the image   -- Kubernetes
+
+
+Resources:
+==========
+
+Namespace 	--> Isolated project space where we create our project resources.
+Pod 		--> Smallest deployable unit in Kubernetes, pod contains multiple containers. Every container share same network and storage.
+Labels 		--> Adds metadata to the pods, labels are selectors. We can attach labels to any resource in k8s.
+env 		--> We can pass env variables to the containers.
+resources 	--> We need to restrict pod resources. Request and limits are soft limit and hard limit.
+annotations --> Again adds metadata, but used to select external resources like load balancers, IAM roles, etc.,
+config map 	--> Configuration resource, We can attach config map to the pod.
+secrets 	--> Confidential information, we can attach to pod environment, but only encoded information not encrypted.
+
+
+In Kubernetes, a Service is an abstraction that defines a logical set of Pods and a policy to access them (like ClusterIP, NodePort, or LoadBalancer).
+
+A LoadBalancer Service:
+
+==> Exposes your application externally to the internet (or external network).
+==> Automatically provisions an external load balancer from the cloud provider (if supported).
+==> Routes traffic to the backend Pods.
+
+
+Services:
+=========
+
+1. pod to pod communication since pod ip is ephemeral. We can communicate with service name which acts as DNS.
+2. load balancing between pods
+3. service select pods based on labels as selectors
+
+1. Cluster IP -> Internally exposing pod with in the cluster. [By default, it acts as cluster ip if nothing specified]
+2. Node port -> Cluster IP is subset of nodeport. Every node inside eks cluster open the nodeport. eks node port range ephemereal [30000–32767]. To access an application which is running in kubernetes through browser when a user wants to access it, then user can use nodeport. [Kubernetes service nodeport]
+3. Load balancer -> Node port is subset of load balancer. It will create a classic load balancer. It will work only in cloud environment, we need extra configurations to setup in on-premise.
+
+
+==> ClusterIP: Default, internal access only.
+==> NodePort: Exposes service on a port on all nodes (can be combined with external LB manually).
+
+
+1. Cluster IP:
+===============
+
+==> kubectl get nodes
+==> git clone <git>
+==> cd <folder-name>
+
+*******
+service yaml file selectors should compulsory be there in label yaml files... like project, component, environment ... To bring uniqueness, we use these selectors in both files.
+
+
+==> kubectl apply -f 04-labels.yaml
+==> kubectl apply -f 12-service.yaml
+kubectl get svc
+NAME         TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)   AGE
+kubernetes   ClusterIP   10.100.0.1      <none>        443/TCP   3h18m
+nginx        ClusterIP   10.100.160.12   <none>        80/TCP    13s
+
+
+*****
+==> kubectl describe svc nginx (Important command: That pod ip address will be acting as endpoint registry for further communication through service as pods communicate between themselves using sevice, only to send request and also to get response they use service as a medium).
+
+
+==> You will get one IP address for your service, that is known as Cluster IP. [kubectl get svc --> nginx and Kubernetes]
+
+Delete the service file --> kubectl delete -f 12-service.yaml
+
+
+2. Nodeport:
+============
+
+==> kubectl apply -f 14-service-np.yaml
+==> kubectl get svc
+NAME         TYPE        CLUSTER-IP       EXTERNAL-IP   PORT(S)        AGE
+kubernetes   ClusterIP   10.100.0.1       <none>        443/TCP        3h24m
+nginx-np     NodePort    10.100.128.246   <none>        80:32141/TCP   82s
+
+
+==> kubectl get pods -o wide
+
+We need to open the port which we have created in instance, by default sg will be blocked. We have to enable it using,
+sg edit inbound rules using allocated port number and allow all traffic (public)...
+
+Then access it using the port number on browser,
+http://public ip address:port number  ==> http://http://3.94.108.74:32141/
+
+==> While creating eksctl, we have enabled two nodes as desired capacity either of two nodes public ip address we can access it. This happens because Kubernetes will open in all worker nodes  with the same port number. You send request to any server that will forward to the cluster ip service and will get response as a result.
+
+==> Kubernetes service whenever receives requests will send to attached endpoints which are pods forwards requests.
+
+
+We can also specify a particular nodeport number which is ranging from 30000-32767 in our yaml file. By doing this, we can fix a nodeport number so that we don't need to change the sg rules whenever we created a new nodeport.
+
+==> If we want, we can fix the nodeport so as not to change the sg rules whenever we create the nodeport...
+
+Delete the service np file, using: kubectl delete -f 14-service-np.yaml
+
+==> Nodeport is not secure... In future, in our cluster, we create private subnet and then we won't have public IP. 
+To expose the application properly to the external resources then we have to use Load Balancer.
+
+
+
+3. Load Balancer:
+=================
+
+==> kubectl apply -f 15-service-lb.yaml
+==> kubectl get svc --> Now, we get load balancer url here.
+NAME         TYPE           CLUSTER-IP       EXTERNAL-IP                                                              PORT(S)        AGE
+kubernetes   ClusterIP      10.100.0.1       <none>                                                                   443/TCP        3h50m
+nginx-lb     LoadBalancer   10.100.252.178   a64abacdae62e498db66d606daaea04a-203670061.us-east-1.elb.amazonaws.com   80:32141/TCP   14s
+
+
+If we give type as load balancer in service file, along with this Cluster IP and Node Port will be opened...
+
+We get load balancer url here and we will create a route53. Giving load balancer url is always safe.
+
+In that load balancer, we can see two target instances worker nodes have joined here. We can access this with DNS name (url of load balancer).
+
+==> We can also adjust security group load balancer, to access only from load balancer (Note the sg id of load balancer) Deleting access from all traffic here(0.0.0.0/0). It mean that whatever traffic comes from load balancer is safe and internal resource, that they can accept. Only for load balancer we do this in security group so that they can update it accordingly whenever lb requests.
+
+Nodeport and Load balancer will expose the application externally and cluster Ip will do it internally.
+
+==> We will not use nodeport due to security issues, we use only LOAD BALANCER.
+
+==> We don't use Classic Load Balancer because it is legacy. We use Application Load Balancer as it is intelligent, reads requests and send the traffic to different target groups. So, we call this as Ingress Controller. (Advanced Topic)
+
+==> Ingress Controller: Manages HTTP/HTTPS routing with a single external IP for multiple services.
+
+
+Delete the service if not in use. --> kubectl delete -f 15-service-lb.yaml
+
+
+==> Cluster IP (default) -> Node Port -> Load Balancer
+
+==> Load Balancer can able to forward the requests to Nodes and from nodes to service and from service to Pod(endpoint).
+
+==> Worker nodes will be created only in NodeGroup (Kubernetes worker nodes) not in master node (Amazon Elastic Kubernetes Service). Master node is only to control the nodes and sends requests to any node.
+
+
+Sets
+=====
+
+1. ReplicaSet -> Create multiple replicas of your pod. Always runs desired number of pods. (k8 replicaset)
+2. Deployment -> Deployment is the most commonly used controller to manage stateless applications. It provides a higher-level abstraction over ReplicaSets and handles updates, scaling, and rollbacks automatically.
+3. DaemonSet  -> A DaemonSet ensures that one pod runs on every node (or selected nodes). (Monitoring, logging events, node-level services)
+4. StatefulSet -> A StatefulSet manages stateful applications with stable identity. (Db)
+
+==> We can give labels to any resources in Kubernetes.
+
+
+1. ReplicaSet: (k8 replicaset) ==> A ReplicaSet ensures a specified number of identical pods are always running.
+===============
+
+A ReplicaSet is a concept for ensuring high availability and scaling of your application Pods.
+
+--> Ensures that a specified number of pod replicas are running at any given time.
+--> Automatically replaces pods that fail or are deleted.
+--> Provides declarative scaling
+
+
+replicas: 3 → Kubernetes ensures 3 pods are always running.
+
+--> You create a ReplicaSet.
+--> Kubernetes checks how many Pods already exist matching the selector.
+--> If less than replicas, it creates new Pods.
+--> If more than replicas, it terminates extra Pods.
+-->If a Pod crashes, Kubernetes automatically replaces it.
+
+
+ReplicaSets are usually managed by Deployments. You rarely create them directly.
+
+Deployment → manages ReplicaSets → manages Pods.
+This allows rolling updates, rollbacks, and declarative version control.
+
+For manual: kubectl scale replicaset my-app-rs --replicas=5
+
+==> apply and get pods
+
+==>  kubectl apply -f 16-replicaset.yaml
+replicaset.apps/nginx created
+
+kubectl get pods
+NAME          READY   STATUS    RESTARTS   AGE
+labels        1/1     Running   0          73m
+nginx-jzxtv   1/1     Running   0          6s
+nginx-qtmlr   1/1     Running   0          6s
+
+ kubectl get rs
+NAME    DESIRED   CURRENT   READY   AGE
+nginx   2         2         2       41s
+
+kubectl delete pod <pod-name> --> kubectl delete pod nginx-jzxtv
+pod "nginx-jzxtv" deleted from default namespace
+
+
+kubectl get pods (If we delete a pod, it will create automatically the desired no. of values as provided).
+NAME          READY   STATUS    RESTARTS   AGE
+labels        1/1     Running   0          74m
+nginx-gc2gn   1/1     Running   0          7s
+nginx-qtmlr   1/1     Running   0          81s
+
+
+WE can adjust numbers accordingly in replicas like 1,2,....
+
+==> WE can also edit replicaset using in Mobaxterm itself --> kubectl edit rs nginx
+
+Edit and save (wq!)
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl edit rs nginx
+replicaset.apps/nginx edited
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get pods
+NAME          READY   STATUS    RESTARTS   AGE
+labels        1/1     Running   0          79m
+nginx-qtmlr   1/1     Running   0          5m49s
+
+
+
+
+==> REPLICASET will not consider about newer version or any changes, it only considers running the desired number of pods...
+
+If we are creating replicaset then automatically we are also creating pod by default.
+
+Delete after usage  --> kubectl delete -f 16-replicaset.yaml
+
+
+
+Deployment/Release: (k8 deployment)
+===================
+
+You have v1 running, v2 is ready
+
+1. Stop the application server or component. systemctl stop catalogue
+2. Remove the v1 code
+3. Download v2 code
+4. Restart catalogue. systemctl restart catalogue
+
+Since pods are immutable, we can create another set of v2 pods, then delete v1 pods.
+
+Features:
+~~~~~~~~~
+
+1. Rolling Updates
+Updates pods gradually (no downtime if configured well)
+Old version is replaced step by step
+
+2. Rollback
+Easily revert to a previous version
+kubectl rollout undo deployment <name>
+
+3. Scaling
+Increase/decrease pod count easily
+kubectl scale deployment my-app --replicas=5
+
+4. Self-healing
+Replaces failed pods automatically
+
+
+==> kubectl apply -f 17-deployment.yaml
+==> kubectl get pods
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl apply -f 17-deployment.yaml
+deployment.apps/nginx created
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get pods
+NAME                    READY   STATUS    RESTARTS   AGE
+labels                  1/1     Running   0          115m
+nginx-99f6c99c7-6t8zp   1/1     Running   0          5s
+
+==> kubectl get rs
+==> kubectl get deployment
+
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get rs
+NAME              DESIRED   CURRENT   READY   AGE
+nginx-99f6c99c7   1         1         1       55s
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get deployment
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+nginx   1/1     1            1           63s
+
+
+
+
+==> kubectl apply -f 17-deployment.yaml
+deployment.apps/nginx configured
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get deployment
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+nginx   2/2     2            2           3m54s
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get rs
+NAME              DESIRED   CURRENT   READY   AGE
+nginx-99f6c99c7   2         2         2       4m
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get pods
+NAME                    READY   STATUS    RESTARTS   AGE
+labels                  1/1     Running   0          119m
+nginx-99f6c99c7-6t8zp   1/1     Running   0          4m6s
+nginx-99f6c99c7-hnq4w   1/1     Running   0          16s
+
+
+deployment -> replicaset -> pod
+
+New deployment means created new replicaset (pod refrences also changes) and new pods along with it. Once, the new ones are up then the old deployment will be deleted.
+
+After making changes to deployment image nginx:latest, then 
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl apply -f 17-deployment.yaml
+deployment.apps/nginx configured
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get deployment
+NAME    READY   UP-TO-DATE   AVAILABLE   AGE
+nginx   2/2     2            2           6m59s
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get rs
+NAME              DESIRED   CURRENT   READY   AGE
+nginx-79f9c6f5c   2         2         2       10s
+nginx-99f6c99c7   0         0         0       7m4s
+
+Old replicaset is 0, if we want we can get it back by roll back commands.
+
+
+
+Kubernetes deployment rollback commands:
+========================================
+
+
+==> If we get lot of defects in new version, we need to go back to earlier version.
+
+--> kubectl rollout history deployment/<deployment-name> [nginx]
+
+kubectl rollout history deployment/nginx
+deployment.apps/nginx
+REVISION  CHANGE-CAUSE
+1         <none>
+2         <none>
+
+
+To go back to previous version, we use 
+--> kubectl rollout undo deployment/<deployment-name> [nginx] 
+
+kubectl rollout undo deployment/nginx
+deployment.apps/nginx rolled back
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl get pods
+NAME                    READY   STATUS    RESTARTS   AGE
+labels                  1/1     Running   0          131m
+nginx-99f6c99c7-lrjmh   1/1     Running   0          7s
+nginx-99f6c99c7-m7gxz   1/1     Running   0          10s
+
+==> kubectl describe pod nginx-99f6c99c7-lrjmh
+
+ Image:          nginx:stable-alpine3.23-perl ==> Older Version
+
+
+New version nginx:latest
+
+
+==> kubectl rollout undo deployment/<deployment-name> --to-revision=<revision-number>  ==> To go to specific revision we can use this.
+
+
+kubectl rollout status deployment/<deployment-name> --> Status of rollout
+
+==>  kubectl rollout status deployment/nginx
+deployment "nginx" successfully rolled out
+
+Successfully rolled out but we may get defect in functionality. Then we have to do rollback.
+
+
+kubectl deployment change cause set (search)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+We have to add it in annotations. change-cause is a metadata annotation used in a Deployment to record why a change was made.
+
+It does NOT affect behavior — it’s purely for tracking and debugging.
+
+Kubernetes.io/change-cause: "Moving to 1.29.7"
+
+To go back to previous version, we use 
+--> kubectl rollout undo deployment/<deployment-name> [nginx] 
+
+==> kubectl rollout undo deployment/<deployment-name> --to-revision=<revision-number>  ==> To revise to specific number
+
+
+kubectl rollout status deployment/<deployment-name> --> Status of rollout
+
+
+
+ ==> kubectl apply -f 17-deployment.yaml (1.29)
+deployment.apps/nginx configured
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl rollout status deployment/nginx
+deployment "nginx" successfully rolled out
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl rollout history deployment/nginx
+deployment.apps/nginx
+REVISION  CHANGE-CAUSE
+3         <none>
+4         <none>
+5         Moving to 1.29
+
+
+==> kubectl apply -f 17-deployment.yaml (1.29.7)
+deployment.apps/nginx configured
+
+==> kubectl get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+labels                   1/1     Running   0          144m
+nginx-78cc6c5555-gwqrv   1/1     Running   0          55s
+nginx-78cc6c5555-knm44   1/1     Running   0          52s
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl describe pod nginx-78cc6c5555-gwqrv
+
+Image: nginx:1.29.7
+
+==>  kubectl rollout history deployment/nginx
+deployment.apps/nginx
+REVISION  CHANGE-CAUSE
+3         <none>
+4         <none>
+5         Moving to 1.29
+6         Moving to 1.29.7
+
+
+==> If 1.29.7 has major defects, and we want to move back to earlier version 1.29, then we have to use:
+
+==> kubectl rollout undo deployment/nginx
+deployment.apps/nginx rolled back
+
+44.192.252.222 | 172.31.66.59 | t3.micro | https://github.com/javeed-mohd/k8s-resources.git
+[ ec2-user@ip-172-31-66-59 ~/k8s-resources ]$ kubectl rollout history deployment/nginx
+deployment.apps/nginx
+REVISION  CHANGE-CAUSE
+3         <none>
+4         <none>
+6         Moving to 1.29.7
+7         Moving to 1.29
+
+
+==> If we created DEPLOYMENT, then along with it replicaset and pod also wll be created.
+
+In projects, we use Deployments.
+
+Deployment -> ReplicaSet -> Pod -> Container
+
+
+--> Container is subset of Pod
+--> Pod is subset of Replicaset (ReplicaSet manages Pods using label selectors)
+--> Replicaset is subset of Deployment
+
+
+==> ReplicaSets are usually not created directly.
+
+Deployment → manages ReplicaSet → manages Pods
+
+Reason:
+~~~~~~~
+
+Rolling updates
+Easy scaling
+Version control
+
+
+
+ k8-roboshop:
+=============
+
+First, we have to create namespace other it will be created in default namespace.
+==> kubectl apply -f namespace.yaml --> create namespace
+
+cd mongodb/
+kubectl apply -f manifest.yaml
+
+kubectl get deployment -n roboshop
+kubectl get rs -n roboshop
+==> kubectl get pods -o wide -n roboshop  --> Detailed information whether it is running/not
+==> kubectl get svc -n roboshop
+==> kubectl describe svc mongodb -n roboshop
+
+We need to check mongodb pod ip address as endpoint while describing the mongodb service.
+
+
+==> cd ../catalogue/
+==> kubectl apply -f manifest.yaml
+
+==> kubectl get pods
+==> kubectl get pods -n roboshop
+
+==> To login inside the catalogue container, 
+--> kubectl exec -it catalogue-55tgagfv-77y7h -n roboshop -- sh    (secure image --> alpine)
+curl http://localhost:8080/health
+
+==> First, we need to secure the image while building it and should run without root access in Mobaxterm App. 
+
+cd ../../eksctl/
+==> kubectl get svc -o wide
+==> history
+
+
+*****
+For Frontend, We use Load Balancer, which automatically uses Cluster IP and Node Port.
+
+
+etcd -> k8 cluster storage.

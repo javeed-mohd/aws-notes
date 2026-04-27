@@ -1,0 +1,78 @@
+2 Availability Zones are selected for high availability purpose.
+1 subnet for 1 AZ
+public - roboshop-public-us-east-1a
+
+public 10.0.1.0/24 -> 1a -> 256 IP addresses, 10.0.2.0/24 -> 1b -> 256 IP addresses 
+private 10.0.11.0/24 -> 1a, 10.0.12.0/24 -> 1b
+database 10.0.21.0/24 -> 1a, 10.0.22.0/24 -> 1b
+
+
+ingress/inbound -> incoming traffic
+egress/outbound -> traffic/data goes out from VPC/servers
+
+
+dnf install mysql-server -y -> outgoing traffic
+
+NAT(Network Address Translation) gateway (Outbound traffic) -> EC2 instance (Outgoing traffic)
+
+==> If the instances in private subnet (or) database subnet wants to connect to internet to download the packages or update the packages, so they should go through the NAT Gateway. It is for the outbound traffic to the internet. It will not allow inbound traffic.
+
+Elastic IP -> Static IP is mandatory to create NAT gateway (It won't change).
+
+An Elastic IP is a static public IPv4 address that you can allocate and attach to a cloud resource (like a virtual machine).
+
+It is commonly used in Amazon Web Services within Amazon Elastic Compute Cloud (EC2).
+
+Normally: When you stop/start an EC2 instance → public IP changes
+
+With Elastic IP:
+-> You get a fixed public IP
+-> It stays the same even if the instance stops/starts
+
+Why use Elastic IP? 
+=> To provide a static public IP address for EC2 and allow quick failover.
+
+
+Elastic IP vs Public IP:
+========================
+
+Public IP		Elastic IP
+=========		==========	
+Changes on restart	Static
+Auto-assigned		Manually allocated
+Not reusable		Reusable
+
+
+Common Architecture
+====================
+
+EC2 in Public Subnet 	→ Attach Elastic IP
+Private EC2 		→ No Elastic IP
+NAT Gateway 		→ Uses Elastic IP
+
+1. create VPC
+2. create IGW and attach to VPC
+
+roboshop-dev
+
+In project we have to write in module-test as
+source = "git::https://github.com/javeed-mohd/terraform-aws-vpc.git?ref=main"
+
+
+==> terraform get --help
+
+
+NAT Gateway (Network Address Translation Gateway):
+=================================================
+
+A NAT Gateway (Network Address Translation Gateway) allows resources in a private network to access the internet without exposing them to inbound internet traffic.
+
+It’s commonly used in cloud environments like Amazon Web Services inside a Amazon Virtual Private Cloud (VPC).
+
+slice function ==> To cut and use whatever required.
+
+Syntax:
+~~~~~~~~
+slice(list, start_index, last_index)
+
+ex:- slice(data.aws_availabilit_zones.available.names, 0, 2)

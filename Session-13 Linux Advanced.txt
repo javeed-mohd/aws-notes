@@ -1,0 +1,130 @@
+Linux File system hierarchy:
+============================
+
+/bin	-> Essential user binaries/software's/commands
+/boot	-> OS booting process commands or files
+/dev	-> Devices. Everything in Linux is file including keyboard, mouse, disk, USB, etc.,
+/etc	-> Extra configuration. Configurations related to system or user installed packages are here
+/home	-> Any user related directories are here. /home/<username>
+/lib	-> All required libraries are here
+/lib64	-> All required libraries are here
+/media 	-> Removable disks like usb, DVD, etc., are mounted here automatically in desktop environments
+/mnt 	-> Used to mount extra disks in linux server are here for temp purpose
+/opt 	-> Optional. When you installed a software manually you do it here. /opt/roboshop, /opt/tomcat, /opt/jboss etc.,
+/proc 	-> Processor information, /proc/cpuinfo, /proc/meminfo. running process info is here related to kernel
+/root 	-> Root user home directory
+/run 	-> Running process information 
+/sbin 	-> Essential root user binaries/softwares/commands
+/srv 	-> Service. Data related to system like HTML directory, NFS directory, etc.,
+/swap	-> Virtual RAM. swap usage is more means system is under stress
+/sys 	-> Kernel sub systems
+/tmp 	-> Temporary directory in Linux
+/usr 	-> User related commands and libs are here
+/var 	-> Variable files. Continuously growing files are here
+
+
+Hard Disk vs Network Disk:
+==========================
+
+Hard disk near to computer
+Network disk, any where in the internet like google drive, MS drive, S3 (Simple Storage Service), etc.,
+
+OS, DB always should be in HD, HD latency is less (speed, not late)
+Normal files and objects are stored in network storages
+
+Only one HD can be mounted to a computer at a time.
+Network storages can be attached to multiple computers.
+
+
+How to add extra disk to Linux server:
+======================================
+
+1. Create EBS volume
+2. Attach to the instance, EBS volume should in the same AZ as EC2
+
+lsblk -> list block devices
+
+nvme0n1 -> root disk -> OS default purpose
+nvme1n1 -> new disk -> database data, imp files and configurations are stored here..
+
+3. List the block devices, you can see newly attached disk
+4. Create partition from the disk
+(0 100 1 partition, 0 50 50 100 two partitions...)
+
+sudo parted /dev/nvme1n1 --script mklabel gpt mkpart primary 0% 100%
+
+msdos (MBR):
+============
+
+Max disk size: 2 TB
+
+Max primary partitions: 4
+
+Older BIOS-based systems
+
+gpt:
+====
+
+Supports very large disks
+
+Supports 128+ partitions
+
+Used with UEFI, cloud, modern Linux
+
+
+/var/lib/mysql -> mysql data is stored here
+/data -> redis
+
+
+UUID="0683949b-ce15-4d77-b202-4d47ee2a863a"
+
+UUID=0683949b-ce15-4d77-b202-4d47ee2a863a   /data   xfs   defaults,nofail   0   2
+
+
+Mine  UUID="7659c795-6a7f-420a-8998-bf461682676f"
+
+      UUID=7659c795-6a7f-420a-8998-bf461682676f   /data   xfs   defaults,nofail   0   2
+
+Memory usage commands:
+======================
+
+df -hT  -> Disk information in human readable format
+free -m -> RAM usage
+free -h -> human readable
+
+top -> memory usages
+
+top 10 usages
+ps aux --sort -rss | head -10
+
+du -sh * ->disk utilized
+memory occupied by files and folders
+
+growpart nvme1n1 1
+
+xfs_growfs /data -> To grow data in partition similar to disk (Lvextend -L +15G /dev/nvme1n1p1 /lvname)
+
+df -hT /data ( To see grown data)
+
+Adding extra disks for running instances and used for automation(Process):
+==========================================================================
+
+# Create partition
+sudo parted /dev/nvme1n1 --script mklabel gpt mkpart primary 0% 100%
+
+# Format disk
+sudo mkfs.xfs -f /dev/nvme1n1p1
+
+# Mount disk
+sudo mkdir -p /data
+sudo mount /dev/nvme1n1p1 /data
+
+# Get UUID
+sudo blkid /dev/nvme1n1p1
+
+# Add to fstab
+sudo vim /etc/fstab
+UUID=xxxx   /data   xfs   defaults,nofail   0   2
+
+# Test mount
+sudo mount -a

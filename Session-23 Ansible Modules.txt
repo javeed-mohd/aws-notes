@@ -1,0 +1,62 @@
+ansible-playbook -i inventory.ini -e 'NAME="Ansible from args"' 10-vars-preference.yaml --> Args will be executed first. As any programming language gives highest preference to arguments, So it'll be executed first.
+These all are fixed variables.
+
+Variables execution sequence:
+============================
+
+1. Args
+2. Task 
+3. File 
+4. Prompt
+5. Play 
+6. Inventory (If not any of these, then we will get undefined variable as output in terminal)
+
+
+Modules/Tasks/Collections:
+==========================
+
+ansible.builtin.command vs ansible.builtin.shell
+
+If we don't find any module available for your requirement, then use command module or shell module accordingly.
+
+Command Module:
+===============
+
+--> Simple commands you can execute
+--> You can't get complete shell environment of the remote server
+--> More secure
+> (redirection) , | (Piping) will not work here. (redirection does not show output on the terminal)
+
+Shell Module:
+=============
+
+--> You will get the entire environment of the server
+--> Less secure
+
+> (redirection) , | (Piping) works here.
+
+ssh ec2-user@IP 'echo "Hello" > /tmp/hello.txt'
+
+
+LOOPS:
+======
+--> List of variables which are executed in a sequence for each iteration
+
+item is the keyword to indicate the loop values
+
+Ansible loops keyword is loop
+
+
+Filters: 
+========
+Functions are also known as FILTERS
+
+VAR_NAME | FILTER_NAME
+
+tags is a reserved keyword, we should not use this type of keywords as it may result in error. (Interview question, we cannot find the error and it takes lot of time to find)
+
+Convert yaml to json:
+=====================
+
+1. Take yaml into one variable
+2. Then convert to json

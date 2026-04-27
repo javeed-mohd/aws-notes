@@ -1,0 +1,62 @@
+ANSIBLE by default starts with list (-). Playbook is a list of plays which can execute specific task against the remote servers.
+
+Ansible is a popular configuration Management tool, it follows push based architecture but it also implemented pull based architecture later.
+
+[ --> List
+{ --> Objects
+yaml --> .yml or .yaml extension
+
+indentation -> spacing , used in yaml 
+
+
+Playbook:
+=========
+--> An Ansible Playbook is a YAML-formatted file that is used for automation, defining tasks to configure, deploy, or manage instances. It acts as a "recipe" or "to-do list" that tells Ansible what actions to execute on specific target hosts, allowing for repeatable, scalable, and consistent automation. 
+
+
+Inventory:
+==========
+--> What are the servers that ansible can connect to is called inventory
+
+An Ansible inventory is a file (or script) that defines the managed nodes—servers, virtual machines, or network devices—that Ansible controls, typically organized into groups with specific variables. It acts as an "address book" or registry, enabling users to target specific environments.
+
+Ansible is in python
+
+We give inputs in playbook, ansible runs inside python connect to the systems using API
+
+ansible frontend -i inventory.ini --list-hosts 	--> Listing all the hosts under frontend group in inventory.ini file
+
+ansible all -i inventory.ini --list-hosts 	--> Listing all the hosts which are unique in the inventory.ini file
+
+ansible roboshop -i inventory.ini --list-hosts  --> Listing all the hosts in roboshop project in inventory.ini file
+
+ansible ungrouped -i inventory.ini --list-hosts --> Listing all the hosts in inventory.ini file which are not in a group
+
+ansible-inventory -i inventory.ini --graph
+@all:
+  |--@ungrouped:
+  |  |--192.78.98.48
+  |--@roboshop:
+  |  |--@frontend:
+  |  |  |--192.78.98.45
+  |  |  |--192.78.98.46
+  |  |  |--192.78.98.47
+  |  |--@backend:
+  |  |  |--192.78.98.49
+  |  |  |--192.78.98.50
+  |  |  |--192.78.98.51
+
+This gives all the hosts present in the inventory.ini file in a graph format.
+
+ansible-playbook -i inventory.ini -e ansible_user=ec2-user -e ansible_password=DevOps321 01-playbook.yaml --> Where e extra arguments
+
+facts --> variables
+
+If we give connection as "LOCAL" then we don't require any user or password for it. [connection: local]
+
+ansible.builtin.debug --> It is used for printing purpose.
+
+variable referring in shell --> ${}
+variable referring in ansible --> {{ }}
+
+Play level variables are like global variables, it will be executed whatever provided but task level variables overrides whatever supplied. If not provided, play level variables will be executed by default same as Inheritance.

@@ -1,0 +1,119 @@
+control plane - master node
+
+Ingress Controller (Old ingress api/resources) --> Load Balancer Controller (New ingress api/resources) --> Gateway API (New Gateway)
+
+API -> Controller
+
+Old ALB Ingress Controller type: Go through k8s-ingress (Ingress-gateway)
+--------------------------------
+
+1. Target group type only instance - We must attach all the EKS nodes to target group and a node port must be opened.
+2. No grouping of load balancers. Every app needs its own load balancer, too much cost and every lb should have all the worker nodes attached.
+3. Exactly you should give path type. and ingress class name will be present in annotations and now it is specified separately.
+
+In newer version, we got prefix "/".
+
+--> Gateway API has created as multiple resources its not only single ingress.
+==> New releases will now be done in  gateway api.
+
+Instead of creating alb, listener, rule, target group from gateway api inside eks, we thought to create alb, listener, rule, target group outside of eks for better management and unnecessary permissions to eks to create external resources find in claude.
+
+RoboShop#123 - Password for db
+
+
+db subnet group ==> What are the subnets available for databases.
+(Search aws database subnet group terraform - aws-db-subnet-group - copy default code)
+
+first create roboshop-infra-eks (Resources), then create db-subnet group in main.tf in terraform-aws-vpc (git push)
+cd ../roboshop-infra-eks/00-vpc/
+(terraform get -update for infra-eks)
+terraform plan
+terraform apply -auto-approve	[Subnet groups will be created in aws in Aurora and RDS Subnet groups)
+
+
+*************
+Database Creation in Aurora and RDS:
+====================================
+
+==> Aurora RDS - Databases - Create database
+--> Full configuration - MySQL 
+--> Full configuration - Free-tier - Single Availability Zone - All same as it is.
+--> Identifier (roboshop-dev-mysql)
+--> username - root
+--> Self managed
+==> Password - RoboShop#123
+--> Same all
+==> Autoscaling - 100GiB
+--> vpc- roboshop-dev
+--> DB-subnet-group - roboshop-dev
+--> AZ - us-east-1a
+
+
+WE can do this terraform search terraform aws rds: (We can take it from git)
+
+********** Interviews question - Have you created module or taken from opensource?
+--> Till now, we have created the terraform modules on our own, but there is another way that terraform has already created the modules in open-source. We can also use them.
+
+Generally banking like large companies will develop their modules on their own because if they take it from  open-source, if any defects arises need not wait for them to develop and fix the issue.
+
+==> We can tell interviewer, we don't want to depend on the internet or someone else, we know terraform services moreover we want full control with us. So, for that reason we have suggested our client also, there is a problem in the open source version, nobody can come and fixes, just will do it on our own. We developed our modules.
+
+
+
+==> We have to push the subnet group of database which we have created in vpc to its parameters.tf
+
+--> And moreover we have to expose our module which we have created in terraform-aws-vpc folder in outputs.tf
+
+cd ../../terraform-aws-vpc/ (push)
+--> cd ../roboshop-infra-eks/00-vpc/	[34]
+---> push
+--> terraform get -update
+--> terraform apply -auto-approve
+
+*****
+terraform init -reconfigure for all the modules
+
+--> 10-sg apply	[18]
+--> 20-sg-rules apply  [13]
+==> 30-rds apply [terraform init] 	It takes 10-15 minutes to be created  [4]
+Separate db node will be created and it will be tainted and from that node security group only allowed for database subnet
+
+Taints will be used to manage firewall specific instances. But for now, we are allowing mysql from eks node in 20-rules main.tf to allow traffic from any node of EKS Cluster.
+To make it strict, we have to taint a node and should have to access from that node only for specific mysql, we do like this only in production.
+
+
+For EKS: (Search terraform aws eks - git):
+------------------------------------------
+
+From open-source we take this, eks managed node groups
+
+Kubernetes version = 1.35 but we keep it 1.34 so that we can update it from it.
+
+Ami instance types [On demand instances] will be costly check and use them...
+--> We can attach IAM Policies of EBS and EFS Drivers like AmazonEBSCSIDriverPolicy and AmazonEFSCSIDriverPolicy, so that if once created we can use it rather than creating it all the time manually along with the EKS Cluster we can add it as an additional task.
+
+
+==> RDS Created		[roboshop-dev] From this, we have to take Endpoints (Copy it RDS url)
+
+--> 40-eks terraform init and apply -auto-approve	[29] It also takes around 10-15 minute to get created
+
+How to load data in rds database which we have created? / cities information
+--> We have to load using the bastion or any client (workstation).
+
+Bastion to MySQL connect and load the scripts from there. 
+
+RDS is completely private and safe. In RDS - connectivity & security - VPC security group and we have to connect it through 3306 port number
+
+From bastion, if we connect with 3306, we can get the mysql prompts and you load the data which has products in it.
+
+Copy 70 Amazon Certificate Manager and Frontend ALB. (Application Load Balancer (ALB), Listener, rule, target group)
+*****
+We use ECR repos from now. (Elastic Container Registry) --> It’s a service provided by Amazon Web Services (AWS) that lets you store, manage, and deploy Docker container images. We don't use docker hub. 
+
+Search ECR in aws and create - roboshop/catalogue (repository name) which is mutable - create. Copy the URL.	[996669628469.dkr.ecr.us-east-1.amazonaws.com/roboshop/catalogue] 
+In roboshop/catalogue - View push commands has login, build, tag and push.
+
+Except databases, all the components we do it here like catalogue, user, cart, shipping, payment and frontend.
+
+--> After cluster creation, we will run few applications and will upgrade it in live without down time (Zero downtime).
+In interviews, we have upgraded the eks cluster with zero downtime by using blue-green deployment and created cluster using terraform. Not only Pod, Service and Deployment but I know administration concepts also.

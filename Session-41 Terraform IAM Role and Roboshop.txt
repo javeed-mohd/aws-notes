@@ -1,0 +1,187 @@
+Generally, We should not give administration access to ec2 instance but we giving by using strict policies...
+
+For infra creation of all, we use: It creates in a loop:
+====> for i in 00-vpc/ 10-sg/ 20-sg-rules/ 30-bastion/; do cd $i; terraform apply -auto-approve; cd ..;done
+
+====> for i in 00-vpc/ 10-sg/ 20-sg-rules/ 30-bastion/; do 
+cd $i
+terraform apply -auto-approve
+cd ..
+done
+			(OR)
+
+====> for i in $(ls -dr *); do cd $i; terraform apply -auto-approve; cd ..;done
+
+====> for i in $(ls -dr *); do 
+cd $i
+terraform apply -auto-approve
+cd ..
+done
+
+Here, (ls -dr *) Lists all folders in the current directory.
+
+
+To list all in roboshop-infra-dev:
+====> ls -dr *  --> Lists all directories in the current project
+
+To delete all then:
+====> for i in $(ls -rd *); do cd $i; terraform destroy -auto-approve; cd ..;done
+
+====> for i in $(ls -rd *); do 
+cd $i
+terraform destroy -auto-approve
+cd ..
+done
+
+Here, ls -rd * → Lists folders in the reverse order.
+
+Why reverse order?
+-> Infrastructure has dependencies.
+
+Example:
+-> Bastion depends on Security Group
+-> Security Group depends on VPC
+
+So destroy order should be:
+-> 30-bastion
+-> 20-sg-rules
+-> 10-sg
+-> 00-vpc
+
+
+Iam Role
+Iam policy -> It can get the SSM parameter of mysql password
+Attach policy to Role
+
+instance_profile
+attach to mysql instance
+
+title function:
+==============
+By using title function in terraform, we convert first letter of every word as capital-
+
+title("hello world") ==> Hello World 
+
+Ex:
+-> roboshop -> Roboshop
+-> dev -> Dev
+-> mysql -> MySQL
+
+(Roboshop-Dev_Mysql) using join function, we join it and make it human readable format by giving - in between them.
+
+join function:
+==============
+
+By using join function, we add all the elements of the given string with the provided separator to separate them.
+
+join(separator, list)
+
+Ex:
+-> join("-", ["Hello", "World"])
+Hello-World
+-> join(", ", ["Hello", "World"])
+Hello, World
+-> join(", ", ["Hi"])
+Hi
+
+Example:
+========
+
+Deliver Manager/Project Manger/Team Lead -> features should be delivered on time
+Client Business Analyst
+IT Business Analyst -> Architects + Managers + Team Leads -> Technical requirements
+
+DM -> frontend -> frontend team lead -> frontend team members
+   -> backend -> backend team
+   -> db -> db team
+   -> reports team -> reports team -> reports team member
+   
+They will check he is available or not and Whether is he occupied or not?
+
+Load Balancer == DM/Team Lead
+Target Group == Team == A group of instances
+Rule = Load Balancer Rules
+Listener == 80/443 (http/https) --> If public LB = 443, private LB = 80
+Health checks
+Team member == EC2 instance
+4 instances -> query for running instances -> ROUND ROBIN -> 1-1, 2-2, 3-3, ......
+
+click on categories  	-> catalogue.devopsdaws.online
+click on user submit 	-> user.devopsdaws.online	-> post method -> {"user":"sivakumar", "password":"siva123"}
+
+catalogue.devopsdaws.online 	-> forward that to catalogue group (Check which instance is running and which one is available and forwards the requests).
+
+8hr -> 6hr
+12hr, 4hr
+
+DM -> HR -> They will recruit new person and add to team.
+
+HR == Autoscaling
+JD == Launch template -> AMI, SG, NAME, etc.
+
+4 instances -> Avg CPU utilisation -> >80% (Greater than 80%)
+
+Launch another instance using launch template, add to target group
+If avg cpu utilization is reduced, autoscaling will terminate the instance
+Notice period
+
+
+ROUND ROBIN:
+============
+
+Round Robin in Load Balancing is a method used to distribute incoming network or application requests evenly across multiple servers in sequence.
+
+In Round Robin, the load balancer sends each new request to the next server in order, then cycles back to the first server after reaching the last one.
+
+Example with 3 servers:
+-> Server 1
+-> Server 2
+-> Server 3
+
+Request distribution:
+
+Request		Server
+=======		=======
+Request 1	Server 1
+Request 2	Server 2
+Request 3	Server 3
+Request 4	Server 1
+Request 5	Server 2
+Request 6	Server 3
+
+So the order is:
+S1 → S2 → S3 → S1 → S2 → S3 → ...
+
+Architecture
+
+Client → Load Balancer → Multiple Servers
+
+The load balancer decides which server handles each request.
+
+Advantages:
+===========
+
+==> Simple to implement
+==> Equal distribution of traffic
+==> No complex calculations
+==> Works well when servers have similar capacity
+
+Disadvantages:
+==============
+
+==> Does not consider server load or capacity
+==> If one server is slower, it still receives the same number of requests
+==> Not ideal for heterogeneous servers
+
+Types:
+~~~~~~
+1. Weighted Round Robin ==> Servers with more capacity receive more requests.
+
+2. Dynamic Round Robin ==> Distribution adjusts based on current server load.
+
+
+Round Robin load balancing is used in:
+-> Web servers
+-> Cloud infrastructure
+-> Reverse proxies like NGINX
+-> DNS-based load balancing

@@ -1,0 +1,274 @@
+Container Tools ==> Extension for docker in VS code
+
+SECURITY:
+=========
+
+--> NACL - Network Access Control List
+--> SG   - Security Groups
+
+NACL (Network Access Control List):
+===================================
+
+IP:port
+
+destination IP and destination port
+source IP and source port
+
+https://facebook.com:443
+
+0-65,535 (Ports in every laptop)
+
+source ip: 192.168.1.3
+source port: 32,897 (Random ephemereal port)
+Every single request has individual port
+
+0-1023      -> system ports
+1024-5000   -> ephemereal range (registered port range)
+
+Latest ==> 32768-65535 -> ephemereal port range (Temporary) AWS
+
+
+NACL (Network Access Control List) vs SG (Security Groups/Firewall):
+====================================================================
+
+SG -> Attached to instance
+   -> Source can be IP address or other SG ID
+   -> We can't add DENY rule
+   -> Rules are stateful. If we are allowing port number 8080 from 10.0.1.34 (public/private/database subnet), while sending response back to the source an ephemeral port is opened. Since SG is stateful, we no need to write separate outbound rule.
+   
+NACL  -> Attached to subnet level
+      -> Source can be subnet ID/ any cidr
+	   -> NACL is first layer of defence, then SG is next layer of defence
+	   -> You can add DENY rule.
+	   -> NACL are STATELESS. You have to write outbound rules also.
+	 
+catalogue -> mongodb
+
+source IP: 10.0.11.26 (Catalogue IP) [Response]
+source port: 32,789
+
+destination IP: 10.0.21.5 (MongoDB IP)
+destination port: 27017
+
+request  -> inbound
+response -> outbound
+
+cart -> redis
+
+source IP: 10.0.11.28
+source port: 32,792
+
+destination IP: 10.0.21.7
+destination port: 6379
+
+******We need to move bastion to private subnet so that no public subnet resources can access database subnet directly.******
+
+
+Lowest rule number will be validated first and so on...
+
+We are attaching NACL to database subnet...
+
+In VPC, NACL create network, roboshop-dev-database add subnets of database to it and add inbound rules.
+
+After adding this, the default cidr range (0.0.0.0/0) will become DENIED in inbound and outbound rules.
+
+1. Inbound rule --> MongoDB Database, Rule Number = 10, Port range = 27017, Source is Private subnet cidr range (10.0.11.0/24) (us-east-1a) traffic comes from here on port number 27017, Allow 	(or) else we can also give cidr notation of catalogue component(10.0.11.26/32) allowing only the traffic from catalogue [But, if we do this, in autoscaling environment IP's will be created and destroyed continuously. In this situation, it becomes big problem to always add and remove a specific component in NACL]. So, generally we take source as SUBNET ONLY to avoid the issues...
+
+2. Inbound rule --> MongoDB Database, Rule Number = 15, Port range = 27017, Source is Private subnet cidr range (10.0.12.0/24) (us-east-1b) traffic comes from here on port number 27017, Allow
+
+
+Outbound rule --> Rule Number = 10, Port range = 32768-65535 (ephemereal port range (Temporary) AWS), Destination is Private subnet cidr range (10.0.11.0/24) (us-east-1a) ephemeral port opens in particular component and traffic will go here, Allow
+
+Outbound rule --> Rule Number = 15, Port range = 32768-65535 (ephemereal port range (Temporary) AWS), Destination is Private subnet cidr range (10.0.12.0/24) (us-east-1b) ephemeral port opens in particular component and traffic will go here, Allow
+
+OUTBOUND RULE for all databases like MongoDB, Redis, MySQL and RabbitMQ are same...
+
+**** Outbound rule --> Rule Number = 20, Port range = 32768-65535 (ephemereal port range (Temporary) AWS), Destination is Public subnet cidr range (10.0.1.0/24) (us-east-1a) ephemeral port opens in particular component and traffic will go here, Allow
+
+We have to change in both inbound & outbound rules then only traffic will come and response can be available.
+
+Since NACLs are stateless, we must explicitly allow both inbound database traffic on port 27017 and outbound ephemeral ports (32768–65535) for return traffic, typically using subnet CIDR ranges to support autoscaling.
+
+****BEFORE NACL creation,
+When we created VPC, default NACL will be created. It has default rule for both inbound and outbound rules allows all traffic from cidr range 0.0.0.0/0. So that, we got all requests and response correctly without error.
+
+==> When we create our own NACL, all traffic by default will be DENIED...So, we need to explicitly allow inbound & outbound rules to get the response as per the request.
+
+So, we have to add explicitly for each component,
+
+3. Inbound rule --> Redis Database, Rule Number = 20, Port range = 6379, Source is Private subnet cidr range (10.0.11.0/24) (us-east-1a) traffic comes from here on port number 6379, Allow
+
+4. Inbound rule --> Redis Database, Rule Number = 25, Port range = 6379, Source is Private subnet cidr range (10.0.12.0/24) (us-east-1b) traffic comes from here on port number 6379, Allow
+
+5. Inbound rule --> MySQL Database, Rule Number = 30, Port range = 3306, Source is Private subnet cidr range (10.0.11.0/24) (us-east-1a) traffic comes from here on port number 3306, Allow
+
+6. Inbound rule --> MySQL Database, Rule Number = 35, Port range = 3306, Source is Private subnet cidr range (10.0.12.0/24) (us-east-1b) traffic comes from here on port number 3306, Allow
+
+7. Inbound rule --> RabbitMQ Database, Rule Number = 40, Port range = 5672, Source is Private subnet cidr range (10.0.11.0/24) (us-east-1a) traffic comes from here on port number 5672, Allow
+
+8. Inbound rule --> RabbitMQ Database, Rule Number = 45, Port range = 5672, Source is Private subnet cidr range (10.0.12.0/24) (us-east-1b) traffic comes from here on port number 5672, Allow
+
+We have to add ssh port number 22 in NACL for bastion to connect MongoDB. Do this, add 22 port number in NACL and also move bastion to private subnet...
+
+9. Inbound rule --> For Bastion Connection to MongoDB, Rule Number = 50, Port range = 22, Source is Private subnet cidr range (10.0.1.0/24) (us-east-1a) traffic comes from here on port number 22, Allow
+
+*** Actually, public subnet should not access database subnet, only private subnet should access database subnet. So, we have to move bastion to private subnet so that no component will access the database subnet from public subnet... and make changes accordingly.
+
+To make VPC/application more secure, we use NACL or SG with subnets.
+
+
+For roboshop:
+=============
+
+for i in 00-vpc/ 10-sg/ 20-sg-rules/ 30-bastion/ 50-backend-alb/ 70-acm/ 80-frontend-alb/; do cd $i; terraform apply -auto-approve; cd ..;done  ==> To create the INFRA.
+
+ls -dr * --> For getting in reverse folders
+
+for i in $(ls -dr *); do cd $i; terraform init; terraform destroy -auto-approve; cd ..;done ==> To destroy the INFRA.
+
+and Remove the NACL manually by deleting the associated subnets.
+
+Now, we can create through Terraform and automate it.
+
+
+DOCKER:
+=======
+
+DOCKER_HOME = /var/lib/docker
+
+docker run nginx
+1. it checks image available locally or not. if available it will create container from it, otherwise it will download from docker hub, keep it in local and then create the container
+2. start the container
+
+containers run in foreground, but we should take them to background
+
+docker run -d nginx ==> detached mode, It takes execution into background
+
+root 3337 3311  0 02:39 ?  00:00:00 nginx: master process nginx -g daemon off;
+Process Instance ID => PID: 3337
+Parent Process Instance ID => PPID: 3311 -> docker engine
+
+
+docker run -d -p 80(Host port):80(Container port) nginx  ==> Runs an Nginx web server in a container, in the background, and makes it accessible on your local machine at port 80.
+docker run -d -p 8080:80 nginx   ==> Runs an Nginx web server in a container, in the background, and makes it accessible on your local machine at port 8080.
+
+-d => detached mode
+-p => port
+first 80 => Host port(Port on the computer)
+second 80 => Container port
+
+http://52.90.7.40:80
+
+ps -ef ==> Show me all processes with full details.
+
+where, ps ===> process status
+       -e ===> every process
+        f ===> full format listing
+
+Displays detailed information like:
+
+User (owner of process)
+PID (Process ID)
+PPID (Parent Process ID)
+Start time
+Command
+
+To login in running container:
+==============================
+
+docker exec -it cdc00ddf3b81 bash  ==> Login inside the container
+
+where it => Interactive terminal
+
+docker exec -it 085fe32630d5 bash
+root@085fe32630d5:/# cd /usr/share/nginx/html/
+root@085fe32630d5:/usr/share/nginx/html# ls -l
+total 8
+-rw-r--r-- 1 root root 497 Mar 24 15:38 50x.html
+-rw-r--r-- 1 root root 896 Mar 24 15:38 index.html
+root@085fe32630d5:/usr/share/nginx/html# echo "<h1>Hi from Docker</h1>" > hi.html
+root@085fe32630d5:/usr/share/nginx/html# ls -l
+total 12
+-rw-r--r-- 1 root root 497 Mar 24 15:38 50x.html
+-rw-r--r-- 1 root root  24 Mar 25 16:05 hi.html
+-rw-r--r-- 1 root root 896 Mar 24 15:38 index.html
+
+
+==> docker inspect 085fe32630d5 --> Full Information about the container.
+
+==> docker stats -> To know which container is using how much of memory.
+
+If not given name, it will provide random names for the containers.
+
+To avoid, we use 
+--> docker run -d -p 80:80 --name frontend nginx
+--> docker exec -it frontend bash ==> To login inside the container with specific name..
+
+
+Dockerfile -> we can create our own customised images [dockerfile reference]
+
+
+Docker Installation:
+====================
+
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
+
+Instructions:
+=============
+
+FROM
+=====
+
+FROM is used to mention the base OS of the image. It should be the first instruction in Dockerfile.
+rhel -> redhat image
+Red Hat Universal Base Image 9
+redhat/ubi9
+
+
+build the image
+===============
+
+docker build -t from:1.0.0 .
+
+-t ==> tag
+1.0.0 ==> version
+. ==> Current folder/directory
+
+docker login -u username
+
+docker push from:1.0.0
+
+url/username/image-name:version
+docker.io/joindevops/from:1.0.0
+
+https://hub.docker.com/repositories/joindevops
+
+
+Process to push docker images into docker hub:
+==============================================
+
+docker tag from:1.0.0 docker.io/joindevops/from:1.0.0 [docker.io is also not required]
+It creates a reference file
+
+docker images
+
+docker push docker.io/joindevops/from:1.0.0
+
+After that, we can pull from docker hub to anywhere we require...
+docker pull docker.io/joindevops/from:1.0.0
+
+
+RUN:
+===
+
+RUN instruction is used to install packages or configure image.
+
+docker build -t joindevops/run:1.0.0 .
+
+16.20.2

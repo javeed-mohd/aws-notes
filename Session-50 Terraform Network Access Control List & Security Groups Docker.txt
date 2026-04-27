@@ -38,9 +38,9 @@ SG -> Attached to instance
    
 NACL  -> Attached to subnet level
       -> Source can be subnet ID/ any cidr
-	   -> NACL is first layer of defence, then SG is next layer of defence
-	   -> You can add DENY rule.
-	   -> NACL are STATELESS. You have to write outbound rules also.
+      -> NACL is first layer of defence, then SG is next layer of defence
+      -> You can add DENY rule.
+      -> NACL are STATELESS. You have to write outbound rules also.
 	 
 catalogue -> mongodb
 

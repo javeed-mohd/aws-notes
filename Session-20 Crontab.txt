@@ -1,0 +1,123 @@
+Crontab:
+========
+
+Scheduler in Linux server, we can schedule the scripts to run periodically.
+
+crontab -e --> e for editing, we use crontab to schedule the scripts to run and delete as per requirements.
+
+crontab -l --> listing
+
+sudo cd /var/log/cron
+
+sudo tail -f /var/log/cron
+
+
+* * * * * --> Where each star indicates minute(0-59) hour(0-23) day(1-31) month(1-12) weekday(0-6) 7-> [Sunday not-standard]
+
+cp source_dir dest_dir
+backup source_dir dest_dir 20
+
+1. User should pass source_dir dest_dir, default is 14 days, but user can override
+2. Verify the directories exist and root user too
+3. Find the files
+4. Archieve them and place into dest_dir
+5. Check archieve is success or not
+6. If success you can delete from source_dir
+
+date +%F-%H-%M-%S --> Timestamp format in shell
+
+gzip is for Linux, .zip is for windows
+
+udvxeilgkoufsbbt
+
+defaults
+auth           on
+tls            on
+tls_trust_file /etc/ssl/certs/ca-bundle.crt
+logfile        /var/log/msmtp.log
+
+account        gmail
+host           smtp.gmail.com
+port           587
+from           m.sivakmrreddy@gmail.com
+user           m.sivakmrreddy@gmail.com
+password       udvxeilgkoufsbbt
+
+account default : gmail
+
+{
+echo "To: info@joindevops.com"
+echo "Subject: Shell script test"
+echo "Content-Type: text/html"
+echo ""
+echo "test from shell"
+} | msmtp "info@joindevops.com"
+
+
+disk utilization, trigger email if du is more than 70
+
+etvcsgitnzcmtjkb
+
+defaults
+auth           on
+tls            on
+tls_trust_file /etc/ssl/certs/ca-bundle.crt
+logfile        /var/log/msmtp.log
+
+account        gmail
+host           smtp.gmail.com
+port           587
+from           javeedmohd214@gmail.com
+user           javeedmohd214@gmail.com
+password       etvcsgitnzcmtjkb
+
+account default : gmail
+
+{
+echo "To: javeedmohammed2310@gmail.com"
+echo "Subject: Shell Script Test"
+echo "Content-Type: text/html"
+echo ""
+echo "Test from Shell"
+} | msmtp "javeedmohammed2310@gmail.com"
+
+
+
+df -hT | grep -v Filesystem  --> Disk utilisation apart from filesystem
+
+df -hT | grep -v Filesystem | awk '{print $6}' --> Printing only specific column(6th) [These are partitions]
+
+df -hT | grep -v Filesystem | awk '{print $6}' | cut -d "%" -f1 --> Deleting 1 fragment which has %
+
+
+curl -H "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254  --> To get private Ipv4 address of the server which we are using
+
+curl http://169.254.169.254/latest/meta-data/ --> Metadata of the instance
+
+ami-id
+ami-launch-index
+ami-manifest-path
+block-device-mapping/
+events/
+hostname
+identity-credentials/
+instance-action
+instance-id
+instance-life-cycle
+instance-type
+local-hostname
+local-ipv4
+mac
+metrics/
+network/
+placement/
+profile
+public-hostname
+public-ipv4
+reservation-id
+security-groups
+services/
+system
+
+
+sed -e 's/[]\/$*.^[]/\\&/g' --> To get error free output in the server for configuring the mail.

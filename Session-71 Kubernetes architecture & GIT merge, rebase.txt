@@ -1,0 +1,500 @@
+InitContainers
+How can they fetch secrets
+
+Init containers are the containers that run before main container runs. They runs to completion. You can have multiple init containers, they will be executed sequentially. They will be useful for fetching secrets, to check some migration scripts, checking the dependency services, running some sql scripts.
+
+Networking -> VPC CNI == Container Network Interface
+
+PDB -> Pod disruption budget
+TopologySpreadConstraints
+
+Deployment - It will make sure desired number of replicas running all the time, hpa (Horizontal Pod autoscaler) - Based on the traffic, our application will scale.
+
+To make our application in high availability in EKS Cluster,
+min -> 2 nodes
+min replicas -> 2 pods
+
+node-1 in us-east-1a -> 2 pods (Chance of going 2 pods in 1 node only) [If in us-east-1a region goes down or node-1 has any problem then our application will fail]
+node-2 in us-east-1b
+
+spread pods across the nodes in HA (high availability) manner -> topologySpreadConstraint
+
+In voluntary disruptions, pods may go down.
+
+When we do this, node will be down:
+upgrade
+drain
+delete pod (cordon)
+autoscaling down
+
+There should be always a minimum number of replicas running in voluntary disruption cases -> PDB Pod Disruption Budget
+
+If we have PDB and topologyspreadconstraint both mix properly, then our application will never go down and has best case scenario.
+
+***********
+min available = total pods - maximum pods on one node/total pods (Divided by)
+
+3 nodes
+5 pods
+
+2:2:1
+
+5-2/5 = 3/5 = 60%
+3 nodes
+5 pods
+2:2:1 -> 60%
+
+******
+Always 60% is safe to keep as minimum in any case.
+--> We can also keep numbers in place of percentage. But, it is better to use percentage rather than numbers as numbers limit can be out of what range we don't know.
+
+node-1 drain -> success with 60%
+node-2 drain -> success with 60%
+node-3 drain -> success with 4 pods available
+
+2 pods, 2 nodes
+
+node-1 -> 1 pod -> 2 pods
+node-2 -> 2nd pod -> 2 pods
+
+node-1 drain -> fail
+
+Best strategy is EKS Cluster always prefers 3 nodes for high availability
+min 3 nodes 1:1:1 -> topologySpreadConstraint
+
+2 zones
+-------
+2 pods -> 1 pod 1st zone, 2nd pod another zone
+3 pods -> 2 pods 1st zone, 3rd pod 2nd zone -> maxSkew (how much deviation)-> 1 pod 
+
+If we take even no. of nodes and distribute odd number of pods then obviously 1 pod always deviates.
+
+
+search topologyspreadconstraint and copy the yaml file
+
+4 nodes
+========
+
+zone-1 -> 2 nodes
+zone-2 -> 2 nodes
+
+4 replicas (pods)
+
+2 pods in zone-1 -> 1st pod in node-1 and 2nd pod in node-2 
+2 pods in zone-2 -> 3rd pod in node-3 and 4th pod in node-4
+
+
+Our intention is to spread the pods across zones and nodes evenly.
+
+==> Until PDB in k8s-ha:
+--> git clone k8d-ha
+cd k8s-ha/
+--> kubectl apply -f manifest.yaml
+==> kubectl get pods -o wide (4 pods running)		[If pending check using -- kubectl describe pod <pod-name>]
+
+We got 10.0.11.0/16 and 10.0.12.0/16 IP address node (2 pods in 10.0.11.0/16 and 2 pods in 10.0.12.0/16), they are evenly spread. If we give 10 replicas, 5 pods in 10.0.11.0/16 and other 5 pods in 10.0.12.0/16 will be assigned evenly.
+
+To get it 4 and 3 properly, we have to delete and apply again.
+If we give 7 replicas, 4 pods in 10.0.11.0/16 and 3 pods in 10.0.12.0/16 are distributed as we have given maxSkew as 1, which may be assigned to any node.
+
+
+*****
+PDB:
+----
+A Pod Disruption Budget (PDB) defines how many pods of an application must stay running during voluntary disruptions.
+
+--> Voluntary disruptions pod may go down.
+Node maintenance (drain)
+upgrade
+delete pod
+
+
+It ensures your application stays highly available even when Kubernetes or admins intentionally disrupt pods.
+
+minAvailable → minimum number of pods that must be running
+maxUnavailable → maximum number of pods that can go down
+
+PDB does NOT stop:
+
+--> Crashes
+--> Node failures
+
+==> It only controls intentional (voluntary) disruptions.
+
+
+We can use minAvailable or maxUnavailable
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zk-pdb
+spec:
+  minAvailable: 2
+  selector:
+    matchLabels:
+      app: zookeeper
+
+or 
+
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: zk-pdb
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app: zookeeper
+
+
+2 nodes 7 pods
+max pods -> 4 
+node-1 -> 4
+node-2 -> 3 -> down
+
+4/7 -> 57 != 60
+Drain will fail because PDB checks how many pods to become available. Since, here as it did not match 60% PDB it will fail.
+
+==> After adding PDB (60%) then change to 40% and do.
+--> git pull
+--> kubectl apply -f manifest.yaml
+kubectl get pdb
+
+I want to drain a node then search for kubectl drain node command in browser
+==> kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+
+--> If we are trying to drain it will throw an error. Before draining, it will ask PDB to check the criteria if they meet how many pods to become available before draining. IT fails as did not match 60%.
+
+If we are keeping 60%, then we have to increase nodes to distribute the pods. or we have to keep it in risk to 40%.
+
+==> now git pull
+--> kubectl apply -f manifest.yaml
+==> kubectl drain <node-name> --ignore-daemonsets --delete-emptydir-data
+Now it will drain.
+--> kubectl get pods
+
+We have drained but deployment responsibility is to always run the desired number of replicas all the time.
+So, we have drained a node and it has send the pods to 2nd node and that node is not accepting them because of topologyspreadconstraint. All these are safety protocols, so that our application never goes down which is done by us.
+
+[delete all pending pods for above,
+kubectl delete pod <pod-name> [3/4 times]
+
+--> kubectl get pods
+==> kubectl describe pod <pod-name> 	[It is not accepting the topologyspreadconstraint, if we have kept scheduleanyway (soft rule) it would have accepted]]
+
+==> kubectl get nodes
+If schedulingdisabled for a node, then uncordon it
+
+--> kubectl uncordon <node-name> 	[Which was cordoned earlier]
+==> kubectl get pods -o wide
+
+
+--> To be always on a safer side use,
+3 nodes, 5 pods
+2:2:1
+5-2/5=3/5=60%
+This will always keep our application up. If drained, az down, update or in any case our application won't become down if we use this.
+
+For best results, we have to mix PDB and topologyspreadconstraint both properly so as to ensure that our application won't become down at any time.
+
+
+********
+k8 architecture:
+================
+
+Cluster has control plane and nodegroup
+
+control plane:
+===============
+
+1. api server -> Entry point for everything, checks authentication and authorization and call another components. We don't have access to other components.
+
+2. scheduler -> Schedules the pod on available node, node resources, node selectors, affinity, anti affinity, taints and toleration, topologySpreadConstraint, PDB, etc.. It always checks pending pods can be scheduled or not
+
+3. control manager
+	replica/deployment controller -> Always checks desired number of replicas running or not
+	Node controller:  Desired number of nodes are always up
+	EndpointSlice controller: Always populates pod ips to service endpoints
+	ServiceAccount controller: Create default ServiceAccounts for new namespaces
+	
+4. etcd -> Memory for k8s cluster, manifest files, config maps, secrets, etc., key-value pair database
+
+5. cloud-controller-manager -> Cloud specific api handle
+
+Node controller: For checking the cloud provider to determine if a node has been deleted in the cloud after it stops responding
+Route controller: For setting up routes in the underlying cloud infrastructure
+Service controller: For creating, updating and deleting cloud provider load balancers
+
+
+node components:
+================
+
+kubelet -> Always in contact with api-server, it is like agent running in every node. node health status report sends to control plane, responsible to run the pods in node
+
+kube-proxy -> Manages networking rules to bring traffic to pods, iptables management
+
+Container runtime -> containerd, CRI-O is the run time
+
+
+Addons:
+=======
+
+==> Amazon EKS pod identity
+==> Amazon VPC CNI
+==> kube-proxy
+==> Metrics Server
+==> CoreDNS
+
+
+
+namespaces
+pod
+service
+configmap
+secrets
+pv, pvc, sc
+taints and tolerations
+affinity and anti affinity
+replicaset
+deployment
+statefulset
+deamonset
+rbac
+ingress
+volumes
+network policies
+pdb and topologySpreadConstraint
+upgrade cluster
+blue green deployments
+hpa
+helm charts
+
+blue -> 1.34
+green -> 1.35
+
+8 nodes
+2 nodes
+
+taints and toleration and affinity -> 2 nodes
+topologySpreadConstraint -> topologyKey is host, topologyKey zone and host
+
+
+
+GIT (Global Information Tracker):
+=================================
+
+1. Repo creation
+2. Adding to staging area, commit to local repo
+3. Push to central repo
+
+git init
+git branch -M main -> Create and move to main
+git remote add origin <url> -> Connect to central repo
+
+git pull
+
+
+Branches:
+=========
+
+dev sit/uat/qa prod
+
+DEV – Development
+The environment where developers write and test code initially.
+
+SIT – System Integration Testing
+Testing where different modules or systems are combined and tested as a group.
+
+UAT – User Acceptance Testing
+Final testing done by end users or clients to verify the system meets business requirements.
+
+QA – Quality Assurance
+The process of ensuring the product meets quality standards through testing, reviews, and processes.
+
+PROD – Production
+This is the live environment where the application is actually used by real users. It’s the final stage after DEV → SIT → QA → UAT, and any changes here directly impact customers, so deployments are handled very carefully.
+
+main -> prod ->
+Create another branch, do the changes, test it and then push to main
+PR -> When you bring change from another branch to main branch (pull requests)
+
+
+Dosa Shop Project:
+==================
+
+After starting a project, no one should push the code to main branch, you do some actions
+rules - rulesets - new branch ruleset (main-branch [active]) - add target (include by pattern (main))
+
+Add -> Require a pull request before merging (1-approval)
+    -> Restrict deletions
+    -> Block force pushes
+
+==> git branch -M plain-dosa
+--> git add . ; git commit -m "plain dosa started" ; git push origin plain-dosa
+==> git log
+commit 73dda04d7f76cd0eb88e5296dca48a1045561215 (HEAD -> plain-dosa, origin/plain-dosa)
+Author: Javeed Mohammed <javeedmohd214@gmail.com>
+Date:   Sun Apr 26 02:43:36 2026 +0530
+
+    plain dosa started
+
+commit 32368e70ba1449ff51ab43452034727f7b406e10 (origin/main)
+Author: Javeed Mohammed <javeedmohd214@gmail.com>
+Date:   Sun Apr 26 02:30:53 2026 +0530
+
+    initial commit
+
+******
+==> To check information any time, we use this:
+
+-->  git cat-file -p 73dda0
+tree 299815f0e410b138f802f33d39e1346126572695
+parent 32368e70ba1449ff51ab43452034727f7b406e10
+author Javeed Mohammed <javeedmohd214@gmail.com> 1777151616 +0530
+committer Javeed Mohammed <javeedmohd214@gmail.com> 1777151616 +0530
+
+plain dosa started
+
+
+==> git add . ; git commit -m "dosa batter added" ; git push origin plain-dosa
+==> git add . ; git commit -m "light oil added" ; git push origin plain-dosa
+
+
+We can't directly merge, if we want to make changes in main branch you have to pull request and get approval from one of the team member.
+You have to add a member of your another git repo and give write access so that he can approve pr and to comment also. Obviously our fellow members should have write access.
+After adding they will receive a mail. They will accept it. But, in real projects, we don't have to do all this because it will be done prior only.
+
+--> Now, who has developed the code need to compare and pull the request - create pull request
+
+And the member have some conversation between themselves and approves the request.
+
+Then the developer merges the request and in main branch the code is displayed.
+
+**********
+our local laptop doesn't know merge, so we have to do:
+--> git pull origin main
+
+
+==> git log
+commit e440d9d98d880e34ae6ed2c850983f3eae408f91 (HEAD -> plain-dosa, origin/main)
+Merge: 32368e7 73be65c
+Author: Javeed Mohammed <javeedmohd214@gmail.com>
+Date:   Sun Apr 26 03:47:01 2026 +0530
+
+    Merge pull request #1 from javeed-mohd/plain-dosa
+
+    Plain dosa
+
+commit 73be65c4936552132f308b2584c5c2411f38c8f8 (origin/plain-dosa)
+Author: Javeed Mohammed <javeedmohd214@gmail.com>
+Date:   Sun Apr 26 02:54:58 2026 +0530
+
+    light oil added
+
+commit 0e13fa60bda5f9665eb0b94a0c537d3c93cc5e44
+Author: Javeed Mohammed <javeedmohd214@gmail.com>
+Date:   Sun Apr 26 02:52:10 2026 +0530
+
+    dosa batter added
+
+commit 73dda04d7f76cd0eb88e5296dca48a1045561215
+Author: Javeed Mohammed <javeedmohd214@gmail.com>
+Date:   Sun Apr 26 02:43:36 2026 +0530
+
+    plain dosa started
+
+commit 32368e70ba1449ff51ab43452034727f7b406e10
+Author: Javeed Mohammed <javeedmohd214@gmail.com>
+Date:   Sun Apr 26 02:30:53 2026 +0530
+
+    initial commit
+
+
+We don't use this one in our day to day activity, just to check what is there in it.
+==> git cat-file -p e440
+tree bedb9ada497ba4f2a0ba615c352bf468cabd7450
+parent 32368e70ba1449ff51ab43452034727f7b406e10
+parent 73be65c4936552132f308b2584c5c2411f38c8f8
+
+It has two parents now
+
+
+merge:
+======
+
+1. You got extra commit, it is special commit it has 2 parents, merge commit
+2. It is preserving history
+It is circular history.
+
+--> git checkout main
+--> git log 
+
+We can delete our claimed branch, no problem because after switching to main we still have git log
+
+
+*******
+Before creating another branch and also at the time of pushing also, we should always do:
+==> git pull
+
+rebase:
+=======
+
+git branch -M main -> Creating main as main branch
+git checkout -b karam-dosa -> Create new branch karam-dosa and move inside it
+
+--> It will not preserve any history
+--> It is linear history
+--> Seems like main branch moved forward
+--> It is rewriting commits
+
+==> git checkout -b karam-dosa
+Switched to a new branch 'karam-dosa'
+
+--> git add . ; git commit -m "dosa batter added" ; git push origin karam-dosa
+
+--> git add . ; git commit -m "oil added" ; git push origin karam-dosa
+
+--> git add . ; git commit -m "karam added" ; git push origin karam-dosa
+
+After changing to specific type,
+--> git add . ; git commit -m "erra karam" ; git push origin karam-dosa
+
+
+==> git log --oneline
+d8d0a1a (HEAD -> karam-dosa, origin/karam-dosa) erra karam
+30f940c karam added
+8edd9a4 oil added
+16a7bf9 dosa batter added
+e440d9d (origin/main, origin/HEAD, plain-dosa, main) Merge pull request #1 from javeed-mohd/plain-dosa
+73be65c (origin/plain-dosa) light oil added
+0e13fa6 dosa batter added
+73dda04 plain dosa started
+32368e7 initial commit
+
+
+Now in git, choose rebase and merge option
+
+==> git checkout main
+--> git pull origin main
+==> git log --oneline
+9fa405a (HEAD -> main, origin/main, origin/HEAD) erra karam
+7a28551 karam added
+dcf06b5 oil added
+8134f81 dosa batter added
+e440d9d (plain-dosa) Merge pull request #1 from javeed-mohd/plain-dosa
+73be65c (origin/plain-dosa) light oil added
+0e13fa6 dosa batter added
+73dda04 plain dosa started
+32368e7 initial commit
+
+
+We don't use this one in our day to day activity, just to check what is there in it.
+--> git cat-file -p 9fa405
+tree 3b037bdbb4080d6006220cdc124d5c42d5361bcf
+parent 7a285519ac81f89025bd5adf4de2efc451fb1e57
+
+1 parent
+
+Merge is always safe to use. We use rebase when in a repo stream, a feature is developed by a single person.
+
+merge vs rebase

@@ -285,7 +285,7 @@ where node       --> command
 
 
 Docker disadvantages to run images:
-===================================sss
+===================================
 
 1. You can't rely on single docker host
 2. If run multiple hosts, there needs to be some orchestrator

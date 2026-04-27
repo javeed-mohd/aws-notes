@@ -1,0 +1,235 @@
+Databases ==> Stateful
+
+==> Databases ALWAYS store state.
+mongodb
+redis
+mysql
+rabbitmq
+
+We can  keep this containers
+--> logs (Server logs, container logs.) These are not end user's data.
+--> metrics (CPU, Monitoring, Health checks.)
+
+Both are data only but databases are highly crucial data. But, above both are stateful apps only.
+
+
+1. Don't keep stateful apps in containers, Generally these stateful apps run in VMs. As end user data will be there in database, we prefer not to use containers for stataeful apps.
+2. If we want, we can keep not end user stateful apps like logs, metrics.
+
+==> Containers are useful for stateless applications and it is created for stateless apps only.
+
+shell (Single server) vs ansible
+
+==> With in docker host we are using bridge network.
+
+
+==> Autoscaling, networking, storing secrets, managing volumes is difficult in docker swarm, for heavy applications are not suitable.
+
+We need Kubernetes. We will limit DOCKER for only building the image and use KUBERNETES for running the image.
+
+
+Workstation:
+============
+
+1. Install docker -> Build the images, push the images to ECR(Elastic Container Registry) repo hub
+2. eksctl -> Create, update and delete the eks cluster
+3. kubectl -> Connect with eks cluster
+4. aws cli (aws configure) -> To provide authentication while creating cluster, (or) when connecting to cluster.
+
+ 
+Elastic Block Store (EBS) --> Increasing the disk space  ==> Add it in EC2-Instance advanced details
+check using df -hT and lsblk
+
+#!/bin/bash
+sudo growpart /dev/nvme0n1 4
+sudo lvextend -L +30G /dev/RootVG/varVol
+sudo xfs_growfs /var
+
+
+1. Commands used for docker installation:
+=========================================
+
+sudo dnf -y install dnf-plugins-core
+sudo dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+sudo dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+sudo systemctl start docker
+sudo systemctl enable docker
+sudo usermod -aG docker ec2-user
+
+
+2. eksctl install ==> official cli for amazon eks (eksctl) (UNIX/LINUX)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# for ARM systems, set ARCH to: `arm64`, `armv6` or `armv7`
+==> ARCH=amd64
+==> PLATFORM=$(uname -s)_$ARCH
+
+==> curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+
+# (Optional) Verify checksum ==> No NEED
+curl -sL "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_checksums.txt" | grep $PLATFORM | sha256sum --check
+
+==> tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+
+==> sudo install -m 0755 /tmp/eksctl /usr/local/bin && rm /tmp/eksctl
+
+
+USED FOR CHECKING SUCCESSFUL INSTALLATION ==> eksctl version
+
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ ARCH=amd64
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ PLATFORM=$(uname -s)_$ARCH
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ curl -sLO "https://github.com/eksctl-io/eksctl/releases/latest/download/eksctl_$PLATFORM.tar.gz"
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ tar -xzf eksctl_$PLATFORM.tar.gz -C /tmp && rm eksctl_$PLATFORM.tar.gz
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ sudo install -m 0755 /tmp/eksctl /usr/local/bin && rm /tmp/eksctl
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ eksctl version
+0.225.0
+
+
+3. kubectl install ==> Set up kubectl and eksctl (LINUX)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+==> curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.35.2/2026-02-27/bin/linux/amd64/kubectl
+==> chmod +x ./kubectl
+==> mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$HOME/bin:$PATH
+
+
+USED FOR CHECKING SUCCESSFUL INSTALLATION==> kubectl version --client
+
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ curl -O https://s3.us-west-2.amazonaws.com/amazon-eks/1.35.2/2026-02-27/bin/linux/amd64/kubectl
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100 55.8M  100 55.8M    0     0  29.6M      0  0:00:01  0:00:01 --:--:-- 29.6M
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ chmod +x ./kubectl
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ mkdir -p $HOME/bin && cp ./kubectl $HOME/bin/kubectl && export PATH=$HOME/bin:$PATH
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ kubectl version --client
+Client Version: v1.35.2-eks-f69f56f
+Kustomize Version: v5.7.1
+
+
+
+4. NEXT AWS CONFIGURE using credentials
+AWS ACCESS KEY ID:
+AWS SECRET ACCESS KEY:
+DEFAULT REGION NAME: us-east-1
+DEFAULT OUTPUT FORMAT: Enter (or) (JSON)
+
+
+
+spot instances
+===============
+
+1TB RAM, 200TB HD -> Let's say us-east region data center has that
+
+40GB RAM, 80TB HD -> Not in use
+70-80% discount They give us if we use this..
+AWS will take out these spot instances with 2 min notice...
+
+We use spot instances only for development and testing purpose to save the cost not for production usage (We use On demand instances). 
+
+==> eksctl yaml examples (Browse --> Git)
+
+managed nodes are managed by aws.
+
+==> We use this in eks.yaml, managed-nodegroup-spot-instances.yaml
+
+==> eksctl folder eks.yaml file creation and cloning it in mobaxterm
+git clone https://github.com/javeed-mohd/eksctl.git
+cd eksctl/
+
+==> eksctl create cluster --config-file=eks.yaml ==> It usually takes around 15-20 minutes for creation.
+
+**** After creation, CHECK --> kubectl get nodes
+NAME                             STATUS   ROLES    AGE     VERSION
+ip-192-168-24-143.ec2.internal   Ready    <none>   6m16s   v1.34.4-eks-f69f56f
+ip-192-168-50-105.ec2.internal   Ready    <none>   6m13s   v1.34.4-eks-f69f56f
+
+
+
+eksctl update cluster --config-file=eks.yaml
+
+eksctl delete cluster --config-file=eks.yaml
+
+
+For docker instance:
+====================
+
+==> DOCKER_BUILDKIT=0 docker build -t user:1.0.0 --rm=false --no-cache . ==> Shows intermediate layers and containers while building the image.  --progress=plain(all)
+
+==> docker build -t javeedmohd214/layer-demo .
+==> docker login -u <username> => Password
+
+==> docker push javeedmohd214/layer-demo
+
+98.92.65.246 | 172.31.67.148 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-67-148 ~/dockerfiles/FROM ]$ cd ../
+
+98.92.65.246 | 172.31.67.148 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-67-148 ~/dockerfiles ]$ cp -r FROM test
+
+98.92.65.246 | 172.31.67.148 | t3.micro | https://github.com/javeed-mohd/dockerfiles.git
+[ ec2-user@ip-172-31-67-148 ~/dockerfiles ]$ cd test/
+
+==> docker build -t javeedmohd214/layer-test .
+==> docker push javeedmohd214/layer-test
+
+==> It is mounted to previous one and it is not pushing because we changed the name only for the same instruction used earlier. The content is same so It will not push.
+
+==> docker push javeedmohd214/layer-test
+
+Docker won't create extra memory, just uses references and it does not cost any memory for it... Docker handles it in background, we cannot see it.
+
+--> docker images
+
+--> docker rmi -f `docker images -a -q` ==> To remove all created images.
+
+
+FROM node:20 -> Create container from it
+login to that intermediate container
+
+run this instruction
+WORKDIR /app
+
+create image out of this container -> image-abcfd1234
+
+create container from abcd1234 -> container id is container-xyz1234
+
+xyz1234 -> run next instruction COPY package.json . -> image-dfd5346
+
+create container from image-dfd5346 called container-fadh1632
+
+Every instruction, it will create one image and one container...
+
+
+Docker Layers:
+==============
+
+Docker creates intermediate container for every instruction.
+It will run next following instruction inside this container -> Create image out of it
+Then, it creates another intermediate container from that image, run the next instruction -> Create image out of it
+
+So, for every instruction new layers are created -> Docker exports all these layers into hub while pushing the image
+So, for every instruction new layers are created -> Docker exports all these layers into hub while pushing the image
+
+Every instruction, it will create one image and one container.
+
+**** We must keep FREQUENTLY CHANGING INSTRUCTIONS at the BOTTOM of Dockerfile to make the build process fast and storage. Then layer becomes reusable.

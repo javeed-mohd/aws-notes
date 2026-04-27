@@ -1,0 +1,403 @@
+Deployment strategies:
+-----------------------
+
+1. recreate
+2. rolling update -> 2 versions running at same time (disadvantage)
+3. blue/green -> Double cost (disadvantage), we can reduce replicas to 0
+4. canary -> Send traffic to different version randomly, slowly ramping up from 0 to 100%
+5. A/B testing -> Sending some traffic to other version based on location, headers, etc
+6. shadow -> v2 is running but not accepting live traffic, we mock live traffic live traffic from v1 to v2, but we don't send response to end user
+
+
+blue-green:
+------------
+switching route
+
+blue
+main service
+
+green -> preview service -> endpoint testing
+
+switch main service to green
+
+1. Upgrade control plan to next version, keeping blue current version
+2. Upgrade add-ons
+3. Create green ng with new version
+4. cordon the blue node group, scheduling disabled
+5. drain the blue node, workloads will go to green
+6. remove blue nodes
+
+
+init containers:
+================
+
+Kubernetes secrets are encoded that anyone can easily decode it.
+
+--> We must store secrets in secretsmanager
+--> MySQL pod, MYSQL_ROOT_PASSWORD is required to setup
+
+==> We can use init containers, these are the containers that run before main container runs. It prepares the env for main container like fetching secrets, checking the dependency services, running some sql scripts.
+
+camping -> main
+tent -> init container - prepares the environment
+
+main container runs all the time.
+init container runs to completion. You can have multiple init containers, they will be executed sequentially.
+
+
+==> Steps involved to fetch secret using init container:
+
+1. We should have IAM policy that can fetch the secrets
+2. Create service account with this policy, IAM role will be created
+
+3. Run the pod with this service account
+4. Create init container that fetches secret and make it available in certain location -> containers in the pod can share storage. (Containers in the pod can have shared network and storage)
+5. Main container reads it from the shared location, export it as env variable and remove that file
+
+
+Secrets Manager: arn:aws:iam::996669628469:policy/RoboshopMYSQLRootPasswordReader
+
+
+==> aws eks update-kubeconfig --region us-east-1 --name roboshop-dev
+--> kubectl get nodes
+
+
+eksctl service account command (search)
+
+eksctl create iamserviceaccount \
+  --name mysql-secret-reader \
+  --namespace roboshop \
+  --cluster roboshop-dev \
+  --attach-policy-arn arn:aws:iam::<ACCOUNT-ID>:policy/RoboshopMYSQLRootPasswordReader \
+  --role-name "RoboshopMySQLReader" \
+  --approve
+  
+copy the format from mobaxterm yaml:
+--> kubectl get sa myql-secret-reader -n roboshop -o yaml
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  annotations:
+    eks.amazonaws.com/role-arn: arn:aws:iam::<ACCOUNT-ID>:role/RoboshopMySQLReader
+  creationTimestamp: "2026-04-25T10:00:00Z"
+  labels:
+    app.kubernetes.io/managed-by: eksctl
+  name: mysql-secret-reader
+  namespace: roboshop
+  uid: 12345678-1234-1234-1234-1234567890ab
+  resourceVersion: "12345"
+
+
+search MySQL dockerfile
+
+/secrets/mysql-root-password.txt -> This is where init container fetches and stores the secret (5)
+
+in gitbash:
+-----------
+
+--> cd k8s-init
+copy db file from: cp -r ../docker-roboshop/mysql/db .
+
+******
+Two years back, we have used secrets manager in our project.
+
+In Mobaxterm:
+-------------
+
+git clone k8s-init/
+--> cd k8s-init/
+==> docker login -u javeedmohd214	[password]
+--> docker build -t javeedmohd214/myql:1.5.0 .
+--> docker push javeedmohd214/mysql:1.5.0
+
+
+
+search init container k8s
+--------------------------
+spec:
+initContainers:
+  - name: init-myservice
+    image: busybox
+    # This command waits for a service named 'myservice' to be reachable
+    command: ['sh', '-c', "until nslookup myservice; do echo waiting for myservice; sleep 2; done"]
+
+
+docker hub aws cli search == image - amazon/aws-cli
+
+search aws cli to fetch secret from secrets manager key:
+
+jq (json query)
+aws secretsmanager get-secret-value --secret-id <SecretName> --query 'SecretString' --output text | jq -r '."<YourKeyName>"'
+
+--> aws secretsmanager get-secret-value --secret-id roboshop/dev/mysql_root_password --query SecretString --output text | jq -r .MYSQL_ROOT_PASSWORD
+
+aws secretsmanager get-secret-value --secret-id roboshop/dev/mysql_root_password --query 'SecretString | from_json(MYSQL_ROOT_PASSWORD)' --output text
+
+search containers sharing volume in pod - for volume mounting from disk to init container
+/secrets/mysql-secret-reader.txt	This secret will be stored in volume disk.
+
+Mobaxterm:
+----------
+
+--> git pull
+--> kubectl create namespace roboshop
+
+take a duplicate tab: 
+--> k9s
+--> shift+: namespace - roboshop - mysql init running - logs
+==> Now pod - mysql running - press s - mysql -u root -pRoboShop@1
+show databases;
+use cities;
+show tables;
+select count(*) from cities;
+select count(*) from codes;
+exit
+exit
+
+
+
+==> kubectl apply -f manifest.yaml	[k8s-init]
+
+our doubt:
+----------
+
+Why init container? we can place this command in mysql 
+
+aws secretsmanager get-secret-value --secret-id roboshop/dev/mysql_root_password \
+--query SecretString --output text | jq -r .MYSQL_ROOT_PASSWORD > /secrets/mysql-secret-reader.txt
+echo "Secret placed successfully"
+cat /secrets/mysql-secret-reader.txt
+
+==> If we want to keep this in mysql, then we have to install aws cli. This becomes extra installation and extra memory usage.
+This becomes unnecessary package installation, if someone has that command and then they can have access and can do anything like secret reading. It is not secure.
+So, because of this security issue, we use init container to store the secrets which we have created.
+Once, init container completes it, we cannot access it.
+
+==> kubectl delete -f manifest.yaml
+
+
+Networking:
+============
+
+VPC handles EKS networking, it treats pods as first class citizens. It allocates pod IP in VPC CIDR range.
+
+In k9s, all-namespace - We will have our networking within the cidr range 10.0.0.0/16
+
+
+Network interface:
+==================
+
+How your system gets IP address. Ethernet, WiFi, Mobile Data, etc.,
+
+Instance type ==> c3.large -> 3 ENI (Elastic Network Interface), Each interface can give 10 IP => Total IP addresses = 30
+1 IP address is for primary
+29 Secondary IP addresses, we can have for pods (IP's)
+
+Before planning to create EKS cluster, we need to plan
+How many pods we are planning --> 100 pods (example)
+
+4 nodes = 4*30=120 IP's
+
+c3.xlarge -> 2 (4*15=60 - for 1 node) (for 2 nodes 120)
+Here, 1 for primary
+and rest 59 for pods
+
+*******
+IP address everything will be handled by AWS through default VPC routing
+
+If no. of pods increased then we have to increase nodes in the nodegroup accordingly.
+
+*********
+Search in claude instance types and its purpose
+
+We generally use C and M type of instances in our project which means C = compute optimised, CPU heavy workloads means we use this and M = For large RAM usage happens we use this.
+For database, we use D high disk throughput. Generally, architects decides which type of instance to be used and we use it.
+
+
+--> git clone k8s-network
+--> cd k8s-network/
+kubectl apply -f default.yaml
+kubectl apply -f roboshop.yaml
+
+namespace is an isolated project space where we can create our resources related to our project.
+
+checking:
+---------
+In k9s, namespace - all
+from default pod - press s - curl (ip address of roboshop pod) --> We are getting the response - exit [It means Kubernetes is allowing pods from different namespaces to interact]
+They are having IP address as - 10.0.11.26 and 10.0.11.114 which means internal routing.
+==> In general, internal routing is allowed in VPC routing. But, it is our responsibility not to allow it. To do this, we use network policy (firewall rules).
+
+
+
+Network Policy:
+==============
+
+A NetworkPolicy in Kubernetes is used to control traffic flow between pods and/or external endpoints at the IP/port level. It acts like a firewall for pods.
+
+By default, Kubernetes allows:
+
+--> All pods to talk to each other
+--> All ingress/egress traffic
+
+NetworkPolicy lets you restrict that behavior for security.
+
+Search network policy default deny in k8s
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny
+  namespace: engineering
+spec:
+  podSelector: {}
+  policyTypes:
+    - Ingress
+
+
+==> git pull
+--> kubectl apply -f default-deny.yaml
+
+--> kubectl get networkpolicy -n roboshop
+
+aws eks update-addon --cluster-name roboshop-dev --addon-name vpc-cni \
+--configuration-values '{"enableNetworkPolicy": "true"}'
+
+
+In k9s, namespace - all
+from default pod - press s - curl (IP address of roboshop pod) - We will not get response - exit
+By default networkpolicy is false, we have to enable it by making it as true.
+
+
+1. Should not allow pods from different namespace. default deny for every pod in roboshop namespace.
+
+
+And now, pods in same namespace should communicate with each other. Example:
+--> mongodb should accept connections from catalogue
+--> mongodb should accept connections from redis
+
+We should write policies for this.
+Search network policy in k8s and copy yaml file from there.
+
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mongodb-catalogue
+  namespace: roboshop
+spec:
+  podSelector:
+    matchLabels:
+      project: roboshop
+      tier: database
+      component: mongodb
+  policyTypes:
+  - Ingress
+  ingress:
+  - from:
+    - podSelector:
+        matchLabels:
+          project: roboshop
+          tier: backend
+          component: catalogue
+    ports:
+    - protocol: TCP
+      port: 27017
+
+Here, this policy is applied to mongodb and it is accepting from catalogue on port number 27017.
+
+==> git pull
+--> kubectl apply -f mongodb-catalogue.yaml
+--> kubectl get networkpolicy -n roboshop
+
+In this way, we can allow network policy according to our customization to make connection secure and strict.
+
+
+Pod Disruption Budget (PDB): search pdb k8s and take yaml file
+============================
+
+--> pod disruption means pod failure.
+
+1 pod in some node
+
+If node down -> app down
+
+When we do this, node will be down:
+--> node upgrade
+ cordon
+ drain
+--> autoscaling (When cluster resources are less consumed) -> nodes will be deleted automatically, Then that pod comes out of that node and moves to another node.
+
+In voluntary disruptions, pods may go down.
+
+We can define PDB as, max how many number of pods can be unavailable.
+
+2 pods -> 1 pod can go to unavailable
+
+2 nodes
+
+node-1 -> pod-1 -> success [If we drain node 1, it will become success because we told that 1 pod can go to unavailable]
+node-2 -> pod-2
+
+node-2 -> pod-1 and pod-2
+before draining PDB comes into action
+drain will be failed because PDB checks how many pods to become unavailable. Since, here 2 pods are available in node-2, it will fail.
+
+Now, we add node-3
+node-3 -> pod-2 should come here
+
+single pod replica -> 25% of pods 
+maxUnavailable -> 25%
+minAvailable -> 25%
+
+4 pods -> 1 pod should be always available means 25%
+
+1 pod -> 25% max unavailable -> 0.25 pods should be always available -> 0 pods unavailable
+2 pods -> 25% max unavailable -> 0.5 -> 0 pods unavailable
+3 pods -> min available 25% -> 0.75 -> 0 pods can be available -> Can have downtime
+4 -> 1 pod can go available
+0.anything -> 0
+
+
+10 pods -> 2 min available
+
+4 nodes
+========
+
+node-1 -> If 4 pods are down -> still 6 pods are available -> success - drain
+
+2 nodes
+=======
+
+node-1 -> If 9 pods are down -> can't drain because it will fail as min availability of pods are 2.
+
+
+**********
+In production, we should not go with one pod. Atleast, we should have 4 replicas (pods), when we can't handle downtime and when we think it becomes a problem then we use 4 replicas.
+
+PDB
+TopologySpreadConstraints -> spreading the pods across nodes based on topologyspreadconstraint otherwise Kubernetes assign 2 pods to one node only.
+
+host as topology(border)
+single AZ
+2 nodes
+If we specify host, it won't assign 2 pods to single node, it distributes the pods to both the nodes.
+NODE-1 -> 1 pod is here
+NODE-2 -> 1 pod is here
+
+Two AZ
+us-east-1a and us-east-1b
+
+1 pod in us-east-1a AZ and another pod in us-east-1b AZ
+topology is zone
+host level topology
+
+4 pods 
+us-east-1a -> 2 nodes and us-east-1b -> 2 nodes
+
+1st topology is zone -> k8s spreads pods across multi AZ
+2nd topology is host -> 2 pods in same az spread across multi hosts
+
+If we mix PDB and topologyspreadconstraint both properly, then keep our application running all the time and it won't become down any time. 
+--> If in rare case node failure or total region goes down then our application also goes down we can't do anything for that as it is not in our control.
+
+exec /bin/node /app/server.js

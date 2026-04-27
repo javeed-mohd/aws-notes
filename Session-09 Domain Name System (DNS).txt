@@ -1,0 +1,106 @@
+facebook.com
+google.com
+
+DNS resolver -> responsible to get IP address for the domains
+
+Root servers -> there are 13 root servers in the world formed by different organisations
+
+Domain information and TLD information
+
+TLD -> Top Level Domains
+
+.com
+.us
+.in
+.uk
+.net
+.org
+.edu
+.co
+.ai
+.shop
+.online
+
+What happens if we buy the domain?
+
+GoDaddy, hostinger, aws, gcp, azure etc.
+
+joindevops.com
+1. Availability check -> Check with TLD owner is that domain available or not?
+2. If available, collect the details name, company, address, mobile, email id, payment info, etc.,
+3. When we complete payment, GoDaddy updates TLD about buyer details and domain details.
+
+4. Create one A record against the domain
+
+joindevops.com A 167.89.87.23
+
+Any u,pdate in your domain it propagates to TLD.
+
+
+Root servers:
+=============
+
+Tracks all the TLD and their addresses..
+
+1. How many servers?
+2. What is our infra capacity
+3. How much funding we have
+
+.siva -> TLD
+
+I need to approach popular domain registrars like GoDaddy, hostinger, aws, gcp, azure etc.
+
+Root servers has TLD information...
+
+
+Browser -> Cache -> OS -> Cache -> ISP DNS Resolver -> Cache -> Root servers -> TLD information -> Contact TLD -> GoDaddy -> it will now fetch A record for us
+
+ED -> 
+Local police -> MOEA -> MOHA -> Interpole police -> US courts -> Porkbun
+
+Domain registrars -> Porkbun
+We can change domain authority to another company
+
+Tuvalu Government -> .tv
+.in -> Indian government
+ivs.tv -> video advertising company
+
+NS -> Name servers
+
+Who is managing the domain, who is responsible to provide IP address..
+
+
+DNS Records:
+============
+
+TTL -> Time to Live -> How much time to live in cache, before issuing next request or How much time to update
+A -> Holds the IP address of your domain
+
+High TTL -> DNS overload increases, stable websites will have high TTL
+Low TTL  -> Migration activities, decrease TTL
+
+3600S (1 Hour)
+
+at least 1 day before reduce TTL to 1sec
+
+once everything is fine, take TTL back to 3600
+
+What are root servers?
+What are TLD's?
+What are domain registrars?
+What are nameservers?
+What is A record?
+
+Book a domain
+temporary -> hostinger -> .online (devopsdaws.online)
+permanent -> go daddy
+
+To check the domain:
+=====================
+
+nslookup -type=ns devopsdaws.online  or nslookup <domain-name>
+nslookup -type=a devopsdaws.online
+nslookup -type=soa devopsdaws.online
+
+
+domain buying -> nameservers -> reverse proxy (hiding real server) nginx(http web server) -> backend server

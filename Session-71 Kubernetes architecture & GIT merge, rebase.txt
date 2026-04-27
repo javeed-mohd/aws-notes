@@ -322,36 +322,44 @@ PR -> When you bring change from another branch to main branch (pull requests)
 Dosa Shop Project:
 ==================
 
-After starting a project, no one should push the code to main branch, you do some actions
+--> cd dosa-shop/
+==> git add . ; git commit -m "initial commit" ; git push origin main
+
+After starting a project, no one should push the code to main branch, you do some actions.
 rules - rulesets - new branch ruleset (main-branch [active]) - add target (include by pattern (main))
 
 Add -> Require a pull request before merging (1-approval)
     -> Restrict deletions
     -> Block force pushes
 
+This is required, if anyone wants to commit changes to the main branch.
+
 ==> git branch -M plain-dosa
 --> git add . ; git commit -m "plain dosa started" ; git push origin plain-dosa
 ==> git log
-commit 73dda04d7f76cd0eb88e5296dca48a1045561215 (HEAD -> plain-dosa, origin/plain-dosa)
+commit edb7bc2b3f6ce79e3336a4199f744402e5d9d609 (HEAD -> plain-dosa, origin/plain-dosa)
 Author: Javeed Mohammed <javeedmohd214@gmail.com>
-Date:   Sun Apr 26 02:43:36 2026 +0530
+Date:   Tue Apr 28 00:24:01 2026 +0530
 
     plain dosa started
 
-commit 32368e70ba1449ff51ab43452034727f7b406e10 (origin/main)
+commit bfd85f44e6ad0a8bdb83b373a22144f516b5ce0c (origin/main)
 Author: Javeed Mohammed <javeedmohd214@gmail.com>
-Date:   Sun Apr 26 02:30:53 2026 +0530
+Date:   Tue Apr 28 00:21:41 2026 +0530
 
     initial commit
+
+
+
 
 ******
 ==> To check information any time, we use this:
 
--->  git cat-file -p 73dda0
+-->  git cat-file -p edb7
 tree 299815f0e410b138f802f33d39e1346126572695
-parent 32368e70ba1449ff51ab43452034727f7b406e10
-author Javeed Mohammed <javeedmohd214@gmail.com> 1777151616 +0530
-committer Javeed Mohammed <javeedmohd214@gmail.com> 1777151616 +0530
+parent bfd85f44e6ad0a8bdb83b373a22144f516b5ce0c
+author Javeed Mohammed <javeedmohd214@gmail.com> 1777316041 +0530
+committer Javeed Mohammed <javeedmohd214@gmail.com> 1777316041 +0530
 
 plain dosa started
 
@@ -360,13 +368,13 @@ plain dosa started
 ==> git add . ; git commit -m "light oil added" ; git push origin plain-dosa
 
 
-We can't directly merge, if we want to make changes in main branch you have to pull request and get approval from one of the team member.
-You have to add a member of your another git repo and give write access so that he can approve pr and to comment also. Obviously our fellow members should have write access.
+We can't directly merge, if we want to make changes in main branch you have to pull request and get approval from some one who is authorized for it like a team member.
+You have to add a member of your another git repo and give write access so that he can approve pull request and can comment also. Obviously, our fellow members should have write access.
 After adding they will receive a mail. They will accept it. But, in real projects, we don't have to do all this because it will be done prior only.
 
 --> Now, who has developed the code need to compare and pull the request - create pull request
 
-And the member have some conversation between themselves and approves the request.
+And the member who has write access will have some conversation between themselves and approves the request.
 
 Then the developer merges the request and in main branch the code is displayed.
 
@@ -376,47 +384,48 @@ our local laptop doesn't know merge, so we have to do:
 
 
 ==> git log
-commit e440d9d98d880e34ae6ed2c850983f3eae408f91 (HEAD -> plain-dosa, origin/main)
-Merge: 32368e7 73be65c
+commit b0da088d6f784855a5b6a2c28174167746ab2c51 (HEAD -> plain-dosa, origin/main)
+Merge: bfd85f4 88bd6cd
 Author: Javeed Mohammed <javeedmohd214@gmail.com>
-Date:   Sun Apr 26 03:47:01 2026 +0530
+Date:   Tue Apr 28 00:54:49 2026 +0530
 
     Merge pull request #1 from javeed-mohd/plain-dosa
 
     Plain dosa
 
-commit 73be65c4936552132f308b2584c5c2411f38c8f8 (origin/plain-dosa)
+commit 88bd6cdeaa1f4ed466f45384771cc5c8a86f4e4d (origin/plain-dosa)
 Author: Javeed Mohammed <javeedmohd214@gmail.com>
-Date:   Sun Apr 26 02:54:58 2026 +0530
+Date:   Tue Apr 28 00:26:40 2026 +0530
 
     light oil added
 
-commit 0e13fa60bda5f9665eb0b94a0c537d3c93cc5e44
+commit 3e64cbc82b65ba792234586db5e33260f09097d8
 Author: Javeed Mohammed <javeedmohd214@gmail.com>
-Date:   Sun Apr 26 02:52:10 2026 +0530
+Date:   Tue Apr 28 00:26:14 2026 +0530
 
     dosa batter added
 
-commit 73dda04d7f76cd0eb88e5296dca48a1045561215
+commit edb7bc2b3f6ce79e3336a4199f744402e5d9d609
 Author: Javeed Mohammed <javeedmohd214@gmail.com>
-Date:   Sun Apr 26 02:43:36 2026 +0530
+Date:   Tue Apr 28 00:24:01 2026 +0530
 
     plain dosa started
 
-commit 32368e70ba1449ff51ab43452034727f7b406e10
+commit bfd85f44e6ad0a8bdb83b373a22144f516b5ce0c
 Author: Javeed Mohammed <javeedmohd214@gmail.com>
-Date:   Sun Apr 26 02:30:53 2026 +0530
+Date:   Tue Apr 28 00:21:41 2026 +0530
 
     initial commit
 
 
-We don't use this one in our day to day activity, just to check what is there in it.
-==> git cat-file -p e440
-tree bedb9ada497ba4f2a0ba615c352bf468cabd7450
-parent 32368e70ba1449ff51ab43452034727f7b406e10
-parent 73be65c4936552132f308b2584c5c2411f38c8f8
 
-It has two parents now
+We don't use this one in our day to day activity, just to check what is there in it.
+==> git cat-file -p b0da08
+tree bedb9ada497ba4f2a0ba615c352bf468cabd7450
+parent bfd85f44e6ad0a8bdb83b373a22144f516b5ce0c
+parent 88bd6cdeaa1f4ed466f45384771cc5c8a86f4e4d
+
+It has two parents now.	--> bfd85f and 88bd6c
 
 
 merge:
@@ -429,12 +438,13 @@ It is circular history.
 --> git checkout main
 --> git log 
 
-We can delete our claimed branch, no problem because after switching to main we still have git log
+We can delete our earlier branch, no problem because after switching to main we still have git log, like for example here we can delete plain-dosa branch.
 
 
 *******
 Before creating another branch and also at the time of pushing also, we should always do:
 ==> git pull
+
 
 rebase:
 =======
@@ -446,6 +456,7 @@ git checkout -b karam-dosa -> Create new branch karam-dosa and move inside it
 --> It is linear history
 --> Seems like main branch moved forward
 --> It is rewriting commits
+
 
 ==> git checkout -b karam-dosa
 Switched to a new branch 'karam-dosa'
@@ -461,15 +472,16 @@ After changing to specific type,
 
 
 ==> git log --oneline
-d8d0a1a (HEAD -> karam-dosa, origin/karam-dosa) erra karam
-30f940c karam added
-8edd9a4 oil added
-16a7bf9 dosa batter added
-e440d9d (origin/main, origin/HEAD, plain-dosa, main) Merge pull request #1 from javeed-mohd/plain-dosa
-73be65c (origin/plain-dosa) light oil added
-0e13fa6 dosa batter added
-73dda04 plain dosa started
-32368e7 initial commit
+5126d11 (HEAD -> karam-dosa, origin/karam-dosa) erra karam
+91b724d karam added
+103c137 oil added
+0921e0d dosa batter added
+b0da088 (origin/main, origin/HEAD, plain-dosa, main) Merge pull request #1 from javeed-mohd/plain-dosa
+88bd6cd (origin/plain-dosa) light oil added
+3e64cbc dosa batter added
+edb7bc2 plain dosa started
+bfd85f4 initial commit
+
 
 
 Now in git, choose rebase and merge option
@@ -477,24 +489,24 @@ Now in git, choose rebase and merge option
 ==> git checkout main
 --> git pull origin main
 ==> git log --oneline
-9fa405a (HEAD -> main, origin/main, origin/HEAD) erra karam
-7a28551 karam added
-dcf06b5 oil added
-8134f81 dosa batter added
-e440d9d (plain-dosa) Merge pull request #1 from javeed-mohd/plain-dosa
-73be65c (origin/plain-dosa) light oil added
-0e13fa6 dosa batter added
-73dda04 plain dosa started
-32368e7 initial commit
+2d83c73 (HEAD -> main, origin/main, origin/HEAD) erra karam
+0f41cea karam added
+ae5b49c oil added
+06da299 dosa batter added
+b0da088 (plain-dosa) Merge pull request #1 from javeed-mohd/plain-dosa
+88bd6cd (origin/plain-dosa) light oil added
+3e64cbc dosa batter added
+edb7bc2 plain dosa started
+bfd85f4 initial commit
 
 
 We don't use this one in our day to day activity, just to check what is there in it.
---> git cat-file -p 9fa405
+--> git cat-file -p 2d83c7
 tree 3b037bdbb4080d6006220cdc124d5c42d5361bcf
-parent 7a285519ac81f89025bd5adf4de2efc451fb1e57
+parent 0f41cea0d65c905c65d45c162e79a059fa856ede
 
-1 parent
+1 parent --> 0f41ce
 
-Merge is always safe to use. We use rebase when in a repo stream, a feature is developed by a single person.
+Merge is always safe to use. We use rebase when in a private repo stream, a feature is developed by a single person.
 
 merge vs rebase

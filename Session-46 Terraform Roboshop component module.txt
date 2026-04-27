@@ -1,0 +1,75 @@
+
+for i in 00-vpc/ 10-sg/ 20-sg-rules/ 50-backend-alb/ 70-acm/ 80-frontend-alb/; do cd $i; terraform init -reconfigure; terraform apply -auto-approve; cd ..;done ==> For Frontend ALB connection...
+
+
+Certificate chain:
+==================
+
+-> certificate
+-> ca_bundle
+-> private key
+
+==> certificate + ca_bundle = public= final certificate chain
+==> private key = private
+
+
+Terrafrom roboshop components:
+==============================
+
+==> Main issues arise in security group rules.
+==> We use load balancer because earlier we know that cart would directly call catalogue since requests comes from that host only. But, when executing a project, we don't know how many hosts would call each component inside a subnet, so we use load balancer to send the request for desired component when a particular host requests.
+==> Backend ALB acts as a mediator for backend services catalogue, user, cart, shipping and payment to establish connection between themselves. It also connects with frontend service.
+==> Each component inside a subnet connect with each other with the help of backend application load balancer.
+==> Backend ALB should accept traffic from frontend on port number 80(HTTP).
+==> Frontend should accept traffic from frontend application load balancer on port number 80(HTTP).
+==> We establish TLS(Transport Layer Security) near Front ALB which accepts traffic from public[0.0.0.0/0] on port number 443(HTTPS).
+
+
+General Issues:
+===============
+
+==> Check Security Group Rules
+==> Check ansible roles service files for changing port number in cart, user, shipping, payment.
+==> Check ansible roles host headers(URL's) (all.yaml file)
+==> nginx(Web server) config
+
+==> *** Wherever we clone the repository, we need to mandatorily run terraform init.(terraform get -update after sourcing the repo file).
+
+
+Locals.tf:
+==========
+
+health_check_path           = var.component == "frontend" ? "/" : "/health"      # "component" ? True : False
+port_number                 = var.component == "frontend" ? 80 : 8080        	# "component" ? True : False
+backend_alb_listener_arn    = data.aws_ssm_parameter.backend_alb_listener_arn.value
+frontend_alb_listener_arn   = data.aws_ssm_parameter.frontend_alb_listener_arn.value
+alb_listener_arn            = var.component == "frontend" ? local.frontend_alb_listener_arn : local.backend_alb_listener_arn
+host_header 		    = var.component == "frontend" ? "${var.component}-${var.environment}.${var.domain_name}" : "${var.component}.backend-alb-${var.environment}.${var.domain_name}"
+
+
+Database Services:
+==================
+
+==> mongodb-dev.devopsdaws.online
+==> redis-dev.devopsdaws.online
+==> mysql-dev.devopsdaws.online
+==> rabbotmq-dev.devopsdaws.online
+
+
+Backend Services:
+=================
+
+==> catalogue.backend-alb-dev.devopsdaws.online
+==> user.backend-alb-dev.devopsdaws.online
+==> cart.backend-alb-dev.devopsdaws.online
+==> shipping.backend-alb-dev.devopsdaws.online
+==> payment.backend-alb-dev.devopsdaws.online
+
+
+Frontend Services:
+===================
+
+==> frontend-dev.devopsdaws.online
+
+Immutable Infrastructure	==> Not frequently changing			==> VPC, Security Group, Databases, Backend-alb, AWS Certificate Manager(ACM), Frontend-alb.
+Mutable Infrastructure		==> Frequently changed as per the requirements	==> Security Group Rules, Bastion, Catalogue Components.

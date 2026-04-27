@@ -1,0 +1,428 @@
+Kubernetes (K8s) is an open-source platform designed to automate the deployment, scaling, and management of containerized applications.
+
+yaml files are called manifest in kubernetes.
+
+kubectl means “Kubernetes control” — the command-line tool used to control and manage Kubernetes clusters.
+
+Everything is resource inside k8s
+K8s -> PaaS --> Platform as a service
+
+master is EKS and EKS Node groups are worker nodes (Work loads present here not in master).
+
+namespace -> An isolated space inside k8 cluster where can create our project related resources. We can completely control them. It is like our project inside k8s.
+
+2 types of resources in kubernetes --> kubectl api-resources
+
+1. namespace level -> VPC level (EC2 Services...)
+2. cluster level -> global level (Route53, Cloudfront...)
+
+
+apiVersion:
+kind: <type-of-resource> 
+
+
+==> apiVersion: apps/v1 is a field you see in a Kubernetes manifest file. It tells Kubernetes which version of the API you are using for a particular resource.
+
+What it means
+
+apiVersion → Specifies the API group + version
+apps → The API group (used for workload resources)
+v1 → The stable version of that API
+
+
+kind means the type of resource you want to create.
+ex:-  kind: Namespace
+
+==> kubectl api-resources
+
+1. Namespace-level resources:
+=============================
+
+NAMESPACED = true → These resources exist within a specific namespace.
+Operations on them require the namespace to be specified (or default is used).
+
+Examples:
+pods (po) → true
+services (svc) → true
+
+2. Cluster-level resources:
+===========================
+
+NAMESPACED = false → These resources exist at the cluster level and are not tied to any namespace.
+They define cluster-wide behavior or global configuration.
+
+Examples:
+nodes (no) → false
+persistentvolumes (pv) → false
+
+
+So whenever you see true, treat it like “namespace-scoped” (VPC-level), and false means “cluster/global-scoped” (Cluster-level or global-level policies).
+
+
+there are resources categorised based on apiVersion. This makes the maintenance easier, if kept same means when we make some changes in that it will affect all. So, they use different apiVersion.
+
+
+Kubernetes is following yaml based configuration.
+
+CKA --> Certified Kubernetes Administration --> We will have access to kubernetes.io [kubernetes namespace]
+
+kubectl get namespace => Gets all the namespaces that contains
+We get default namespaces first,
+
+kubectl get namespace
+NAME              STATUS   AGE
+default           Active   26m
+kube-node-lease   Active   26m
+kube-public       Active   26m
+kube-system       Active   26m
+
+
+Whatever that contains kube- , is of administrator level resource. To manage the cluster, administrators uses these namespaces.
+Default will be created similar to vpc creation in aws. We just use this for practice purpose and then we create our own namespace to use and access it further.
+
+Everything is a resource in Kubernetes should be created with yaml file including namespace.
+
+==> Namespace is a way to organize and isolate resources within a cluster.
+
+kubectl create namespace roboshop => In CLI [delete, update]
+
+kubectl create namspace roboshop
+namespace/roboshop created
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ kubectl get namespace
+NAME              STATUS   AGE
+default           Active   31m
+kube-node-lease   Active   31m
+kube-public       Active   31m
+kube-system       Active   31m
+roboshop          Active   11s
+
+44.192.252.222 | 172.31.66.59 | t3.micro | null
+[ ec2-user@ip-172-31-66-59 ~ ]$ kubectl delete namespace roboshop
+namespace "roboshop" deleted
+
+
+==> We have to do it in yaml as kubernetes namespace yaml file
+
+git clone https://github.com/javeed-mohd/k8-resources.git ==> In Mobaxterm and change directory to k8-resources.
+
+Command to apply yaml file:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+==> kubectl apply -f 01-namespace.yaml
+namespace/roboshop created
+
+ns --> shortcut for namespace
+
+==> kubectl get ns
+
+To see the namespace resource created in detail, we use: 
+==> kubectl describe ns roboshop
+
+Name:         roboshop
+Labels:       environment=dev
+              kubernetes.io/metadata.name=roboshop
+              project=roboshop
+              purpose=poc
+Annotations:  <none>
+Status:       Active
+
+
+Command to delete yaml file:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+==> kubectl delete -f 01-namespace.yaml
+ 
+
+
+Pod:
+===
+
+pod is smallest deployable unit in kubernetes. A pod can have one or multiple containers in it. Containers inside pod share same network and storage. [kubernetes pod]
+
+In docker, docker run -d -p 80:80 --name frontend nginx:1.24
+
+==> kubectl apply -f 02-pod.yaml
+pod/nginx created
+
+==> kubectl get pods  --> default
+
+For namespaces provided, we use:
+==> kubectl get pods -n roboshop
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   1/1     Running   0          2m4s
+
+
+==> kubectl describe pod <metdata-name> [nginx] --> For default namespace
+
+==> kubectl describe pod pod-name -n namespace ==> kubectl describe pod nginx -n roboshop --> For specified namespace
+
+==> kubectl get pods -o wide ==> Can check for which node the work is assigned with IP address. It is for default namespace.
+
+==> kubectl get pods -o wide -n namespace(roboshop)  ==> For specific namespace, we use this.
+NAME    READY   STATUS    RESTARTS   AGE     IP               NODE                             NOMINATED NODE   READINESS GATES
+nginx   1/1     Running   0          9m18s   192.168.49.120   ip-192-168-50-105.ec2.internal   <none>           <none>
+
+
+==> kubectl exec -it nginx -n namespace -- bash ==> To login inside container.
+
+==> kubectl delete -f 02-pod.yaml
+pod "nginx" deleted from roboshop namespace
+
+
+Events:
+~~~~~~~
+
+-> assign to node
+-> node pulls the image
+-> create container
+-> start container
+
+
+Multiple-containers:
+====================
+
+For multi-container ==> kubectl get pods <metadata-name> [multi-container]
+In multicontainer, which we have written one container fails because for almalinux we have not specified command  for keeping it running and for nginx it is default running as["nginx", "-g", "daemon off;"], so for almalinux we have to provide command.
+
+ex: command ["sleep", "200"], Then it will not fail until 200 seconds, after that it fails.
+
+==> kubectl describe pod multi-container -> For default namespace
+
+
+==> We can update only few fields in pods, If not updating, then we need to delete and apply again.
+
+
+==> kubectl exec -it multi-container -c nginx -- bash ==> To login inside the nginx container.
+
+curl http://localhost
+
+
+--
+Separator between kubectl options and the command you want to run
+Everything after -- is executed inside the container.
+
+==> kubectl exec -it multi-container -n almalinux -- bash ==> To login inside almalinux container
+
+curl http://localhost
+
+In almalinux also, we are getting the localhost as nginx, because they are sharing the same network and storage.
+
+
+Logs will be pushed to Elasticsearch Logstash Kibana for future analysis, we get this from one of the containers (sidecar container) of multi-containers as they share same network and storage. It will push the logs /var/log/nginx/ to ELK for safe purpose if at all pod gets deleted then the containers data will also be lost. So, we send logs to ELK for analysis.
+
+
+Labels: (Kubernetes core -> Services, Deployments, can have only 63 characters limitation.)
+=======
+
+Labels adds metadata to the resource, Selectors use labels to identify resources inside kubernetes. 
+
+Labels are key-value pairs attached to objects (like Pods, Services, Deployments) to identify, organize, and select them.
+
+***** CrashLoopBackOff -> When container is not able to start
+***** ImagePullBackOff/ErrorImagePull -> When your node is not able to pull the image. Image address may be wrong or authentication problems
+
+kubectl describe pod labels ==> For default namespace
+
+kubectl describe pod labels -n roboshop ==> If namespace is roboshop
+
+
+Annotations: (External tools like Helm, Ingress, Monitoring, can have unlimited characters usage.)
+============
+
+Annotations are again like labels adds metadata, but annotations are used to select external resources (Load balancers).
+Labels have limitations in key value pairs, length and size. Special characters are not allowed inside labels.
+
+imageregistry: "https://hub.docker.com/"
+jenkinsURL: "https://jenkins.joindevops.com/build/job/roboshop/34"
+
+
+Resources:
+==========
+
+Resources are the objects you create and manage inside a cluster.
+
+You need to always restrict the resources to the pod. If you get more requests, then we can do autoscaling.
+
+1 CPU = 1000 millicores (m)
+
+500m = 0.5 CPU (half core)
+250m = 0.25 CPU
+1000m = 1 CPU
+2000m = 2 CPUs
+
+resources:
+  requests:
+    cpu: "500m"
+  limits:
+    cpu: "1000m"
+
+Requests 0.5 CPU
+Can use up to 1 CPU
+
+==> kubectl apply -f 06-resources.yaml
+==> kubectl get pods 
+==> kubectl describe pod resources-demo
+
+
+
+env
+====
+
+env variables useful for pod. 
+env allows you to set environment variables for a container, specifying a value directly for each variable that you name.
+
+==> kubectl apply -f 07-env.yaml
+==> kubectl describe pod env-demo
+
+==> kubectl exec -it env-demo -- bash
+type: env --> gets the entered values. (exit)
+
+==> If anything changes in env cnfigurations, we need to restart the pod. If it is lengthy, it is difficult for readability and if we want to edit, we might edit one for other. To overcome this issue, we use configmap resource.
+
+
+
+configmap: (configmap)
+=========
+
+A ConfigMap in Kubernetes is an object used to store non-sensitive configuration data (Not Confidential) as key–value pair.
+
+A ConfigMap is used to store things like:
+
+Environment variables
+Configuration files
+Command-line arguments
+
+==> It is not meant for secrets (use a Secret object for sensitive data like passwords or token.
+
+==> kubectl apply -f 08-configmap.yaml
+
+shortcut for configmap == cm
+
+==> kubectl get cm
+==> kubectl describe cm nginx-config
+
+
+
+pod-configmap: (pod referring configmap)
+==============
+
+envFrom is used in a Pod spec to load all key–value pairs from a ConfigMap or Secret as environment variables into a container.
+ 
+kubectl apply -f 09-pod-configmap.yaml
+kubectl exec -it pod-configmap-demo -- bash
+type: env --> gets the entered values from configmap file as a reference... (exit)
+
+
+Secrets:
+========
+
+Secrets are meant for confidential information.
+
+A Secret is an object used to store sensitive data such as:
+
+Passwords
+API keys
+Tokens
+Certificates
+
+==> A Secret stores data as key–value pairs, similar to ConfigMap, but:
+
+Values are base64-encoded
+Kubernetes treats them more securely
+
+
+******
+To get base64 values, we use 
+==> echo "admin" | base64
+
+To decode base64 values, we use
+==> echo base64value | base64 --decode
+
+siva -> saiavaaa
+
+==> Anyone can access this, so further going forward we use secrets manager.
+
+Secrets is simple purpose, not really useful in real projects.
+
+==> kubectl apply -f 10-secrets.yaml
+
+
+pod-secret: (pod referring secret)
+=========== 
+
+envFrom is used in a Pod spec to load all key–value pairs from a ConfigMap or Secret as environment variables into a container.
+
+kubectl apply -f 11-pod-secret.yaml
+kubectl exec -it pod-secret-demo -- bash
+type: env --> gets the entered values from secret file as a reference...(It decodes and gives the output) (exit)
+
+
+*****
+Service:
+========
+
+A service is a method for exposing a network application that is running on one or more Pods in your cluster.
+
+Service is an object that provides a stable network endpoint to access a group of Pods.
+
+pod1 -> pod2
+
+dns won't work in kubernetes.
+
+If we want pod to pod communication, Ip address of pods are not useful since they are ephemeral. We can use k8s service to achieve,
+1. pod to pod communication through Service, service name works as DNS here
+2. load balancing
+
+cart -> catalogue
+
+If we have multiple resources, we should always use load balancing to route traffic to desired component.
+
+pod1 -> service -> pod2, pod3, pod4 ==> pod1 connects pod2 through service
+
+Service types:
+==============
+
+1. ClusterIP (default)
+2. NodePort
+3. LoadBalancer
+
+==> Check whether the labels file is running or not. It should be in use while running the service file.
+
+kubectl apply -f 12-service.yaml
+
+shortcut service=svc
+
+kubectl get svc
+(2 nodes are running here as we specified as desiredCapacity=2 while creating eksctl)
+==> kubectl get svc
+NAME         TYPE        CLUSTER-IP     EXTERNAL-IP   PORT(S)   AGE
+kubernetes   ClusterIP   10.100.0.1     <none>        443/TCP   122m
+nginx        ClusterIP   10.100.18.64   <none>        80/TCP    36s
+
+
+==> kubectl describe svc nginx
+Endpoints == pods
+
+kubectl get pods -o wide
+==> Runs on 80 port.
+
+service ip: 10.100.10.134
+endpoints(pods): 192.168.5.23:80 (labels (pod) IP) (same)
+
+
+service-test:
+==============
+
+svc-test (pod) -> service -> labels (pod)   ==> svc-test pod connects labels pod through service.
+
+We can use that service name as DNS.
+
+==> kubectl apply -f 13-service-test.yaml
+==> kubectl get pods
+
+==> kubectl exec -it svc-test -- bash
+Type: curl nginx (exit)
+
+url/repo-name/image-name:version

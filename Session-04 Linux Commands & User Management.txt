@@ -115,7 +115,7 @@ gpasswd -d <user-name> <group-name>
 .tar.gz -> Linux zip format
 
 tar -cf <file-name>.tar.gz <folder>  --> create file
-tar -xf <file-name>.tar.gz           -->extraction file
+tar -xf <file-name>.tar.gz           --> extraction file
 
 1. Lock him immediately
 2. Remove from all groups

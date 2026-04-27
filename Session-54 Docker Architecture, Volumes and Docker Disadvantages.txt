@@ -1,0 +1,312 @@
+1. Build the image -> Bare minimum OS + System packages + App run time + App Code + App Dependencies ==> Instance/Server/VM ==> AMI ID
+	Best practices implement
+2. Run the image -> port, name, network, background(-d)/foreground, other component urls, etc. ==> Configurations
+	Best practices implement
+
+http://localhost/hi.html
+
+
+Docker architecture:
+====================
+
+1. Docker checks image is available in local or not
+2. If available, it will run
+3. If not available, it will pull from the docker hub
+4. Creates container out of it
+5. Send the output to user
+
+
+Docker client == Docker CLI (Command Line Interface)
+==> Docker CLI connects to docker daemon for running
+Docker daemon == docker software running
+
+
+docker run nginx -> Checks whether nginx is available in local
+==> If available, creates container out of it and show to client
+
+==> If not available pull from docker hub, store it in local, create container and show to client
+
+*****
+Docker architecture contains docker client (build, run, pull) , docker host where docker daemon is running, containers and images and docker registry where docker hub is present.
+
+Whenever we issue a command in docker, daemon checks whether the image is available in local or not. If it is not available, it will pull the image from the docker hub, store it in local, create container and send the response to the user.
+
+==> Docker client/docker command, Docker Host, Docker local registry, Docker central registry or Hub, Docker objects storage, network are part of Docker architecture.
+
+==> When you run docker command, it checks whether image is locally available or not, if not available it will pull from hub, create container out of it and send the response to client.
+
+
+VOLUMES:
+========
+
+By default, docker containers are ephemeral (Temporary). Once we remove the container, it will remove entire data.
+
+We need to use volumes to keep the DATA even containers are removed.
+
+1. un-named volumes 	--> Managed by us
+
+==> docker run -d -p 80:80 -v /home/ec2-user/nginx-data:/usr/share/nginx/html nginx ==> It is same as hard disc, the data won't be removed even after the container is removed. If we create another container also, the data remains same.
+
+--> docker run -d -p 80:80 nginx
+
+--> docker ps
+
+--> docker exec -it 9b bash
+root@9bf7ba7bb8e5:/# cd /usr/share/nginx/html/
+root@9bf7ba7bb8e5:/usr/share/nginx/html# echo "<h1>Hello</h1>" > hi.html
+root@9bf7ba7bb8e5:/usr/share/nginx/html# exit
+exit
+
+--> docker rm -f 9b
+
+==> pwd
+/home/ec2-user
+
+mkdir nginx-data/
+
+cd nginx-data/
+
+echo "<h1>Hi, I am from VOLUMES</h1>" > index.html
+
+ls -l
+total 4
+-rw-r--r-- 1 ec2-user ec2-user 32 Mar 31 11:35 index.html
+
+cat index.html
+<h1>Hi, I am from VOLUMES</h1>
+
+cd
+			 		host port : container port
+docker run -d -p 80:80 -v /home/ec2-user/nginx-data/:/usr/share/nginx/html --name nginx nginx
+60931d57eca0de0a52cf469a3d91046b5f16418e21c9905bb6da35ae015a0e16
+
+
+==> We are telling nginx to  /usr/share/nginx/html --> To take from /home/ec2-user/nginx-data/ [not inside the container].
+
+docker rm -f 60
+60
+
+ls -l
+total 0
+drwxr-xr-x 2 ec2-user ec2-user 24 Mar 31 11:35 nginx-data
+
+cd nginx-data/
+
+ls -l
+total 4
+-rw-r--r-- 1 ec2-user ec2-user 32 Mar 31 11:35 index.html
+
+cd
+
+docker run -d -p 80:80 -v /home/ec2-user/nginx-data/:/usr/share/nginx/html --name nginx nginx
+ad7d91ebec15a08b0c21b39b44cf30d39f0486c37bc7d582206d2effaa7c908c
+
+
+
+2. named volumes	--> Use docker commands to create and manage the container volumes
+
+docker volume
+
+==> Commands:
+  create      Create a volume
+  inspect     Display detailed information on one or more volumes
+  ls          List volumes
+  prune       Remove unused local volumes
+  rm          Remove one or more volumes
+
+Run 'docker volume COMMAND --help' for more information on a command.
+
+==> docker volume create nginx
+nginx
+
+docker volume ls
+DRIVER    VOLUME NAME
+local     nginx
+
+docker volume inspect nginx
+
+[
+    {
+        "CreatedAt": "2026-03-31T11:51:21Z",
+        "Driver": "local",
+        "Labels": null,
+        "Mountpoint": "/var/lib/docker/volumes/nginx/_data",
+        "Name": "nginx",
+        "Options": null,
+        "Scope": "local"
+    }
+]
+
+
+==> docker run -d -p 80:80 -v nginx:/usr/share/nginx/html --name nginx nginx
+4da240b3839b983803b3a31fd2b0425eba32a3ad4a84672cf559d2d344113a4c
+
+sudo su -
+
+cd /var/lib/docker/volumes/nginx/_data
+
+ls -l
+total 8
+-rw-r--r-- 1 root root 497 Mar 24 15:38 50x.html
+-rw-r--r-- 1 root root 896 Mar 24 15:38 index.html
+
+echo "<h1>Hi, I am from Named Volumes</h1>" > hello.html
+
+ls -l
+total 12
+-rw-r--r-- 1 root root 497 Mar 24 15:38 50x.html
+-rw-r--r-- 1 root root  37 Mar 31 11:55 hello.html
+-rw-r--r-- 1 root root 896 Mar 24 15:38 index.html
+
+exit
+
+docker rm -f 4d
+4d
+
+sudo su -
+
+cd /var/lib/docker/volumes/nginx/_data
+
+ls -l
+total 12
+-rw-r--r-- 1 root root 497 Mar 24 15:38 50x.html
+-rw-r--r-- 1 root root  37 Mar 31 11:55 hello.html
+-rw-r--r-- 1 root root 896 Mar 24 15:38 index.html
+
+exit
+
+NAMED VOLUMES are better as it is managed by the docker. If we use unnamed volumes, we have to manage directory and content inside the container, so we prefer named volumes.
+
+
+==> docker compose up -d ==> Images are pulled from the dockerhub, network, volumes, and containers are created and running.
+
+
+docker logs shipping
+docker logs payment
+
+
+==> docker compose down
+and then docker compose up -d
+
+==> You should be able to load the previous data after removing and creating the new container also... We should be able to login and see the data which will be mounted to the database data... This is about docker volumes.
+
+
+********** Tell any 3 to 4 in interviews
+Docker best practices  ==> Usually, no one stores the databases in containers for security purpose, we only keep frontend and backend services.
+====================== 
+
+It has docker exec -it component sh
+
+alpine is one of the Linux OS
+
+1. Use Minimal Base Images. alpine images are minimal, but use official.
+	node:20 --> built on ubuntu/Debian
+
+==> docker compose build catalogue
+==> docker compose up -d
+
+==> This ensures the volume size of the component is decreased and also our application is running properly.
+
+********
+2. Use Multi-Stage Builds [as builder will be given in from instruction]
+	multi stage builds have multiple FROM instructions, basically looks multiple Dockerfiles. One Dockerfile is used to provide the artifact. We can copy the artifact into run time image... when you are installing dependencies there might be cache, dev related tools, etc., are installed. those are not required for running into production.
+
+	
+	node artifact = code + node_modules
+	java = .jar file /.war files 
+==> Applications are Compiled and build are called as artifacts.
+
+JDK and JRE
+JDK -> Java development kit = JRE + DEV tools
+JRE -> Java runtime environment
+
+==>  Multi-Stage Builds removes unnecessary installation, commands, caches, and development related tools.
+
+SAME OS should be used in dockerfile not different, if we use different means it can't build because different os has different package names, dependencies.
+
+Theoretically possible but practically it is not possible to use. You should run the application in the same OS (Operating system).
+
+==> docker compose build catalogue
+==> docker compose up -d
+
+==> This ensures the volume size of the component is decreased and also our application is running properly. Reduces image size significantly.
+
+
+3. use .dockerignore 	--> don't run unnecessary files/folders otherwise build process may take much time than usual.
+4. Don’t Run as Root 	--> Security issue
+
+Use normal user
+
+==> Don't make use of it ==> docker run -d -p 8080:80 -v /:/nginx-root nginx
+docker exec -it <container-id> bash
+
+ [alpine add user] => Adding the user
+RUN addgroup -S roboshop && adduser -S roboshop -G roboshop
+RUN chown -R roboshop:roboshop /app
+USER roboshop
+==> By using this, the size won't change but we will get the security.
+docker exec -it catalogue sh
+not root user
+
+
+5. Avoid using latest	--> We will not be sure which version actually running.
+
+6. Use volumes if containers are stateful (Database, S3), prefer stateless apps inside containers not stateful
+7. Use ENV variables at runtime instead of build time. No need to rebuild the image.
+8. Health Checks
+9. Scan Images for Vulnerabilities
+10. Use Proper Logging
+11. Limit Container Resources --> We will handle in kubernetes.
+12. Use ENTRYPOINT + CMD Correctly
+
+CMD ["server.js"]
+ENTRYPOINT ["node"] 
+
+where node       --> command
+      server.js  --> argument
+
+13. Version and Tag Images Properly prefer semantic version
+14. Optimise layers
+
+==> Reduce number of layers, frequently changing instruction should be at last
+==> Combine multiple instructions into single instruction, that speeds up the build process
+
+15. Use secrets, don't hardcodes creds
+16. Reduce Image size by using minimal base OS like alpine and multi-stage builds.
+
+
+1.0.0 -> major-version.minor-version.patch-version
+
+20
+20.1
+20.2
+20.3 -> released public
+20.3.1 -> 20 major-version 3 minor 1 patch-version
+
+
+Docker disadvantages to run images:
+===================================sss
+
+1. You can't rely on single docker host
+2. If run multiple hosts, there needs to be some orchestrator
+3. Container to container communication is difficult if we run in docker
+4. If there is load on application, there should be load balancing --> No Load balancing
+5. Autoscaling is not there --> No Autoscaling
+6. Network management
+7. Where to store secrets?
+8. Volumes implementation is not good (If container removes data will be there. If server crashes there won't be any data). If docker host crashes, data will be lost. We can't rely on docker host.
+
+
+Container Orchestration:
+========================
+
+Docker swarm ==>  Native docker orchestrator, Kubernetes, Mesos etc.
+
+==> No autoscaling in Docker swarm, Load balancing is not in our control, networking is poor, no cloud integration.
+
+Kubernetes is an open-source project from google, which overcomes all the disadvantages of running the image in docker.
+
+EKS (AWS) --> Amazon Elastic Kubernetes Service, AKS (Microsoft) --> Azure Kubernetes Service, GKE (Google) --> Google Kubernetes Engine, Openshift (Redhat)
+
+
+==> We will limit DOCKER for only building the image and KUBERNETES for running the image.

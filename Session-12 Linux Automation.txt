@@ -1,7 +1,6 @@
 Java:
 =====
-
-Build tool -> Ant, Maven, Gradle, etc.
+Build tool -> Ant, Maven, Gradle, etc.,
 .java
 
 JDK -> Java development kit
@@ -68,12 +67,10 @@ programming language == programming runtime
 
 mvn clean package -> clean previous builds + install dependencies + pack the application
 
-a new directory target will be created
-
+A new directory target will be created
 
 Python:
 =======
-
 .py
 pip
 requirements.txt

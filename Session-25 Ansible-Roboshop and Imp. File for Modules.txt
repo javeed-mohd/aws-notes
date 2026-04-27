@@ -234,11 +234,11 @@ Common Use Cases:
 -> Modify variables during loops
 
 
-REPLACE				LINEINFILE
-========			===========	
+REPLACE						LINEINFILE
+========					===========	
 Replaces matching text		Ensures a specific line exists(whole line)
-Works on patterns		Works line-by-line
-More flexible			Simpler use cases
+Works on patterns			Works line-by-line
+More flexible				Simpler use cases
 Only replaces matches		Adds if missing
 
 
@@ -265,24 +265,25 @@ TELNET:
 Telnet is a network protocol and command-line tool used to connect to a remote server. It is a TCP-based protocol and tool used to test remote server connectivity and port availability.
 
 
-MONGODB - 27017 (Database)							telnet mongodb-dev.devopsdaws.online 27017, netstat -lntp
-REDIS - 6379 (Cache)								telnet redis-dev.devopsdaws.online 6379, netstat -lntp
-MYSQL - 3306 (Database)								telnet mysql-dev.devopsdaws.online 3306, netstat -lntp
+MONGODB - 27017 (Database)													telnet mongodb-dev.devopsdaws.online 27017, netstat -lntp
+REDIS - 6379 (Cache)														telnet redis-dev.devopsdaws.online 6379, netstat -lntp
+MYSQL - 3306 (Database)														telnet mysql-dev.devopsdaws.online 3306, netstat -lntp
 CATALOGUE, CART, USER, SHIPPING, PAYMENT - 8080 (Application service)		curl http://catalogue-dev.devopsdaws.online:8080/health, telnet, netstat -lntp		
-RABBITMQ - 5672 (Message queue)							telnet rabbitmq-dev.devopsdaws.online 5672, netstat -lntp
-RABBITMQ UI - 15672 (Web console)						telnet rabbitmqui-dev.devopsdaws.online 15672, netstat -lntp
+RABBITMQ - 5672 (Message queue)												telnet rabbitmq-dev.devopsdaws.online 5672, netstat -lntp
+RABBITMQ UI - 15672 (Web console)											telnet rabbitmqui-dev.devopsdaws.online 15672, netstat -lntp
 ==> 5672 → Application communication
 ==> 15672 → Web management console
-FRONTEND - 80/443 (Web server)							telnet frontend-dev.devopsdaws.online 80, netstat -lntp
+FRONTEND - 80/443 (Web server)												telnet frontend-dev.devopsdaws.online 80, netstat -lntp
 
 
-Layer										Port		Access
-=====										=====		=======
-Frontend (HTTP/Nginx)								80		Public
-Frontend (HTTPS)								443		Public
-Backend services (CATALOGUE, CART, USER, SHIPPING, PAYMENT)			8080		Private
-Databases(Mongodb/MySQL)							27017 / 3306	Private
-Cache (Redis)									6379		Private
+Layer																Port			Access
+=====																=====			=======
+Frontend (HTTP/Nginx)												80				Public
+Frontend (HTTPS)													443				Public
+Backend services (CATALOGUE, CART, USER, SHIPPING, PAYMENT)			8080			Private
+Databases (Mongodb/MySQL)											27017 / 3306	Private
+Cache (Redis)														6379			Private
+Message Queue (RabbitMQ)											5672 / 15672	Private
 
 Port 22 → SSH access
 Port 80 → Web access

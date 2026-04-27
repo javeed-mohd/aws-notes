@@ -1,0 +1,83 @@
+1. Play level
+2. Task level
+3. Files
+4. Prompt
+5. Inventory
+6. Command line
+7. Arguments
+
+register
+set_fact
+
+shell vs command
+
+conditions -> when
+loops -> loop -> item
+list -> -/[
+dict -> {
+
+filters/functions
+VAR_NAME | FILTER_NAME
+
+Idempotency:
+============
+
+Ansible is idempotent.
+
+If we run script any number of times, it should give same results. This is called as idempotent.
+(or)
+Scripts should give same results even if you run them infinite times, This is called idempotency.
+
+But, if we use command module then ansible won't be idempotent.
+
+If we use collections then only ansible will be idempotent.
+
+If Collections are available then use it and become idempotent, otherwise use command module or shell module and should handle the idempotency.....
+
+
+Roboshop using ansible:
+=======================
+
+catalogue-dev.devopsdaws.online
+catalogue-qa.devopsdaws.online
+
+1. Create instances
+2. Create r53 records
+
+1. Console
+2. CLI
+3. SDK -> botocore and boto3 (It is for python) 
+
+[pip3.9 install botocore boto3] 
+aws configure
+
+If we don't want to use inventory.ini file then keep hosts as all in main file.
+
+ansible-playbook -i localhost, roboshop.yaml --> We used this in ansible starting for pinging the server (from one to other).
+
+
+ansible-playbook -i inventory.ini mongodb.yaml --> No need to specify username and password as we already provided in inventory.ini file
+
+It is used in Ansible, the automation and configuration management tool.
+
+1. ansible-playbook
+This is the command-line tool used to run Ansible playbooks.
+
+A playbook is a YAML file that contains tasks to configure servers, install software, deploy applications, etc.
+
+2. -i inventory.ini
+-i stands for inventory.
+
+The inventory file (inventory.ini in this case) defines the list of hosts (servers) where the playbook will run.
+
+Example of an inventory.ini file:
+
+[webservers]
+web1.example.com
+web2.example.com
+
+[dbservers]
+db1.example.com
+Here, [webservers] and [dbservers] are groups, and the playbook can target specific groups or hosts.
+
+ansible-playbook -i inventory.ini specifies which hosts to run the playbook on.

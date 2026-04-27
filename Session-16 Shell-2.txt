@@ -1,0 +1,98 @@
+Functions/Methods:
+==================
+
+Functions are intended to complete specific task, it takes input and does the job.
+
+FUNC_NAME(){
+	$1, $2
+	code
+}
+
+FUNC_NAME parameter-1 parameter-2
+
+Redirections (>):
+=================
+
+ls -l > output.txt
+cat output.txt --> These both will execute as it is success
+
+If command is success, redirect the output in output.txt
+
+1 --> Success (ex: ls -l > output.txt) --> It stores the output of success
+2 --> Failure (ex: lsasd(anything) -l 2> output.txt) --> It stores the output of failure
+& --> success and failure
+
+&> is for everything whether the code is success or failure to redirect the output to logs file (ex: ls -l &> output.txt) (ex: lsasd(anything) -l &> output.txt)
+&>> is used for appending and prevent from overriding (ex: ls -l &>> output.txt) or (ex: lsasd(anything) -l &>> output.txt)
+
+
+Logs:
+=====
+sudo mkdir /var/log/shell-script --> To create log folder
+sudo mkdir -p /var/log/shell-script --> -p is used because if folder exists it leaves or else it will create
+
+To troubleshoot use, sudo less /var/log/shell-script/12-logs.sh.log 
+
+tee -a $LOGS_FILE --> Tee is used for showing the output both in terminal and file(logs file) AND a is to append the log file
+
+Loops:
+======
+
+for (int i=0;i<10;i++){
+	print i;
+}
+
+where int i=0 --> Initialization
+      i<10    --> Condition
+      i++     --> Increment (0+1,1+1,2+1,.....8+1)
+
+sudo dnf remove nginx nodejs -y --> To remove installed applications
+
+
+Linux Color Codes:
+==================
+
+'\e[31m' or "\033[31m"
+Foreground
+Red    --> 31
+Green  --> 32
+Yellow --> 33
+Blue   --> 34
+No Color --> 0 ("\e[0m")
+
+Error Handling:
+===============
+
+set -e # This will be checking for errors, if errors it will Exit [ The purpose of VALIDATE() is that it checks for process and pints the log file.]
+
+trap 'command(s)_to_run' ERR ( We will know where the error line is)
+
+ex: trap 'echo "There is an error in $LINENO, Command: $BASH_COMMAND"' ERR
+
+[We can use trap or validate in our poject as per requirement...... VALIDATE shows output on the terminal and we will know what is happening (Flow of the program) but TRAP doesn't show on the terminal, it shows only error. It can be used for code shortening. Both give the same result.]
+
+SDK -> Software Development Kit
+
+aws ec2 run-instances \
+    --image-id ami-xxxxxxxxxxxxxxxxx \
+    --instance-type t2.micro \
+    --key-name MyKeyPairName \
+    --security-group-ids sg-xxxxxxxxxxxxxxxxx \
+    --subnet-id subnet-xxxxxxxxxxxxxxxxx \
+    --tag-specifications 'ResourceType=instance,Tags=[{Key=Name,Value=MyDemoInstance}]'
+	
+get the output, get public ip
+
+run another command to update R53(Route 53) records
+
+ec2 instance
+r53 records
+
+roboshop.sh mongodb redis catalogue
+
+create mongodb instance
+update mongodb record
+.
+.
+.
+.

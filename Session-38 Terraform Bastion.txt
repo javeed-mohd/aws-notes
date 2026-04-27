@@ -24,7 +24,7 @@ Characteristics:
 -> Highly hardened (minimal software, strict firewall)
 -> Used as single entry point
 
-Architecture:		Internet -> Bastion Host(Public Subnet) -> Private EC2 Instances (Private Subnet)
+Architecture:			Internet -> Bastion Host(Public Subnet) -> Private EC2 Instances (Private Subnet)
 
 Amazon Web Services:	Internet -> Public Subnet -> Bastion EC2 -> Private Subnet -> Application Servers
 

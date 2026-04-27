@@ -36,8 +36,8 @@ Why use Elastic IP?
 Elastic IP vs Public IP:
 ========================
 
-Public IP		Elastic IP
-=========		==========	
+Public IP		    Elastic IP
+=========		    ==========	
 Changes on restart	Static
 Auto-assigned		Manually allocated
 Not reusable		Reusable
@@ -47,11 +47,11 @@ Common Architecture
 ====================
 
 EC2 in Public Subnet 	→ Attach Elastic IP
-Private EC2 		→ No Elastic IP
-NAT Gateway 		→ Uses Elastic IP
+Private EC2 		    → No Elastic IP
+NAT Gateway 		    → Uses Elastic IP
 
-1. create VPC
-2. create IGW and attach to VPC
+1. Create VPC
+2. Create IGW (Internet Gateway) and attach to VPC
 
 roboshop-dev
 

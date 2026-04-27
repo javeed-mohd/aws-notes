@@ -1,0 +1,253 @@
+Important:
+=========
+
+Folders are named 00, 10, 20, 30… to control the execution order when running scripts or loops.
+
+==> The command ls lists folders alphabetically, not logically.
+
+==> Ensures Correct Infrastructure Order
+
+Infrastructure components depend on each other.
+
+Example:
+
+Folder		  What it creates		  Dependency
+======		  ===============		  ==========
+
+00-vpc		  Network (VPC)		    First
+10-sg		    Security Groups		  Needs VPC
+20-sg-rules	SG Rules		        Needs SG
+30-bastion	Bastion server		  Needs VPC + SG
+.
+.
+.
+.
+
+==> So developers use numbers at the beginning of folder names to force the correct order.
+==> If order is wrong, Terraform may fail because required resources don’t exist yet.
+
+For deletion we use:
+==> ls -rd *
+
+So infrastructure is destroyed from top dependency to base dependency, preventing errors.
+
+Numbering folders like 00, 10, 20, 30 helps to:
+
+--> Control execution order
+--> Avoid dependency errors
+--> Automate scripts easily
+--> Destroy resources safely in reverse order...
+
+
+1. S3 access, state file retrieval, creation, update
+2. EC2 creation access(iam role policy attachment)
+3. R53 entries creation, deletion, update
+
+Generally, We should not give administration access to ec2 instance but we giving by using strict policies...
+
+For infra creation of all, we use: It creates in a loop:
+====> for i in 00-vpc/ 10-sg/ 20-sg-rules/ 30-bastion/; do cd $i; terraform apply -auto-approve; cd ..;done
+
+====> for i in 00-vpc/ 10-sg/ 20-sg-rules/ 30-bastion/; do 
+cd $i
+terraform apply -auto-approve
+cd ..
+done
+			(OR)
+
+====> for i in $(ls -dr *); do cd $i; terraform apply -auto-approve; cd ..;done
+
+====> for i in $(ls -dr *); do 
+cd $i
+terraform apply -auto-approve
+cd ..
+done
+
+Here, (ls -dr *) Lists all folders in the current directory.
+
+
+To list all in roboshop-infra-dev:
+====> ls -dr *  --> Lists all directories in the current project
+
+To delete all then:
+====> for i in $(ls -rd *); do cd $i; terraform destroy -auto-approve; cd ..;done
+
+====> for i in $(ls -rd *); do 
+cd $i
+terraform destroy -auto-approve
+cd ..
+done
+
+Here, ls -rd * → Lists folders in the reverse order.
+
+Why reverse order?
+-> Infrastructure has dependencies.
+
+Example:
+-> Bastion depends on Security Group
+-> Security Group depends on VPC
+
+So destroy order should be:
+-> 30-bastion
+-> 20-sg-rules
+-> 10-sg
+-> 00-vpc
+
+That’s why reverse order (-rd) is used.
+
+1. Connect to the instance and configure it (Using Provisioners through remote-exec --> If we want to take some actions (or) run scripts then we can use provisioners.) 
+2. Update r53 record
+
+
+===> Bastion host(creation) -> IAM role attached -> Administrator access to IAM role -> Will provide strict policies and update it later.
+
+
+Provisioners:
+=============
+
+1. LOCAL EXECUTION  ==> local-exec -> Where terraform executes
+2. REMOTE EXECUTION ==> remote-exec -> Executes inside the resources created by terraform
+
+Self is the special variable, self refers to the current resource.
+
+Connection block is mandatory to have the ssh protocol access to connect in remote exec.
+
+In Terraform, a connection block is used to define how Terraform connects to a remote resource (usually a VM) to run provisioners like remote-exec or file.
+
+It tells Terraform:
+-> Which user to log in as
+-> How to authenticate (SSH key / password)
+-> Host IP or DNS
+-> Connection type (SSH)
+
+Syntax:
+~~~~~~~
+connection {
+  type        = "ssh"
+  host        = self.public_ip
+  user        = "ec2-user"
+  password    = "123456"
+}
+
+SSH Connection:
+~~~~~~~~~~~~~~~~
+
+resource "aws_instance" "example" {
+  ami           = "ami-12345678"
+  instance_type = "t2.micro"
+  vpc_security_group_ids = [aws_security_group.allow_tls.id]
+
+  provisioner "remote-exec" {
+    inline = [
+      "sudo dnf install nginx -y",
+      "sudo systemctl restart nginx"
+    ]
+  }
+
+  connection {
+    type        = "ssh"
+    user        = "ec2-user"
+    password = "2131456"
+    host        = self.public_ip
+  }
+}
+
+If we want to take some actions (or) run scripts then we can use provisioners.
+
+==> Provisioners will be executed at the time of creation (or) destroy but not at the time of updating the resources.
+
+==> We use PROVISIONERS to execute ansible playbooks.
+
+
+TERRAFORM_DATA:
+===============
+
+It won't create any resource but implements standard resource lifecycle like creation, deletion & updating. [triggers_replace]
+null resource -> earlier we use to call like this.
+terraform_data -> follows standard resource lifecycle, but it will not create any resources. We use this to configure instance using local-exec, remote-exec. We have one argument triggers_replace. We can decide which one to trigger the configuration again.
+
+
+bastion host -> Creates ec2 instance(mongodb)
+
+connecting to mongodb instance
+
+install ansible(command line tool) inside bastion -> mongodb
+(OR)
+install ansible(command line tool) inside mongodb
+configure it as localhost
+
+
+bootstrap.sh:
+=============
+
+install ansible(command line tool)
+configure it using playbooks
+
+copy this script to mongodb, then we require file provisioner block
+execute through remote-exec
+
+Linux -> CentOS/RHEL (Installing Terraform in Mobaxterm):
+=========================================================
+
+sudo yum install -y yum-utils
+sudo yum-config-manager --add-repo https://rpm.releases.hashicorp.com/RHEL/hashicorp.repo
+sudo yum -y install terraform
+
+4 databases to be created --> 4*832mb = 3.5gb
+
+user-data:
+==========
+
+1. Once the system is provisioned, AWS executes the commands inside user_data script.
+2. If user_data script is failed, terraform is not aware. terraform is still success.
+3. Since AWS runs user_data(aws_instance), we can't get immediate log.
+4. Useful for simple installations.
+
+
+provisioner:
+============
+
+1. It is terraform resource.
+2. If remote-exec is failed, terraform is also failed.
+3. We can get immediate log on the console about what is going on.
+
+
+FOR CHECKING THE SERVER WHETHER IT IS CONNECTED OR NOT, WE USE:
+===============================================================
+
+netstat -lntp  --> Network Management
+
+curl http://catalogue-dev.devopsdaws.online:8080/health
+
+telnet redis-dev.devopsdaws.online 6379
+Control]
+quit
+
+TELNET
+======
+Telnet is a network protocol and command-line tool used to connect to a remote server. It is a TCP-based protocol and tool used to test remote server connectivity and port availability.
+
+
+MONGODB - 27017 (Database)							telnet mongodb-dev.devopsdaws.online 27017, netstat -lntp
+REDIS - 6379 (Cache)								telnet redis-dev.devopsdaws.online 6379, netstat -lntp
+MYSQL - 3306 (Database)								telnet mysql-dev.devopsdaws.online 3306, netstat -lntp
+CATALOGUE, CART, USER, SHIPPING, PAYMENT - 8080 (Application service)		curl http://catalogue-dev.devopsdaws.online:8080/health, telnet, netstat -lntp		
+RABBITMQ - 5672 (Message queue)							telnet rabbitmq-dev.devopsdaws.online 5672, netstat -lntp
+RABBITMQ UI - 15672 (Web console)						telnet rabbitmqui-dev.devopsdaws.online 15672, netstat -lntp
+==> 5672 → Application communication
+==> 15672 → Web management console
+FRONTEND - 80/443 (Web server)							telnet frontend-dev.devopsdaws.online 80, netstat -lntp
+
+
+Manual Deletion of IAM Role:
+============================
+
+==> aws iam remove-role-from-instance-profile \
+--instance-profile-name roboshop-dev-bastion \
+--role-name RoboshopDevBastion
+
+==> aws iam delete-instance-profile \
+--instance-profile-name roboshop-dev-bastion
+
+==> aws iam delete-role \
+--role-name RoboshopDevBastion

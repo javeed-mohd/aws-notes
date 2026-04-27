@@ -1,4 +1,4 @@
-TO redirect the output to ec2_output.json by using ==> terraform output -json > ec2_output.json
+To redirect the output to ec2_output.json by using ==> terraform output -json > ec2_output.json
 
 resource "type_of_resource" "name_of_resource"{
 	key=value

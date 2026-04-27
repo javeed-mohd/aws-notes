@@ -1,0 +1,127 @@
+1. Project Infra     	-> One time infra
+2. Application Infra 	-> Frequently changing
+
+1. VPN
+2. Bastion Host/Jump host -> (Incoming traffic), Instance in public subnet used to connect instances in private subnets for security purpose. -> Opposite to NAT(Network Address Translation)
+3. NAT Gateway -> It takes Outgoing traffic to connect internet for private and database subnets.
+
+
+BASTION:
+========
+A bastion host is a special server that acts as a secure gateway to access resources inside a private network (like private VMs or instances).
+
+Bastion Host → Security concept
+
+Jump Server → Operational usage
+
+
+Bastion Host:
+=============
+A bastion host is a security-focused server placed at the edge of a network.
+
+Characteristics:
+-> Exposed to the internet
+-> Highly hardened (minimal software, strict firewall)
+-> Used as single entry point
+
+Architecture:		Internet -> Bastion Host(Public Subnet) -> Private EC2 Instances (Private Subnet)
+
+Amazon Web Services:	Internet -> Public Subnet -> Bastion EC2 -> Private Subnet -> Application Servers
+
+A Bastion Host is a hardened server exposed to the internet that provides secure access to internal systems, while a Jump Server is an intermediate machine used to connect to other servers. In many cloud environments, both terms are used interchangeably.
+
+
+Jump Server:
+============
+
+A jump server is simply a machine you log into first before accessing another machine.
+
+Example flow:		Admin Laptop -> Jump Server -> Database Server
+
+It is mainly used for:
+-> Administrator access
+-> Network segmentation
+-> Multi-hop SSH
+
+example:
+ssh user@jump-server
+ssh user@private-server
+
+
+(instance)bastion(security group(roboshop-dev-bastion)) -> (instance)roboshop-dev(sg(roboshop-dev))
+								22 10.0.1.94/32
+								22 mention source of traffic roboshop-dev-bastion(PERFECT solution)(sg-02f216c06c1598e00)
+
+telnet (private ip of roboshop-dev) 22  --> It won't connect
+
+Edit inbound rules of roboshop-dev instance with private ip of bastion then it will connect...  ==> telnet (private ip of roboshop-dev) 22 
+But if we stop and start the instance we get different IP's, So, it is not effective to use it creates lot of manual work to change inbound rule all the time.
+
+We can use elastic ip (It gives public ip same, not the private ip. So we cannot use it). It is also a temporary solution.
+
+So, we use the security group id of bastion instance in roboshop-dev instance, then we can connect permanently using this(There won't be any issue). (PERFECT solution)(sg-02f216c06c1598e00)
+
+==> telnet (private ip of roboshop-dev) 22 (Now, we have connected roboshop-dev instance with the bastion instance)
+
+ssh ec2-user@private-ip of roboshop-dev [Permanently shifted from bastion to roboshop-dev within the same instance to connect the default instance)
+
+Next, if we want to connect default instance with roboshop-dev instance [same issue arises]
+
+10.0.11.233 -> private ip of roboshop-dev(through this outgoing traffic will go(NAT Gateway) when connecting with default-vpc instance)				
+telnet 172.31.9.80 22 --> It won't connect
+
+Use the same process,
+So, we use the security group id of roboshop-dev instance in default instance, then we can connect permanently using this(There won't be any issue). (PERFECT solution)
+(sg-01328635d22068316)
+
+==> telnet (private ip of default) 22 (Now, we have connected default instance with the roboshop-dev instance)
+
+If not connected(matches) with local and peering connection then it will take longest route of nat gateway through internet access.[Important].
+
+Security group is dependent on any VPC(Virtual Private Cloud).
+roboshop-infra-dev
+-> 00-vpc [first]
+-> 10-sg  [second]
+
+Why you have kept 10 gap in between them means in future we may get anything important to add in between to left gap[Imp] [01,02,...]
+When creating first create vpc then sg. While destroying it should be reverse. [Important]
+
+use variables
+use data sources
+use locals
+use outputs
+
+==> We don't use IPv6 address in our projects for outgoing traffic(egress) due to security configurations. [Important]
+IPv6 can absolutely be used for egress traffic, but many networks still prefer IPv4 due to compatibility, legacy systems, and existing security configurations.
+
+[Important]
+Apart from code, we have configuration, which has:
+-> Confidential (Secrets Manager)
+-> Non-confidential (Parameter Store)
+
+Imp:
+==> First terraform-aws-vpc gives outputs from the provided resources then that will be caught by 00-vpc and it will be stored that in ssm parameter store.
+==> Then using data-source, security group will access it and gets the required data.
+
+1. module should output the required info to users
+2. users should catch and store it in SSM parameter store
+
+/roboshop/dev/vpc_id(name)  ==> ssm parameter store [Systems Manager]
+
+
+Bastion Host VS Jump Server:
+============================
+
+Feature		Bastion Host					Jump Server
+========	=============					============
+
+Purpose		Hardened server exposed to the internet		Intermediate server used to access internal systems
+Security	Highly secured and hardened			Usually secured but not always hardened
+Location	Public subnet 					Often inside internal network
+Access		Internet → Bastion(Public) → Private servers	Admin → Jump server → Target server
+Usage		Security architecture concept			Operational access method
+
+
+==> No change in security groups but only change in rules mainly inbound rules.
+==> Based on requirement, if we want to enable the port you can or else you can delete it.
+==> We create sg folder and write rules in another folder for easy accessing.

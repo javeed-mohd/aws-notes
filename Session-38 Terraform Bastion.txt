@@ -112,14 +112,14 @@ Imp:
 Bastion Host VS Jump Server:
 ============================
 
-Feature		Bastion Host					Jump Server
-========	=============					============
+Feature		Bastion Host									Jump Server
+========	=============									============
 
-Purpose		Hardened server exposed to the internet		Intermediate server used to access internal systems
-Security	Highly secured and hardened			Usually secured but not always hardened
-Location	Public subnet 					Often inside internal network
+Purpose		Hardened server exposed to the internet			Intermediate server used to access internal systems
+Security	Highly secured and hardened						Usually secured but not always hardened
+Location	Public subnet 									Often inside internal network
 Access		Internet → Bastion(Public) → Private servers	Admin → Jump server → Target server
-Usage		Security architecture concept			Operational access method
+Usage		Security architecture concept					Operational access method
 
 
 ==> No change in security groups but only change in rules mainly inbound rules.

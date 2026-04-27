@@ -1,0 +1,82 @@
+instance-1 -> instance-2
+
+inbound:
+========
+3306	instance-1 SG_ID
+
+[
+  "subnet-048c42aeba89987f1",
+  "subnet-08d03c4487720a4c0",
+] -> list
+
+"subnet-048c42aeba89987f1", "subnet-08d03c4487720a4c0" -> string
+
+"${var.project}-${var.environment}-${var.sg_name}"
+
+-> roboshop-dev-mongodb
+-> roboshop-dev-backend_alb ==> No issue but it is non-human readable format so
+
+replace command ==> replace(string, substring, replacement) ==> replace(var.sg_names[count.index], "_", "-")
+replace _ with - ==> Readable format roboshop-dev-backend-alb
+
+"How to get ipv4 address in terraform" -> data.tf(data-source)
+
+
+public_subnet_ids
+terraform -> convert string to List and access 0th element ==> public[0]
+AWS -> StringList (string)
+
+split(",", data.aws_ssm_parameter.public_subnet_ids.value)[0] in locals.tf
+
+
+BASTION:
+========
+A bastion host is a special server that acts as a secure gateway to access resources inside a private network (like private VMs or instances).
+
+
+IAM(Identity and Access Management) User:
+=========================================
+
+User Group
+Role
+Permissions
+
+DevOps team
+===========
+
+Role		Permissions
+=====		============
+Trainee  		only read access
+Junior Engineer 	read + create
+Senior Engineer 	read + create + update
+Team Lead 		read + create + update + delete
+Architect 		read + create + update + delete
+Team Manager  		read + create + update + delete
+
+
+User -> roboshop-trainee(group) -> only read access
+
+Nouns -> Names 
+Verbs -> Actions
+
+
+Everything is called resource/service
+
+EC2 -> Noun
+createEC2, readEC2, updateEC2, deleteEC2 (CRUD Operations) --> Important
+
+User(human) -> What services he can access(nouns) -> What are the permissions he have(Verbs/actions)
+
+access-key and secret-key (programmatic access) --> Command Line Interface(CLI)
+username and password (console)
+
+User vs Role:
+=============
+
+1. You create User for humans.
+2. You create Role for non humans like AWS services to act on behalf of us.
+
+Role for EC2 -> Add EC2Fullaccess in roles
+
+Role
+I attached permission to Role

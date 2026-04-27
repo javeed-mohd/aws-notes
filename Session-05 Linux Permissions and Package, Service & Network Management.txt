@@ -1,0 +1,212 @@
+Colon Mode:
+===========
+
+:q -> quit
+:q! -> force quit
+:wq -> write quit
+:/ -> search from top
+:? search from bottom
+:set nu -> display numbers
+:noh -> no highlight
+:<line-number>
+:%d -> delete everything
+:%s -> substitution
+
+
+Insert Mode: Press i to move to insert mode after entering esc key. It is used to insert the data according to our requirements.
+============
+
+Esc Mode (Normal Mode):
+======================
+
+u -> undo
+Ctrl+r -> redo
+gg -> takes to top
+Shift+g -> takes to bottom
+yy -> copy
+p -> paste
+dd -> cut
+shift+p -> paste above the line
+
+useradd <user-name>
+/etc/passwd
+id user-name
+
+/etc/group
+
+usermod -g group-name user-name
+usermod -aG group-name user-name
+
+passwd user-name
+/etc/ssh/sshd_config
+sshd -t
+
+/etc/sudoers
+vimsudo -c
+
+gpasswd -d <user-name> <group-name>
+userdel 
+
+tar -xf *.tar.gz
+tar -cf *.tar.gz folder_name
+
+awk and cut commands
+
+
+Permissions:
+============
+
+drwx- -> Directory/Folder
+-rwx-- -> File
+
+
+- 	rw- 		r-- 	r--
+	User/owner	group	others
+	u		g	o
+
+
+R --> Read
+W --> Write
+X --> Execute
+
+chmod o+w <file-name>  --> To add permission
+chmod o-w <file-name>  --> To remove permission
+
+either owner of the file or root user can only change access levels
+
+R -> 4
+W -> 2
+X -> 1
+
+chmod 764 <file-name> --> [764 --> 7 (All) - For Owner, 6 (Read and Write) - For group, 4 (Only read) - Others]
+
+
+Ownership:
+==========
+
+chown <user-name>:<group-name> <folder-name>
+Ownership can only be changed by root user, not even owner of the file can change the ownership
+
+sudo chown -R <user-name>:<group-name> <folder-name> --> Used to change ownership inside the file also by using recursive(R)
+
+
+Employee joins organisation:
+============================
+
+1. He should generate keys
+2. Send public key to admins
+3. Admin creates .ssh folder inside user home directory
+4. Permission should be 700 for .ssh
+5. Ownership should be user including group
+6. Create authorized_keys inside .ssh folder and paste public key in it
+7. Authorized_keys permission should be max 600
+
+then user can login
+
+ssh -i rahim rahim@3.85.244.109  --> Will check private key(-i Rahim), user-name(Rahim) and match with public key and gives the result
+add him to wheel group
+/etc/sudoers
+
+visudo -c --> checking the access
+
+
+Package Management:
+===================
+
+yum -> old rhel (Yellowdog Updater Modified)
+dnf -> latest (Dandified YUM)
+
+apt-get or apt install  (Ubuntu)
+
+dnf install <package-name> -> redhat based instances
+
+/etc/yum.repos.d/ -> all URLS are configured
+
+He developed Linux kernel from the scratch using C language... He invented git also..
+
+
+Flavours or Distributions:
+==========================
+
+Redhat -> commands + apps -> Redhat flavour/distribution -> CentOs/Fedora
+Redhat family = redhat = centos = fedora = aws linux
+Ubuntu
+Oracle
+Suse
+IBM
+
+1. Community edition -> free
+2. Enterprise edition -> support redhat
+
+dnf install <package-name> -y
+dnf remove <package-name> -y
+
+dnf list installed --> Installed softwares
+dnf list available --> Available softwares
+dnf search <package-name>
+
+
+Jenkins repo content:
+=====================
+
+sudo wget -O /etc/yum.repos.d/jenkins.repo \
+    https://pkg.jenkins.io/redhat-stable/jenkins.repo
+sudo yum upgrade
+# Add required dependencies for the jenkins package
+sudo yum install fontconfig java-21-openjdk
+sudo yum install jenkins
+sudo systemctl daemon-reload
+
+
+Service Management:
+===================
+
+All ports --> 0-65,535
+
+https://facebook.com
+
+ssh facebook.com
+port 22 sshd service is running
+
+1. get the facebook.com IP address
+2. connect to the service running on port 443
+
+Delhi -> Hyderabad
+
+HYD pincode -> HYD Central Office
+Street name ->
+Apartment name ->
+Flat number -> 
+
+systemctl start <service-name>
+systemctl restart <service-name>
+systemctl status <service-name>
+systemctl enable <service-name> -> auto start
+systemctl disable <service-name>
+
+systemctl start wget
+systemctl start curl  only services can be accessed which are available on internet not commands
+
+nginx -> http/web server -> port 80
+
+systemctl status <service-name> -> check service is running or not (One of the trouble shooting command)
+
+
+Port numbers:
+=============
+
+http  -> 80
+https -> 443
+ssh   -> 22
+
+
+Network Management:
+===================
+
+netstat -lntp -> check port is running or not and accessible to internet
+netstat --help 
+
+where l -> listening
+      n -> numeric
+      t -> tcp transfer protocol
+      p -> process

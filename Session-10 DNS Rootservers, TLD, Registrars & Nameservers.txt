@@ -1,0 +1,144 @@
+Root servers (RS) ==> 13 root servers across the world managed by different organisations and governments to control TLD's and part of ICANN. DNS resolutions requests from ISP comes to root servers.
+
+Top Level Domains (TLD) ==> Top level domains, basically who sells the domains. It has the complete details of the domains booked, available, buyer information, etc.,
+
+Registrars ==> Who sells the domains, basically mediators between TLD and end users. Who can manage the domain too	
+
+Nameservers (NS) ==> Nameservers, who is currently managing the domain, we can buy domain with one registrar and we can transfer the management to another registrar by updating NS records.
+	
+A record is mapping the IP address to domain
+
+db.devopsdaws.online ->
+
+systemctl status
+netstat -lntp
+ps -ef | grep node
+curl http://localhost:8080/health
+telnet IP port
+
+frontend.devopsdaws.online
+
+
+HTTP status codes:
+==================
+
+http://devopsdaws.online/api/transaction
+
+http://devopsdaws.online/api/transaction
+POST
+
+GET
+200 OK
+
+100 -> informational
+Continuing or switching protocols from HTTPS to HTTP
+
+2XX -> Success
+	200 -> OK
+	201 -> Created
+	204 -> Deleted
+	
+3XX -> re-directional
+	301 -> URL redirection permanent
+	302 -> temporary redirection
+	304 -> Cache
+	
+4XX -> Client side error
+	404 -> Not found
+	400 -> Bad request, invalid JSON
+	401 -> Unauthorised, no authentication
+	403 -> Forbidden, no permission to this
+
+https://emacet.ap.gov.in/api/results/2026/1234567
+
+https://emacet.ap.gov.in/api/results/2026/ -> GOV admins
+	
+{
+	"amount": 200,
+	"description": ""
+}
+
+5XX -> Server side error
+
+	500 -> Internal server error
+	502 -> Bad Gateway
+	503 -> Service unavailable
+	504 -> Gateway Timeout
+	
+
+Types of DNS records:
+=====================
+
+NS 	-> Nameservers, who is managing the domain
+SOA 	-> Start of authority
+A	-> IPv4
+AAAA 	-> IPv6
+MX 	-> Mail records
+TXT 	-> Verification
+CNAME	-> Canonical name, another domain
+
+give free for public
+paid for business
+
+SQL (Structured Query Language):
+================================
+
+MySQL
+Oracle
+Postgres
+MariaDB
+SQL Server
+MsSQL
+
+Schemas or Databases -> Tables -> Rows and Columns
+
+SQL is not good for huge amount of data
+
+NoSQL:
+======
+
+MongoDB
+
+data is in documents
+
+{
+	"name": "mouse",
+	"vendor": "amazon"
+}
+
+{
+	"name": "mouse",
+	"vendor": "amazon",
+	"faq": "Q & A"
+}
+
+Proper data structure (ex : transactions) -> SQL
+Un proper data structure, huge data -> NoSQL
+
+Redis:
+======
+
+Redis (REmote DIctionary Server) is an open-source, in-memory data store used as a database, cache.
+
+Caching Database, key-value pair data
+
+Backend -> Database
+	1. Connecting establish -> Open
+	2. Request and response
+	3. Connection close
+	
+Backend -> Cache(If not exist) -> Connects to DB -> Keep it inside Cache
+
+TTL -> get response
+
+Queue:
+======
+
+http -> wait for 30 sec, if server is not responding then error
+
+synchronous -> request and wait -> http
+
+joindevops -> ramesh
+asynchronous -> Fire and Forget  -> Mail, WhatsApp, etc..
+
+order place -> delivery details

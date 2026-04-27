@@ -1,0 +1,335 @@
+First, delete all the things that we have created manually in AWS then only terraform destroy the cluster because it will not delete it may incur charges if we forget.
+
+configmap as volume (nginx-config)
+emptyDir
+hostPath
+
+ebs static (pv, pvc, pod)
+ebs dynamic (sc (pv & ebs), pvc, pod)
+efs static 
+efs dynamic
+ebs vs efs
+pv, pvc, sc
+
+Statefulset -> This is for stateful applications, where data storage is important. like databases.
+Deployment  -> This is for stateless applications, where data storage is not required. like backend & frontend components.
+
+In Kubernetes, we won't keep any end-user data (primary data) but we keep logs data, metrics data or any other secondary data.
+
+1. pod names are standard in statefulset mysql-0, mysql-1, mysql-2., etc,  pod names are random in deployment.
+2. pods in statefulset are created in order, from 0 to n and deleted in reverse order one by one. pod creation/deletion is random in deployment.
+3. pod in statefulset have its own disk. pods in deployment have shared disk.
+4. statefulset should have pv, pvc as mandatory. pv, pvc is not required for deployment.
+5. statefulset requires headless service to find other nodes in the cluster when data replication is required, deployment does not require headless service.
+6. statefulset pods will have same identity. (Even after deletion).
+
+==> A service with clusterIP none is called headless service.
+
+==> A headless service is a service without a cluster IP. Unlike a normal service that load-balances traffic to pods, a headless service directly exposes the individual pod IPs.
+
+==> aws eks update-kubeconfig --region us-east-1 --name roboshop
+
+==> kubectl get nodes
+NAME                            STATUS   ROLES    AGE   VERSION
+ip-192-168-26-67.ec2.internal   Ready    <none>   95m   v1.34.4-eks-f69f56f
+ip-192-168-35-9.ec2.internal    Ready    <none>   97m   v1.34.4-eks-f69f56f
+
+
+==> cd k8s-resources/
+
+==> kubectl apply -f 17-deployment.yaml 	(Without HEADLESS Service)
+deployment.apps/nginx created
+service/nginx created
+ 	
+--> In k9s, check svc where nginx should be created.
+
+--> kubectl apply -f 04-labels.yaml 	(Create any pod for debugging purpose)
+pod/labels created
+
+To know OS --> cat /etc/*release
+
+PRETTY_NAME="Debian GNU/Linux 13 (trixie)"
+NAME="Debian GNU/Linux"
+VERSION_ID="13"
+VERSION="13 (trixie)"
+VERSION_CODENAME=trixie
+DEBIAN_VERSION_FULL=13.4
+ID=debian
+HOME_URL="https://www.debian.org/"
+SUPPORT_URL="https://www.debian.org/support"
+BUG_REPORT_URL="https://bugs.debian.org/"
+  
+In k9s, pod (labels) - nslookup nginx [We have to install it]
+
+(search nslookup install)
+--> apt update
+--> apt install dnsutils (y)
+Now after installing, nslookup nginx (Will get the output as Cluster IP)
+
+==> nslookup nginx
+;; Got recursion not available from 10.100.0.10
+Server:         10.100.0.10
+Address:        10.100.0.10#53
+
+Name:   nginx.default.svc.cluster.local
+Address: 10.100.222.101
+;; Got recursion not available from 10.100.0.10
+
+--> In k9s, check svc where nginx should be created. It should have cluster IP same as nslookup.
+
+
+==> In statefulset, it was designed in such a way that when a pod hits the headless service, then we will get the IP addresses of other Pods.
+git pull
+==> Now with headless service in deployment file,
+--> kubectl apply -f 04-labels.yaml
+pod/labels unchanged
+
+--> kubectl apply -f 17-deployment.yaml
+deployment.apps/nginx unchanged
+service/nginx unchanged
+service/nginx-headless created
+
+In k9s, pod (labels) - nslookup nginx-headless
+We will get pod IP addresses here,
+
+==> <<K9s-Shell>> Pod: default/labels | Container: nginx
+root@labels:/# nslookup nginx-headless
+
+To check them, we use:
+--> kubectl get pods -o wide
+(4 IP addresses of replicas)
+
+If we attach headless service to statefulset, then only it can do nslookup in the background.
+--> Then we will get ip addresses, then it will send requests to all the other pods using headless service.
+
+
+Above are done by database admins.
+
+
+1. drivers install (ebs drivers)
+kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.58"
+2. IAM role for instances (AmazonEBSCLIPolicy attach)
+3. Storage class creation
+
+
+k8s-roboshop-volumes:
+=====================
+
+(Browse statefulset in k8s)
+--> mongodb has 2 services in it, headless service  is used to identify other members in the cluster and the other service is for load balancer.
+
+git clone https://github.com/javeed-mohd/k8s-roboshop-volumes.git
+--> cd k8s-roboshop-volumes/
+--> kubectl apply -f namespace.yaml
+namespace/roboshop created
+
+--> kubectl apply -f ebs-sc.yaml
+storageclass.storage.k8s.io/roboshop-ebs created
+
+==> cd mongodb/
+In k9s change namespace to roboshop, then apply  (describe (d) if needed after mongodb-0)
+--> kubectl apply -f manifest.yaml
+service/mongodb-headless created
+statefulset.apps/mongodb created
+service/mongodb created
+
+first it creates mongodb-0 in k9s
+In shift+: statefulset - mongodb-0, describe (d), It should be success.
+
+==> kubectl get pods -n roboshop
+
+==> Check tags in volumes, how volumes are attached to each replica in a sequential order.
+
+==> kubectl get pvc -n roboshop
+
+==> kubectl get pv -n roboshop
+
+If 2 replicas are there, after one comes into running state, the other starts creating...like mongodb-0, mongodb-1,...
+
+==> If we delete them, it will happen in reverse order.
+kubectl delete -f manifest.yaml
+
+After deletion, disks will be there. If we apply again, they will attach the earlier disks in a sequential order. This is what statefulset means same Pod IDENTITY, In case if our Pod gets crashed, again it should be created and attach the previous disk (voume) only. So, that they have given refernces while creating the volumes as mongodb-mongodb-0, mongodb-mongodb-1,.... where mongodb stateful and mongodb-0 is a Pod and so on. If we delete the file and create again, it will attach to the previous disk which was allocated to it.
+
+==> If we see pvc names also, they will follow proper naming format.
+
+==> We can also check mysql cluster in k8s
+
+
+*****
+Autoscaling:
+============
+
+1. Horizontal scaling
+2. Vertical scaling
+
+Vertical scaling:
+=================
+
+1GB RAM
+8GB HD
+2 CPU
+
+--> Stop the server
+--> Increase the resources
+--> Restart
+
+Disadvantages:
+~~~~~~~~~~~~~~
+1. Downtime
+2. Single point of failure
+
+
+Horizontal scaling:
+===================
+
+You don't increase resources in single server, instead we create replicas.
+
+Advantages:
+~~~~~~~~~~~
+1. No downtime
+2. No single point of failure
+
+
+*****
+Horizontal Pod Autoscaling (HPA): 
+=================================
+
+1. You must configure resource limits (min and max)
+2. Metrics server should be running   (Add-on in eks cluster used to monitor autoscaling based on resource limits)
+
+Horizontal Pod Autoscaler yaml for syntax (Medium Anvesh Muppeda) [Browse]
+--> cd catalogue/
+--> git pull
+==> kubectl apply -f manifest.yaml
+configmap/catalogue created
+deployment.apps/catalogue created
+service/catalogue created
+horizontalpodautoscaler.autoscaling/catalogue created
+
+In k9s, namespace - roboshop, pod - catalogue, type shift+: hpa
+
+To increase the consumption of cpu utilization of components, first we need to login inside the container (mongodb / catalogue)
+
+==> kubens roboshop
+--> kubectl exec -it mongodb-0 -- bash
+/# while true; do curl http://catalogue:8080/health; done
+apt update
+apt install curl
+/# while true; do curl http://catalogue:8080/health; done	==> Now, we are pushing some load for the component to use the cpu consumption.
+exit
+
+After this, the component will autoscale create component.(Upto 10 replicas maximum (Given))
+
+If we stop the load, then obviously consumption decreases gradually and components also will be deleted as they will be well within the consumption limit.
+
+At the time of deletion, it will delete slowly because they will be solving the existing requests and complete them and takes some cooling period and then they will be deleted.
+
+******
+==> Complete for roboshop project, keep replica as 1, use statefulset for databases same as mongodb and use horizontal pod autoscaler for backend & frontend component.
+
+
+--> kubens default (cd k8s-resources/)
+--> kubectl delete -f 17-deployment.yaml 
+--> kubectl delete -f 04-labels.yaml
+--> kubens roboshop (cd k8s-roboshop-volumes/)
+--> kubectl delete -f catalogue/manifest.yaml
+--> kubectl delete -f mongodb/manifest.yaml
+
+
+==> kubectl get pv
+==> kubectl get pvc
+First delete pvc using,
+==> kubectl delete pvc mongodb-mongodb-0 ... and so on
+Then in k9s shift+: pv --> delete (Ctrl+d) them, so that we are cleaning up the cluster properly and you don't forget to delete the volumes in aws also.
+
+
+
+*****
+taints and tolerations: (taints and toleration in k8s)
+=======================
+
+selectors -- > How you control the Pod scheduling to a particular node.
+
+We can assign the labels to the nodes, and ask the scheduler to select the node based on this labels.
+
+taint == paint
+
+If you taint a node, it means kubernetes scheduler will not schedule any pods in that node.
+
+
+Why to taint:
+~~~~~~~~~~~~~
+
+1. We reserve that node to other special workloads.
+2. May b, ewe can attach GPU node to the cluster, we reserve that for AI/ML workloads.
+3. DB may accept connections from specific IP, we only send the pods that connects to DB in the tainted node.
+
+****
+==> SYNTAX for tainting the specific Pod  ==> kubectl taint nodes node1 key1=value1:NoSchedule
+
+
+NoSchedule 	 	-> Don't schedule the new pods. (It means before scheduled pods will be running)
+PreferNoSchedule	-> Try not to schedule the new pods. Scheduler may schedule the pods. (Soft)
+NoExecute 		-> Don't schedule new pods and evict existing pods. (Super Hard)
+
+
+==> cd
+==> kubectl get nodes
+NAME                            STATUS   ROLES    AGE    VERSION
+ip-192-168-26-67.ec2.internal   Ready    <none>   4h2m   v1.34.4-eks-f69f56f
+ip-192-168-35-9.ec2.internal    Ready    <none>   4h4m   v1.34.4-eks-f69f56f
+
+--> kubectl taint nodes <node-name> project=roboshop:NoSchedule	 (key=value)
+
+==> kubectl taint nodes ip-192-168-26-67.ec2.internal project=roboshop:NoSchedule
+node/ip-192-168-26-67.ec2.internal tainted
+
+==> git clone https://github.com/javeed-mohd/k8s-selectors.git
+==> cd k8s-selectors/
+
+kubens default
+==> kubectl apply -f 01-pod.yaml
+pod/nginx created
+
+==> kubectl get pods -o wide
+NAME    READY   STATUS    RESTARTS   AGE   IP               NODE                           NOMINATED NODE   READINESS GATES
+nginx   1/1     Running   0          36s   192.168.55.209   ip-192-168-35-9.ec2.internal   <none>           <none>
+
+==>  kubectl delete -f 01-pod.yaml
+pod "nginx" deleted from default namespace
+
+==> kubectl apply -f 01-pod.yaml
+pod/nginx created
+
+==> kubectl get pods -o wide
+NAME    READY   STATUS    RESTARTS   AGE   IP              NODE                           NOMINATED NODE   READINESS GATES
+nginx   1/1     Running   0          5s    192.168.32.79   ip-192-168-35-9.ec2.internal   <none>           <none>
+
+
+==> kubectl get pods -o wide (In which we have tainted, the pod will not go into that node, No matter how many times we delete and apply the pod).
+
+==> If we want our pod on to tainted node, then we should use toleration, toleration will not gaurentee pod scheduling
+
+tolerations:
+  - key: "project"
+    operator: "Exists"
+    effect: "NoExecute"
+
+==> If exists means, no need to give value...
+==> If want to provide value then use operator: "Equal"
+
+
+==> kubectl apply -f 02-toleration.yaml
+pod/nginx-tolerated created
+
+--> If we add toleration also, there is no guarantee that scheduler will go that node.(?)  [May or May not schedule]
+Try deleting and check you may or may not get it...
+
+==> kubectl get pods -o wide 		[It has scheduled for the one which I have created but it may or may not create]
+NAME              READY   STATUS    RESTARTS   AGE     IP              NODE                            NOMINATED NODE   READINESS GATES
+nginx             1/1     Running   0          4m42s   192.168.32.79   ip-192-168-35-9.ec2.internal    <none>           <none>
+nginx-tolerated   1/1     Running   0          55s     192.168.26.93   ip-192-168-26-67.ec2.internal   <none>           <none> 
+
+
+==> Kubernetes tolerations will not guarantee that a pod will be scheduled to a particular node.

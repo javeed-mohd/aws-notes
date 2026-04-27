@@ -1,0 +1,109 @@
+Important:
+==========
+
+--> Application Load Balancer(ALB) ==> Mandatorily it should run on 2 availability zones(1a, 1b)(private subnet)..., AWS won't give access to 22 port number for load balancers because in background it runs as multiple instances/servers.
+
+--> AWS don't give IP address for Application Load Balancer(ALB), instead it gives dns names (When creating Route53 records).
+
+LB -> TL/TM
+Listener -> 80/HTTP, 443/HTTPS
+Rules -> catalogue.* -> catalogue target group
+Target group -> a group of instances
+Health check -> check instance is available or not
+
+Launch template	-> Template to launch instance
+Autoscaling	-> Uses launch template as input, can trigger instance if CPU utilisation is more than 70%
+Scaling Policy	–> Rules for scaling up or down
+
+We cannot access load balancer through port number 22. Because it is completely managed by AWS managed service.
+
+http://IP:8080/health ==> Checks for every 10 seconds time interval whether the instance is healthy or not and response in 5 seconds.
+
+Healthy Threshold   -> consecutive 3 success -> healthy
+Unhealthy Threshold -> consecutive 2 failure -> unhealthy
+
+*.backend-alb-dev.devopsdaws.online ==> * place will be of rules in loadbalancer.
+
+We can create 50000 rules.
+
+If someone hits,
+catalogue.backend-alb-dev.devopsdaws.online(host path)	-> catalogue target group
+user.backend-alb-dev.devopsdaws.online(host path)	-> user target group
+
+We are writing this type of rules.
+No need to create individual loadbalancers for each instance in backend services instead we use catalogue.backend-alb-dev.devopsdaws.online (host path).
+
+icicibank.com -> main host
+
+retailbanking.icicibanking.com -> retailbanking target group
+corporatebanking.icicibanking.com -> cibnext target group of icici bank
+
+retailbanking.icicibanking.com -> host path (Generally we see this)
+
+context path
+icicibank.com/retailbanking
+icicibank.com/citbanking
+
+10 instances -> v3 (If we want to update if version update we need to change in ansible-roboshop-roles-tf folder in group_vars all.yaml update with versions accordingly...), v4, v5, ....
+And run the ansible playbooks again after updating.
+
+2 Ways to do it:
+
+1. Rolling update: Update few instances at one time and other few after that so that we can get rid off the application downtime for somehow.
+==================
+
+A Rolling Update in Terraform means updating infrastructure gradually (one instance at a time or in batches) instead of replacing everything at once, so your service stays available with minimal downtime.
+
+Terraform itself does not have a direct “rolling update” command. Instead, it works with the capabilities of the platform you’re using (AWS, Kubernetes, etc.) to perform rolling updates.
+
+In a rolling update:
+-> New instance/version is created.
+-> Traffic is shifted to the new instance.
+-> Old instance is terminated.
+-> Process repeats until all instances are updated.
+
+4 instances -> v4
+4 instances -> v4
+2 instances -> v4
+
+We also call it as "ZERO DOWNTIME STRATEGY".
+
+
+2.Other way (Immutable Infrastructure Deployment):
+==================================================
+
+-> Create new instance
+-> Download v4 and configure it
+-> Stop the instance
+-> Take AMI
+
+I can use this AMI to create instances
+4 instances -> v4 (new)
+4 instances -> terminate (old)
+
+==> Rolling update is better when both are compared.
+
+At same point of time, our app serves 2 versions
+
+
+Application Load Balancer(ALB) Components:
+==========================================
+
+1. Load balancer
+2. Listener (80/443)
+3. r53 record (Route53)
+
+After ALB becomes ready, then we will create Catalogue:
+-> Instance
+-> Configure
+-> Stop it
+-> Create AMI
+-> Create target group
+-> Add instance to target group
+-> Create ALB rule -> catalogue.alb_url
+
+provider.tf
+main.tf
+variables.tf
+locals.tf
+data.tf

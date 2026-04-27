@@ -1,0 +1,56 @@
+1. VPC -> CIDR
+2. IGW with VPC association
+3. Subnets -> public private database
+4. Route tables -> Public private database
+5. Associations and Routes
+6. Elastic IP(Static IP)
+7. NAT gateway -> To provide egress internet access to the resources in private subnets --> Outgoing traffic(private and database subnets are used to connect public subnets through nat gateway).
+
+
+
+public RT (public route table):
+==============================
+
+0.0.0.0/0 IGW -> Internet through Internet Gateway
+
+
+private and database RT(private and database route table):
+==========================================================
+
+0.0.0.0/0 NAT -> NAT(Network Address Translation) Gateway to connect public subnet internally.
+
+To create NAT Gateway, we need Elastic IP which is a static IP which does not change after start/stop of the instance.
+
+
+By default 2 VPCs in AWS can't connect with each other. => If connected by default, it arises security issues.
+
+10.0.11.34 -> VPC-1 Backend server
+
+10.0.0.0/16 -> VPC-1 CIDR (Classless Inter Domain Routing)
+
+VPC-2 -> 10.1.0.0/16
+
+10.1
+
+
+VPC-Peering : When we want to share the data with third-parties through private connections, then we can use Peering.
+===========
+
+Connecting two VPC in AWS. They can be in:
+-> Same region and Same account
+-> Different region, Same account
+-> Different account, Same region
+-> Different account, Different region
+
+only condition is CIDR of VPC should not overlap.
+
+Requester -> who asks for connection -> roboshop-dev
+Accepter -> who can accept -> default
+
+public subnet -> 54.78.98.123(Public IP) 10.0.1.23(Private IP) -> 192.168.2.1 (To connect someone it checks routes).
+
+172.31.1.3 (Default VPC)
+
+1. Project infra -> One time infra.
+
+2. Application infra -> Frequently changing.

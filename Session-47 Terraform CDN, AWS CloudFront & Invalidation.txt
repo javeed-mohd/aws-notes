@@ -1,0 +1,115 @@
+for i in $(ls -d *); do cd $i; terraform apply -auto-approve; cd ..;done ==> IN a sequence execution.
+
+for i in $(ls -rd *); do cd $i; terraform destroy -auto-approve; cd ..;done
+
+1. Check SG rules
+2. Ansible Roles service files. check port number and host_url/ip
+3. Ansible Roles host URL's
+4. nginx config
+
+
+CDN (Content Delivery Network) = AWS CloudFront:
+================================================
+
+==> A CDN (Content Delivery Network) in AWS is mainly provided through Amazon CloudFront. It’s a service that helps deliver your website or application content to users faster and more securely by using a global network of servers.
+
+==> A CDN stores cached copies of your content (like images, videos, HTML files) in multiple locations around the world. When a user requests your site, the content is served from the nearest server, reducing delay.
+
+CDN -> CloudFront
+
+==> US -> India
+latency increase, unnecessary traffic/bandwidth
+
+application -> DB
+application -> Cache -> DB
+
+browser -> origin server
+
+CDN == AWS Cloudfront
+
+A network of storage servers(AWS Edge locations) across the globe used to cache the content. There will be an origin server(browser), first application hits edge location, if data is not there then it gets data from origin and save it in edge location, so that subsequent requests get data from edge location.
+
+GET POST UPDATE DELETE (HTTP)
+
+GET -> Can be cached -> Product details (images, description, FAQ, ratings, reviews)
+TTL -> Time to live in cache
+POST UPDATE DELETE -> Generally shouldn't be cached
+.js .css images
+
+
+AWS CDN: Amazon CloudFront --> Amazon CloudFront is AWS’s fully managed CDN.
+
+
+Key Features:
+=============
+
+==> Global Edge Locations: 400+ locations worldwide
+==> Low latency delivery (faster loading websites)
+==> SSL/TLS encryption for secure content delivery
+==> Integration with AWS services
+
+
+How CloudFront Works:
+=====================
+
+You store your content in an origin (like):
+--> Amazon S3 (static files)
+--> Amazon EC2 (dynamic apps)
+--> Elastic Load Balancing
+--> CloudFront caches content at edge locations.
+
+When a user requests data:
+--> If cached → served instantly
+--> If not → fetched from origin, cached, then delivered
+
+Benefits:
+=========
+
+==> Faster content delivery
+==> Reduced load on origin servers (cost saving)
+==> Improved security
+==> Better user experience globally
+
+Example Use Case:
+=================
+
+==> Hosting a website:
+--> Store images/videos in S3
+--> Use CloudFront to deliver them worldwide
+
+==> Streaming video content
+==> APIs acceleration
+
+
+Invalidation:
+=============
+
+When new deployment/release happens usually we should invalidate all the caching content, it deletes the data from all the edge servers. Content will be downloaded again from origin to edge locations.
+
+
+https://frontend-dev.devopsdaws.online/media/stan.png ==> URL
+https://frontend-dev.devopsdaws.online/media/graph.png ==> URL
+
+/media/* -> We can cache
+
+US Domain provider -> CDN -> ALB/Reverse proxy -> Actual web server
+
+laptop -> Company VPN(Forward) -> Bastion Host
+
+* Client aware
+* Content filtering
+* Content monitoring
+* Anonymous access
+
+
+For Roboshop:
+=============
+
+for i in 00-vpc/ 10-sg/ 20-sg-rules/ 30-bastion/ 50-backend-alb/ 70-acm/ 80-frontend-alb/; do cd $i; terraform init -reconfigure; terraform apply -auto-approve; cd ..;done
+
+do 40 and 90 folders in mobaxterm
+
+do 95 & 98 folders in gitbash(cdn and openvpn)
+
+**** For 90 folder use terraform init -reconfigure and terraform get -update ****
+==> 00[31] 10[26] 20[31] 30[4] 50[4] 70[4] 80[4] ==> 40[16] 90[60(10*6)] 95[2]

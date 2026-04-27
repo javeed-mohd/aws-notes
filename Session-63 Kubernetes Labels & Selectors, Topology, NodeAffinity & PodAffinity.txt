@@ -1,0 +1,553 @@
+PV
+PVC
+StorageClass
+
+Statefulset vs Deployment
+headless service
+
+selectors -> how you control the pod scheduling. Scheduler in Master node.
+nodeSelector
+taints and tolerations
+
+we can assign labels to the nodes, and ask scheduler to select the node based on this label.
+
+alpha.eksctl.io/cluster-name=roboshop,
+alpha.eksctl.io/nodegroup-name=spot,
+beta.kubernetes.io/arch=amd64,
+beta.kubernetes.io/instance-type=c5.large,
+beta.kubernetes.io/os=linux,
+eks.amazonaws.com/capacityType=SPOT,
+eks.amazonaws.com/nodegroup-image=ami-00b16894e17387eb9,
+eks.amazonaws.com/nodegroup=spot,
+eks.amazonaws.com/sourceLaunchTemplateId=lt-076a33d8f5ddc65cc,
+eks.amazonaws.com/sourceLaunchTemplateVersion=1,
+failure-domain.beta.kubernetes.io/region=us-east-1,
+failure-domain.beta.kubernetes.io/zone=us-east-1c,
+k8s.io/cloud-provider-aws=d573a2d478e01899d878f9c9cc3fcc2a,
+kubernetes.io/arch=amd64,
+kubernetes.io/hostname=ip-192-168-22-49.ec2.internal,
+kubernetes.io/os=linux,
+node.kubernetes.io/instance-type=c5.large,
+topology.k8s.aws/zone-id=use1-az4,
+topology.kubernetes.io/region=us-east-1,
+topology.kubernetes.io/zone=us-east-1c
+
+
+******
+when pods will go to pending state
+1. if there is no resources available on the node
+2. if pod is not able to mount the volume
+
+aws eks update-kubeconfig --region us-east-1 --name roboshop
+
+==>  kubectl get nodes
+NAME                            STATUS     ROLES    AGE   VERSION
+ip-192-168-3-124.ec2.internal   Ready      <none>   13m   v1.34.4-eks-f69f56f
+ip-192-168-32-4.ec2.internal    Ready      <none>   13m   v1.34.4-eks-f69f56f
+ip-192-168-47-73.ec2.internal   NotReady   <none>   26s   v1.34.4-eks-f69f56f
+
+
+Labels and Selectors (labels and selectors in k8s):
+===================================================
+
+(Browse (Assign labels to node in k8s))
+--> To see labels use,
+kubectl get nodes --show-labels
+
+We can add label using,
+--> kubectl label nodes <your-node-name> project=roboshop [key=value]
+==> kubectl label nodes ip-192-168-3-124.ec2.internal project=roboshop
+
+==> git clone https://github.com/javeed-mohd/k8s-selectors.git
+--> cd k8s-selectors/
+==> kubectl apply -f 01-pod.yaml		(after adding nodeselector)
+pod/nginx created
+
+==> kubectl get pods -o wide			[Scheduled in the Labelled node]
+NAME    READY   STATUS    RESTARTS   AGE   IP              NODE                            NOMINATED NODE   READINESS GATES
+nginx   1/1     Running   0          11s   192.168.13.71   ip-192-168-3-124.ec2.internal   <none>           <none>
+
+
+******
+When pods go into pending state:
+--> If there are no resources in that node which we have scheduled, then that Pod status becomes pending state... (We know it by checking describe the Pod)
+--> If pod is not able to mount the volume (claim the disk), then also pod will show as pending...
+
+
+taints and tolerations:
+=======================
+
+If you taint the node, k8s will not schedule any pod on to that node.
+1. project specific hardware. GPU
+2. any specific workloads like database accept only from specific IP.
+
+If we want our pod on to tainted node, then we should use toleration, toleration will not guarantee pod scheduling to that tainted node.
+
+1. We need to select the node.
+2. Toleration acts as exception/reservation to that node.
+
+NoSchedule -> incoming pods no schedule.
+NoExecute  -> running pods should be evicted.
+
+==> kubectl taint nodes ip-192-168-3-124.ec2.internal project=roboshop:NoExecute
+node/ip-192-168-3-124.ec2.internal tainted
+
+--> Running pods in this node will be evicted.
+
+--> kubectl get pods [If it is deployment, then it would have tried but pod will not try]
+If applying again,
+==> kubectl apply -f 01-pod.yaml
+pod/nginx created
+
+--> kubectl get pods -o wide
+NAME    READY   STATUS    RESTARTS   AGE   IP       NODE     NOMINATED NODE   READINESS GATES
+nginx   0/1     Pending   0          21s   <none>   <none>   <none>           <none>
+
+==> kubectl get pods
+NAME    READY   STATUS    RESTARTS   AGE
+nginx   0/1     Pending   0          28s
+
+Now, it will be in PENDING state.
+
+
+--> git pull [After changing in toleration with nodeSelector and effect:"NoExecute"]
+==> kubectl delete -f 01-pod.yaml
+
+==>  kubectl apply -f 02-toleration.yaml
+pod/nginx-tolerated created
+
+--> kubectl get pods
+NAME              READY   STATUS    RESTARTS   AGE
+nginx-tolerated   1/1     Running   0          7s
+
+==> kubectl get pods -o wide
+NAME              READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+nginx-tolerated   1/1     Running   0          13s   192.168.28.122   ip-192-168-3-124.ec2.internal   <none>           <none>
+
+
+
+To untaint, we use - at the end:
+==> kubectl taint nodes ip-192-168-3-124.ec2.internal project=roboshop:NoExecute-
+node/ip-192-168-3-124.ec2.internal untainted
+
+--> kubectl delete -f 02-toleration.yaml
+
+
+
+NodeAffinity: (node affinity in k8s)
+=============
+
+NodeSelector does not have much options, just key-value pairs. But, affinity have more options. We can have operators like In, Exist, NotExist, etc...
+
+You can use the operator field to specify a logical operator for Kubernetes to use when interpreting the rules. You can use In, NotIn, Exists, DoesNotExist, Gt and Lt.
+
+Node affinity is similar to nodeSelector, allowing you to select which nodes your Pod can be scheduled on based on node labels. There are two types of node affinity:
+
+==> requiredDuringSchedulingIgnoredDuringExecution: The scheduler can't schedule the Pod unless the rule is met. This functions like nodeSelector, but with a more expressive syntax.
+
+==> preferredDuringSchedulingIgnoredDuringExecution: The scheduler tries to find a node that meets the rule. If a matching node is not available, the scheduler still schedules the Pod.
+
+
+requiredDuringSchedulingIgnoredDuringExecution -> Hard Rule. Labels should match otherwise pod can't be scheduled.
+
+preferredDuringSchedulingIgnoredDuringExecution -> Soft rule. If label selectors does not match, k8 considers another node to schedule.
+
+zone nodes --> 1a 1b 1c 1d
+
+consider zones --> 1a 1b
+
+
+
+What is topology.kubernetes.io/zone=us-east-1c:
+===============================================
+
+We are telling k8 to consider this zone as border.
+
+alpha.eksctl.io/cluster-name=roboshop,alpha.eksctl.io/nodegroup-name=spot,beta.kubernetes.io/arch=amd64,beta.kubernetes.io/instance-type=c5.large,beta.kubernetes.io/os=linux,eks.amazonaws.com/capacityType=SPOT,eks.amazonaws.com/nodegroup-image=ami-00b16894e17387eb9,eks.amazonaws.com/nodegroup=spot,eks.amazonaws.com/sourceLaunchTemplateId=lt-076a33d8f5ddc65cc,eks.amazonaws.com/sourceLaunchTemplateVersion=1,failure-domain.beta.kubernetes.io/region=us-east-1,failure-domain.beta.kubernetes.io/zone=us-east-1c,k8s.io/cloud-provider-aws=d573a2d478e01899d878f9c9cc3fcc2a,kubernetes.io/arch=amd64,kubernetes.io/hostname=ip-192-168-22-49.ec2.internal,kubernetes.io/os=linux,node.kubernetes.io/instance-type=c5.large,project=roboshop,topology.k8s.aws/zone-id=use1-az4,topology.kubernetes.io/region=us-east-1,topology.kubernetes.io/zone=us-east-1c
+
+
+ip-192-168-32-4.ec2.internal   -> project = amazon
+ip-192-168-3-124.ec2.internal  -> project = roboshop (first i should go in this, so i will give weight more)
+
+1d-2
+1c-1
+
+taints
+tolerations
+
+We select the node using below strategies:
+node affinity
+node anti affinity
+requiredDuringSchedulingIgnoredDuringExecution
+preferredDuringSchedulingIgnoredDuringExecution
+
+
+requiredDuringSchedulingIgnoredDuringExecution:
+--> git pull
+[With us-east-1b only]
+==>  kubectl apply -f 03-node-affinity.yaml
+pod/nginx-affinity created
+
+==> kubectl get pods -o wide
+NAME             READY   STATUS    RESTARTS   AGE   IP               NODE                           NOMINATED NODE   READINESS GATES
+nginx-affinity   1/1     Running   0          4s    192.168.43.193   ip-192-168-32-4.ec2.internal   <none>           <none>
+
+The output will match with us-east-1b zone. [Two servers]
+
+
+Next with 1d and check,
+--> git pull
+==> kubectl delete -f 03-node-affinity.yaml
+==>  kubectl apply -f 03-node-affinity.yaml
+pod/nginx-affinity created
+
+==> kubectl get pods -o wide
+NAME             READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+nginx-affinity   1/1     Running   0          4s    192.168.22.181   ip-192-168-3-124.ec2.internal   <none>           <none>
+
+It will result in entering one of the zone specified.
+
+
+==> now add preferredDuringSchedulingIgnoredDuringExecution and check
+
+==> kubectl get nodes --show-labels
+
+NAME                            STATUS   ROLES    AGE   VERSION               LABELS
+
+ip-192-168-3-124.ec2.internal   Ready    <none>   56m   v1.34.4-eks-f69f56f   alpha.eksctl.io/cluster-name=roboshop,alpha.eksctl.io/nodegroup-name=spot,beta.kubernetes.io/arch=amd64,beta.kubernetes.io/instance-type=c5.large,beta.kubernetes.io/os=linux,eks.amazonaws.com/capacityType=SPOT,eks.amazonaws.com/nodegroup-image=ami-00b16894e17387eb9,eks.amazonaws.com/nodegroup=spot,eks.amazonaws.com/sourceLaunchTemplateId=lt-0292c781234b72198,eks.amazonaws.com/sourceLaunchTemplateVersion=1,failure-domain.beta.kubernetes.io/region=us-east-1,failure-domain.beta.kubernetes.io/zone=us-east-1d,k8s.io/cloud-provider-aws=d573a2d478e01899d878f9c9cc3fcc2a,kubernetes.io/arch=amd64,kubernetes.io/hostname=ip-192-168-3-124.ec2.internal,kubernetes.io/os=linux,node.kubernetes.io/instance-type=c5.large,project=roboshop,topology.k8s.aws/zone-id=use1-az6,topology.kubernetes.io/region=us-east-1,topology.kubernetes.io/zone=us-east-1d
+
+ip-192-168-32-4.ec2.internal    Ready    <none>   56m   v1.34.4-eks-f69f56f   alpha.eksctl.io/cluster-name=roboshop,alpha.eksctl.io/nodegroup-name=spot,beta.kubernetes.io/arch=amd64,beta.kubernetes.io/instance-type=c3.large,beta.kubernetes.io/os=linux,eks.amazonaws.com/capacityType=SPOT,eks.amazonaws.com/nodegroup-image=ami-00b16894e17387eb9,eks.amazonaws.com/nodegroup=spot,eks.amazonaws.com/sourceLaunchTemplateId=lt-0292c781234b72198,eks.amazonaws.com/sourceLaunchTemplateVersion=1,failure-domain.beta.kubernetes.io/region=us-east-1,failure-domain.beta.kubernetes.io/zone=us-east-1b,k8s.io/cloud-provider-aws=d573a2d478e01899d878f9c9cc3fcc2a,kubernetes.io/arch=amd64,kubernetes.io/hostname=ip-192-168-32-4.ec2.internal,kubernetes.io/os=linux,node.kubernetes.io/instance-type=c3.large,topology.k8s.aws/zone-id=use1-az2,topology.kubernetes.io/region=us-east-1,topology.kubernetes.io/zone=us-east-1b
+
+ip-192-168-47-73.ec2.internal   Ready    <none>   43m   v1.34.4-eks-f69f56f   alpha.eksctl.io/cluster-name=roboshop,alpha.eksctl.io/nodegroup-name=spot,beta.kubernetes.io/arch=amd64,beta.kubernetes.io/instance-type=c3.large,beta.kubernetes.io/os=linux,eks.amazonaws.com/capacityType=SPOT,eks.amazonaws.com/nodegroup-image=ami-00b16894e17387eb9,eks.amazonaws.com/nodegroup=spot,eks.amazonaws.com/sourceLaunchTemplateId=lt-0292c781234b72198,eks.amazonaws.com/sourceLaunchTemplateVersion=1,failure-domain.beta.kubernetes.io/region=us-east-1,failure-domain.beta.kubernetes.io/zone=us-east-1b,k8s.io/cloud-provider-aws=d573a2d478e01899d878f9c9cc3fcc2a,kubernetes.io/arch=amd64,kubernetes.io/hostname=ip-192-168-47-73.ec2.internal,kubernetes.io/os=linux,node.kubernetes.io/instance-type=c3.large,topology.k8s.aws/zone-id=use1-az2,topology.kubernetes.io/region=us-east-1,topology.kubernetes.io/zone=us-east-1b
+
+
+==> kubectl label nodes <node-name from above> project=amazon
+ex: kubectl label nodes ip-192-168-32-4.ec2.internal project=amazon
+node/ip-192-168-32-4.ec2.internal labeled
+
+
+To remove the label, we use: kubectl label nodes ip-192-168-32-4.ec2.internal project-
+
+--> git pull
+--> kubectl delete -f 03-node-affinity.yaml
+==>  kubectl apply -f 03-node-affinity.yaml
+pod/nginx-affinity created
+
+--> kubectl get pods -o wide
+NAME             READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+nginx-affinity   1/1     Running   0          3s    192.168.30.150   ip-192-168-3-124.ec2.internal   <none>           <none>
+
+[Schedules in roboshop project] -->  ip-192-168-3-124.ec2.internal 
+
+
+Consider, if we give wrong configuration in roboshop node-affinity (or) roboshop project node is full then, it will now schedules to amazon project.
+
+--> git pull
+--> kubectl delete -f 03-node-affinity.yaml
+==>  kubectl apply -f 03-node-affinity.yaml
+pod/nginx-affinity created
+
+==> kubectl get pods -o wide
+NAME             READY   STATUS    RESTARTS   AGE   IP              NODE                           NOMINATED NODE   READINESS GATES
+nginx-affinity   1/1     Running   0          3s    192.168.59.36   ip-192-168-32-4.ec2.internal   <none>           <none>
+  	
+[Schedules in amazon project] -->  ip-192-168-32-4.ec2.internal 
+
+--> kubectl delete -f 03-node-affinity.yaml
+
+
+preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        preference:
+          matchExpressions:
+          - key: project
+            operator: In
+            values:
+            - roboshop
+      - weight: 10
+        preference:
+          matchExpressions:
+          - key: project
+            operator: In
+            values:
+            - amazon
+
+If resources are completed in project=roboshop, then consider another pod which is project=amazon (It's weight is less when compared with roboshop project).
+
+
+Anti Affinity:
+==============
+--> Inter-pod affinity/anti-affinity allows you to connect Pods against labels on other Pods. 
+
+NotIn and DoesNotExist allow you to define node anti-affinity behavior.
+
+
+[First, use until Hard rule]
+==> kubectl apply -f 04-anti-affinity.yaml
+pod/nginx-anti-affinity created
+
+--> kubectl get pods -o wide
+NAME                  READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+nginx-anti-affinity   1/1     Running   0          12s   192.168.24.187   ip-192-168-3-124.ec2.internal   <none>           <none>
+
+Then, it will be scheduling in the server other than specified zone. [Specified 1b, it will be scheduled in 1d]
+
+
+--> kubectl delete -f 04-anti-affinity.yaml 
+[Provide, all zones which are present in our ec2-instance which are created]
+==> kubectl apply -f 04-anti-affinity.yaml
+pod/nginx-anti-affinity created
+
+--> kubectl get pods -o wide
+NAME                  READY   STATUS    RESTARTS   AGE   IP       NODE     NOMINATED NODE   READINESS GATES
+nginx-anti-affinity   0/1     Pending   0          4s    <none>   <none>   <none>           <none>
+
+--> kubectl get pods
+NAME                  READY   STATUS    RESTARTS   AGE
+nginx-anti-affinity   0/1     Pending   0          11s
+
+It will now move to pending state as there are only two zones.
+
+
+If we want to schedule other than zones, then 1b->2, 1d->1
+We mentioned not to schedule in 1d, but in 1b we have 2 nodes then in which node the pod will be scheduled, we need to specify in which node we want to schedule. Then use,
+--> kubectl label node ip-192-168-32-4.ec2.internal project=amazon
+
+==> kubectl get nodes
+NAME                            STATUS   ROLES    AGE   VERSION
+ip-192-168-3-124.ec2.internal   Ready    <none>   86m   v1.34.4-eks-f69f56f
+ip-192-168-32-4.ec2.internal    Ready    <none>   86m   v1.34.4-eks-f69f56f
+ip-192-168-47-73.ec2.internal   Ready    <none>   73m   v1.34.4-eks-f69f56f
+
+ip-192-168-3-124.ec2.internal--> us-east-1d
+
+Now add this,
+- key: project
+  operator: In
+  values:
+  - amazon
+
+==> git pull
+--> kubectl delete -f 04-anti-affinity.yaml
+--> kubectl apply -f 04-anti-affinity.yaml
+pod/nginx-anti-affinity created
+
+--> kubectl get pods -o wide
+NAME                  READY   STATUS    RESTARTS   AGE   IP               NODE                           NOMINATED NODE   READINESS GATES
+nginx-anti-affinity   1/1     Running   0          9s    192.168.63.225   ip-192-168-32-4.ec2.internal   <none>           <none>
+
+It will go in specified project=amazon node.
+
+
+If we don't want to move in amazon then give notin operator.
+- key: project
+  operator: NotIn
+  values:
+  - amazon
+
+==> git pull
+--> kubectl delete -f 04-anti-affinity.yaml
+--> kubectl apply -f 04-anti-affinity.yaml
+pod/nginx-anti-affinity created
+
+--> kubectl get pods -o wide
+NAME                  READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+nginx-anti-affinity   1/1     Running   0          6s    192.168.51.174   ip-192-168-47-73.ec2.internal   <none>           <none>
+
+It will go into other than specified project=amazon Node.  -- ip-192-168-47-73.ec2.internal 
+--> kubectl delete -f 04-anti-affinity.yaml
+
+
+kubectl taint nodes <above-node-name> hardware=gpu:NoExecute		[Tainted]
+--> kubectl taint nodes ip-192-168-47-73.ec2.internal hardware=gpu:NoExecute
+node/ip-192-168-47-73.ec2.internal tainted
+
+
+Total we have 3 nodes.
+In Anti-affinity, first we have specified 1 zone not to schedule in it, then second node labelled one also specified not to be scheduled for that, and the last node we have tainted...What to do now to schedule in that tainted node?
+--> We have to add toleration to get that tainted node as result.
+
+==> git pull
+--> kubectl apply -f 04-anti-affinity.yaml
+pod/nginx-anti-affinity created
+
+--> kubectl get pods -o wide
+NAME                  READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+nginx-anti-affinity   1/1     Running   0          13s   192.168.33.138   ip-192-168-47-73.ec2.internal   <none>           <none>
+
+Now, it will be scheduled to the tainted node - ip-192-168-47-73.ec2.internal
+
+==> kubectl delete -f 04-anti-affinity.yaml
+==> kubectl taint node <above-node-name> hardware=gpu:NoExecute- 	[Untainted]
+--> kubectl taint nodes ip-192-168-47-73.ec2.internal hardware=gpu:NoExecute-
+node/ip-192-168-47-73.ec2.internal untainted
+
+
+Pod Affinity: (Pod affinity in k8s)
+=============
+
+Pod affinity means attraction between pods.
+
+Backend cache
+1. Backend and cache in same node - speed
+2. Backend and cache in different node - slow
+
+Backend and cache -> affinity
+I want high available, I want 3 replicas.
+
+Backend -> backend -> anti-affinity
+cache -> cache -> anti-affinity
+
+nodeSelector -> Simply selecting the node based on labels
+nodeAffinity/nodeAntiAffinity -> Improved version of nodeSelector
+podAffinity -> Affinity towards pods
+podAntiAffinity -> Repel towards pods
+
+requiredDuringSchedulingIgnoredDuringExecution
+preferredDuringSchedulingIgnoredDuringExecution
+
+taint and tolerations
+
+IgnoredDuringExecution = scheduler will schedule -> node executes the pod ==> During this gap, if anyone changes labels in that gap, telling to ignore that.
+
+````````````````````````
+
+--> git pull
+[Until pod-1]
+--> kubectl apply -f 05-pod-affinity.yaml
+pod/pod-1 created
+
+==> kubectl get pods -o wide
+NAME    READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+pod-1   1/1     Running   0          10s   192.168.35.248   ip-192-168-47-73.ec2.internal   <none>           <none>
+
+
+Where the database Pod is running, there the backend pod should also run, we are telling to do this for Kubernetes... This is pod affinity.
+
+==> kubectl apply -f 05-pod-affinity.yaml
+pod/pod-1 unchanged
+pod/pod-2 created
+
+--> kubectl get pods -o wide
+NAME    READY   STATUS    RESTARTS   AGE     IP               NODE                            NOMINATED NODE   READINESS GATES
+pod-1   1/1     Running   0          2m39s   192.168.35.248   ip-192-168-47-73.ec2.internal   <none>           <none>
+pod-2   1/1     Running   0          7s      192.168.55.141   ip-192-168-47-73.ec2.internal   <none>           <none>
+
+Now, we can see that both pods are running on the same node...
+
+
+If we specify operator: In, then it will be scheduled other than the specified node... (Pod antiaffinity)
+
+--> kubectl delete -f 05-pod-affinity.yaml
+
+
+Pod Anti Affinity:
+==================
+
+==> kubectl apply -f 06-pod-anti-affinity.yaml
+pod/pod-1 created
+pod/pod-2 created
+
+--> kubectl get pods -o wide
+NAME    READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+pod-1   1/1     Running   0          10s   192.168.35.248   ip-192-168-47-73.ec2.internal   <none>           <none>
+pod-2   1/1     Running   0          10s   192.168.28.122   ip-192-168-3-124.ec2.internal   <none>           <none>
+
+
+Now, this will be scheduled in different nodes as it is pod antiaffinity.
+
+==> kubectl delete -f 06-pod-anti-affinity.yaml
+
+==> git pull
+[Only for redis]
+==> kubectl apply -f 07-use-case.yaml
+deployment.apps/redis-cache created
+
+==> kubectl get pods -o wide
+NAME                           READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+redis-cache-5475c876d4-nm4rh   1/1     Running   0          4s    192.168.17.200   ip-192-168-3-124.ec2.internal   <none>           <none>
+redis-cache-5475c876d4-v2w5q   1/1     Running   0          4s    192.168.37.15    ip-192-168-47-73.ec2.internal   <none>           <none>
+redis-cache-5475c876d4-vnn96   1/1     Running   0          4s    192.168.32.213   ip-192-168-32-4.ec2.internal    <none>           <none>
+
+
+This ensures that each pod will be scheduled to different nodes.
+
+
+==> git pull 
+[All the file, but try using replicas 1,2,3 ...]
+==> kubectl apply -f 07-use-case.yaml
+deployment.apps/redis-cache unchanged
+deployment.apps/web-server configured
+
+--> kubectl get pods -o wide
+NAME                           READY   STATUS    RESTARTS   AGE     IP               NODE                            NOMINATED NODE   READINESS GATES
+redis-cache-5475c876d4-nm4rh   1/1     Running   0          4m20s   192.168.17.200   ip-192-168-3-124.ec2.internal   <none>           <none>
+redis-cache-5475c876d4-v2w5q   1/1     Running   0          4m20s   192.168.37.15    ip-192-168-47-73.ec2.internal   <none>           <none>
+redis-cache-5475c876d4-vnn96   1/1     Running   0          4m20s   192.168.32.213   ip-192-168-32-4.ec2.internal    <none>           <none>
+web-server-fd89cdc7-5lrsq      1/1     Running   0          71s     192.168.13.108   ip-192-168-3-124.ec2.internal   <none>           <none>
+web-server-fd89cdc7-dctxr      1/1     Running   0          4s      192.168.63.225   ip-192-168-32-4.ec2.internal    <none>           <none>
+web-server-fd89cdc7-whhn7      1/1     Running   0          2m9s    192.168.48.1     ip-192-168-47-73.ec2.internal   <none>           <none>
+
+
+By using this, it will try to access one after other since one is already occupied by cache...
+After trying all, 3 pods will be in 3 different servers because of anti affinity between them and affinity towards cache. This is required for super performance for your application.
+
+If we increase replicas to 5, which are more than servers. It results in pending state, due to antiaffinity.
+
+--> kubectl apply -f 07-use-case.yaml
+deployment.apps/redis-cache unchanged
+deployment.apps/web-server configured
+
+--> kubectl get pods -o wide
+NAME                           READY   STATUS    RESTARTS   AGE     IP               NODE                            NOMINATED NODE   READINESS GATES
+redis-cache-5475c876d4-nm4rh   1/1     Running   0          6m13s   192.168.17.200   ip-192-168-3-124.ec2.internal   <none>           <none>
+redis-cache-5475c876d4-v2w5q   1/1     Running   0          6m13s   192.168.37.15    ip-192-168-47-73.ec2.internal   <none>           <none>
+redis-cache-5475c876d4-vnn96   1/1     Running   0          6m13s   192.168.32.213   ip-192-168-32-4.ec2.internal    <none>           <none>
+web-server-fd89cdc7-5lrsq      1/1     Running   0          3m4s    192.168.13.108   ip-192-168-3-124.ec2.internal   <none>           <none>
+web-server-fd89cdc7-dctxr      1/1     Running   0          117s    192.168.63.225   ip-192-168-32-4.ec2.internal    <none>           <none>
+web-server-fd89cdc7-fkmc8      0/1     Pending   0          8s      <none>           <none>                          <none>           <none>
+web-server-fd89cdc7-gffbl      0/1     Pending   0          8s      <none>           <none>                          <none>           <none>
+web-server-fd89cdc7-whhn7      1/1     Running   0          4m2s    192.168.48.1     ip-192-168-47-73.ec2.internal   <none>           <none>
+
+
+If we want them also to be scheduled, then we have to use preferredDuringSchedulingIgnoredDuringExecution.
+
+Then, in nginx we use this, in place of podantiaffinity,
+podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchExpressions:
+            - key: app
+              operator: In
+              values:
+              - web-store
+          topologyKey: topology.kubernetes.io/zone
+
+With this, we can schedule all the replicas.
+
+--> kubectl apply -f 07-use-case.yaml
+deployment.apps/redis-cache created
+deployment.apps/web-server created
+
+==> kubectl get pods -o wide
+NAME                           READY   STATUS    RESTARTS   AGE   IP               NODE                            NOMINATED NODE   READINESS GATES
+redis-cache-5475c876d4-cbp55   1/1     Running   0          14s   192.168.17.200   ip-192-168-3-124.ec2.internal   <none>           <none>
+redis-cache-5475c876d4-wpktg   1/1     Running   0          14s   192.168.49.55    ip-192-168-32-4.ec2.internal    <none>           <none>
+redis-cache-5475c876d4-zbwtt   1/1     Running   0          14s   192.168.35.248   ip-192-168-47-73.ec2.internal   <none>           <none>
+web-server-5477cc6b7f-n2swt    1/1     Running   0          14s   192.168.39.103   ip-192-168-32-4.ec2.internal    <none>           <none>
+web-server-5477cc6b7f-n5cc7    1/1     Running   0          14s   192.168.37.15    ip-192-168-47-73.ec2.internal   <none>           <none>
+web-server-5477cc6b7f-skvlz    1/1     Running   0          14s   192.168.28.122   ip-192-168-3-124.ec2.internal   <none>           <none>
+web-server-5477cc6b7f-tz4lw    1/1     Running   0          14s   192.168.32.86    ip-192-168-47-73.ec2.internal   <none>           <none>
+web-server-5477cc6b7f-wvlsm    1/1     Running   0          14s   192.168.6.170    ip-192-168-3-124.ec2.internal   <none>           <none>
+
+
+==> kubectl delete -f 07-use-case.yaml
+==> git pull
+==> kubectl apply -f 07-use-case.yaml [after replicas: 5, using soft rule]
+We can assign all those pods to the nodes which are available.
+
+==> kubectl delete -f 07-use-case.yaml
+If we don't want to give replicas, then we can go with daemonset so that it will make sure a pod replica runs on each and every node.
+If we give daemonset to redis, then there is no need to give antiaffinity in redis and for nginx backend also if we specify with daemonset, we have to write affinity for this. If we don't give, then it will be distributed among those nodes.

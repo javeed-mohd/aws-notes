@@ -1,0 +1,603 @@
+Selectors:
+==========
+
+nodeSelector -> based on node labels.
+nodeAffinity/AntiAffinity -> In, NotIn, Exists, Gt, Lt, etc. (Advanced version of NodeSelector).
+PodAffinity/AntiAffinity -> Attract or repel the pods.
+Taints and tolerations -> Firewall rules, specific hardware nodes are tainted. Workloads should have tolerations.
+
+--> What is Helm?
+--> How helm will be used?
+--> Have you used helm in your project? Yes, we have used helm in our project. We have migrated our applications into helm charts earlier it was not there and then we configured helm commands in CI CD. With this, rollback will become easy.
+
+
+Helm:
+=====
+
+Helm is a package manager for Kubernetes that helps you easily deploy, manage, and upgrade applications inside a Kubernetes cluster.
+Helm is a tool that helps you install and manage applications in Kubernetes easily.
+
+Helm Charts:
+============
+
+1. How to build the image -> nginx, nodejs, jre, etc. (Dockerfile)
+2. How to run the image -> Manifest files
+
+1. You can use as package manager in k8s.
+2. We can templatize the k8s manifest files.
+
+Install helm (browse): (Linux) --> Topics (Chart)
+--------------------- 
+
+curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+chmod 700 get_helm.sh
+./get_helm.sh
+
+
+Check:
+~~~~~~
+helm version
+version.BuildInfo{Version:"v3.20.2", GitCommit:"8fb76d6ab555577e98e23b7500009537a471feee", GitTreeState:"clean", GoVersion:"go1.25.9"}
+
+
+*****
+Chart.yaml:
+==========
+
+==> Chart = Group of manifest files.
+
+
+apiVersion: v2 # K8S related
+name: nginx
+version: 0.0.1 # This is chart version
+appVersion: latest # This is application version like catalogue version
+
+values.yaml -> We can maintain the placeholder values here.
+templates/ -> All k8s manifest files here with placeholders.
+
+In templates folder add manifest files of deployment, service, configmap. Modify as per requirement. (OR) We can directly write the manifest file also.
+
+Only need to change in Chart.yaml, values.yaml accordingly...
+
+********
+helm install <chart-name> .
+helm list -> list of the charts installed
+helm uninstall <chart-name> -> removes the application
+
+==> git clone helm/
+==> cd helm/
+--> helm install nginx . ==> present directory installation.
+--> helm list ==> List of charts installed/uninstalled.
+--> helm uninstall nginx ==> Uninstalls the application which was installed earlier.
+
+
+==> helm install nginx .
+NAME: nginx
+LAST DEPLOYED: Wed Apr 15 11:29:38 2026
+NAMESPACE: default
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+
+--> helm list
+NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART           APP VERSION
+nginx   default         1               2026-04-15 11:29:38.688534933 +0000 UTC deployed        nginx-0.0.1     latest
+
+
+To upgrade, we modify in Chart.yaml:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+apiVersion: v2      # K8s related
+name: nginx
+version: 0.0.2      # This is Chart version
+appVersion: 1.29.8  # This is application version like catalogue version
+description: "Upgrading to 1.29.8"
+
+values.yaml:
+~~~~~~~~~~~~
+
+deployment:
+  replicas: "1"
+  changeCause: "Installing 1.29.8 version"
+  imageVersion: "1.29.8"
+service:
+  type: LoadBalancer
+
+==> git pull
+==> helm upgrade nginx .  ==> After updating the application
+
+==> helm history <chart-name> [nginx] ==> Gets the history of application.
+
+
+--> helm upgrade --install  nginx .
+Release "nginx" has been upgraded. Happy Helming!
+NAME: nginx
+LAST DEPLOYED: Wed Apr 15 11:32:43 2026
+NAMESPACE: default
+STATUS: deployed
+REVISION: 2
+TEST SUITE: None
+
+--> helm list
+NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART           APP VERSION
+nginx   default         2               2026-04-15 11:32:43.177736064 +0000 UTC deployed        nginx-0.0.2     1.29.8
+
+-->  helm history nginx
+REVISION        UPDATED                         STATUS          CHART           APP VERSION     DESCRIPTION
+1               Wed Apr 15 11:29:38 2026        superseded      nginx-0.0.1     latest          Install complete
+2               Wed Apr 15 11:32:43 2026        deployed        nginx-0.0.2     1.29.8          Upgrade complete
+
+
+
+==> To upgrade again, we modify in Chart.yaml:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+apiVersion: v2      # K8s related
+name: nginx
+version: 0.0.3      # This is Chart version
+appVersion: 1.29-trixie  # This is application version like catalogue version
+description: "Upgrading to 1.29-trixie"
+
+values.yaml:
+~~~~~~~~~~~~
+
+deployment:
+  replicas: "1"
+  changeCause: "Installing 1.29-trixie version"
+  imageVersion: "1.29-trixie"
+service:
+  type: LoadBalancer
+
+==> git pull
+==> helm upgrade nginx .  ==> After updating the application
+
+==> helm list
+==> helm history <chart-name> [nginx] ==> Gets the history of application.
+
+superseded -> Replaced by newer version
+
+--> helm upgrade --install  nginx .
+Release "nginx" has been upgraded. Happy Helming!
+NAME: nginx
+LAST DEPLOYED: Wed Apr 15 11:36:11 2026
+NAMESPACE: default
+STATUS: deployed
+REVISION: 3
+TEST SUITE: None
+
+--> helm list
+NAME    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART           APP VERSION
+nginx   default         3               2026-04-15 11:36:11.539014241 +0000 UTC deployed        nginx-0.0.3     1.29-trixie
+
+--> helm history nginx
+REVISION        UPDATED                         STATUS          CHART           APP VERSION     DESCRIPTION
+1               Wed Apr 15 11:29:38 2026        superseded      nginx-0.0.1     latest          Install complete
+2               Wed Apr 15 11:32:43 2026        superseded      nginx-0.0.2     1.29.8          Upgrade complete
+3               Wed Apr 15 11:36:11 2026        deployed        nginx-0.0.3     1.29-trixie     Upgrade complete
+
+
+
+*****
+No need to touch if we do once in CI/CD....
+
+We can pass the values through Command Line Interface(CLI):
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+--set key=value
+--version <semver>
+--app-version <git-sha>
+
+==> helm upgrade nginx --set deployment.imageVersion="1.29.8-trixie" --version "0.0.4" --app-version "1.29.8-trixie" --description "Upgrading nginx to 1.29.8-trixie" .
+
+ where, values.yaml = --set deployment.imageVersion="1.29.8-trixie"				
+	Chart.yaml, 
+	chart version = --version "0.0.4"
+ 	app version = --app-version "1.29.8-trixie"
+	description = --description "Upgrading to 1.29.8-trixie"
+	current directory = .
+
+==> helm upgrade --help
+
+==> helm upgrade --help | grep app --> app version is not available for cli, modify if needed in Chart.yaml
+
+
+==> helm upgrade nginx --set deployment.imageVersion="1.29.8-trixie" --version "0.0.4"  --description "Upgrading nginx to 1.29.8-trixie" .             
+Release "nginx" has been upgraded. Happy Helming!
+NAME: nginx
+LAST DEPLOYED: Wed Apr 15 11:41:43 2026
+NAMESPACE: default
+STATUS: deployed
+REVISION: 4
+TEST SUITE: None
+
+--> helm history  nginx
+REVISION        UPDATED                         STATUS          CHART           APP VERSION     DESCRIPTION
+1               Wed Apr 15 11:29:38 2026        superseded      nginx-0.0.1     latest          Install complete
+2               Wed Apr 15 11:32:43 2026        superseded      nginx-0.0.2     1.29.8          Upgrade complete
+3               Wed Apr 15 11:36:11 2026        superseded      nginx-0.0.3     1.29-trixie     Upgrade complete
+4               Wed Apr 15 11:41:43 2026        deployed        nginx-0.0.3     1.29-trixie     Upgrading nginx to 1.29.8-trixie
+
+
+==> kubectl get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+nginx-546f6555b4-xqqgq   1/1     Running   0          113s
+
+
+--> kubectl get service
+NAME         TYPE           CLUSTER-IP      EXTERNAL-IP                                                               PORT(S)        AGE
+kubernetes   ClusterIP      10.100.0.1      <none>                                                                    443/TCP        3h17m
+nginx        LoadBalancer   10.100.202.51   a44d940da7ddc417994b13621c8ee31b-1568811011.us-east-1.elb.amazonaws.com   80:31115/TCP   14m
+
+Copy the LoadBalancer URL (a44d940da7ddc417994b13621c8ee31b-1568811011.us-east-1.elb.amazonaws.com) and hit the browser, will see nginx homepage.
+
+
+
+If any error arises in current version, we need to move back to earlier version using,
+
+--> helm rollback nginx		[Rolling back to previous version (One step back)]
+==> helm history nginx
+
+If we want to move specifically to a particular version, then use:
+[Rolling back to version 1]
+==> helm rollback nginx 1
+Rollback was a success! Happy Helming!
+
+--> helm history  nginx
+REVISION        UPDATED                         STATUS          CHART           APP VERSION     DESCRIPTION
+1               Wed Apr 15 11:29:38 2026        superseded      nginx-0.0.1     latest          Install complete
+2               Wed Apr 15 11:32:43 2026        superseded      nginx-0.0.2     1.29.8          Upgrade complete
+3               Wed Apr 15 11:36:11 2026        superseded      nginx-0.0.3     1.29-trixie     Upgrade complete
+4               Wed Apr 15 11:41:43 2026        superseded      nginx-0.0.3     1.29-trixie     Upgrading nginx to 1.29.8-trixie
+5               Wed Apr 15 11:45:37 2026        superseded      nginx-0.0.3     1.29-trixie     Rollback to 3
+6               Wed Apr 15 11:46:33 2026        deployed        nginx-0.0.1     latest          Rollback to 1
+
+
+
+1. application -> code (image) -> Chart.yaml
+2. configuration -> change
+
+mongodb-dev.devopsdaws.online -> Development
+mongodb.devopsdaws.online     -> Production
+
+
+Configuration:
+~~~~~~~~~~~~~~~
+
+values.yaml -> Default values same across all environments
+values-dev.yaml -> Values for development specific environment
+values-prod.yaml -> Values for production specific environment
+
+==> git pull
+==> helm uninstall nginx
+==> helm upgrade --install nginx . 	[Use this, if first time means it installs otherwise it upgrades...]
+==> kubectl get pods
+
+--> helm uninstall nginx
+release "nginx" uninstalled
+
+
+*******
+By default, if we don't specify replicas, generally if Kubernetes doesn't find any replicas values, it automatically takes one. 
+
+If we want to give specify replica values, then use:
+In prod environment,
+[It has 4 replicas, we get 4 pods]
+==>  helm upgrade --install  nginx -f values-prod.yaml .
+Release "nginx" has been upgraded. Happy Helming!
+NAME: nginx
+LAST DEPLOYED: Wed Apr 15 11:56:09 2026
+NAMESPACE: default
+STATUS: deployed
+REVISION: 2
+TEST SUITE: None
+
+--> kubectl get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+nginx-765dbb7648-cnnrn   1/1     Running   0          8s
+nginx-765dbb7648-g464t   1/1     Running   0          8s
+nginx-765dbb7648-rwg85   1/1     Running   0          8s
+nginx-765dbb7648-wqs76   1/1     Running   0          2m55s
+
+
+In dev environment,
+[It has 1 replica, we get 1 pod]
+
+==> helm upgrade --install  nginx -f values-dev.yaml .
+Release "nginx" has been upgraded. Happy Helming!
+NAME: nginx
+LAST DEPLOYED: Wed Apr 15 11:57:26 2026
+NAMESPACE: default
+STATUS: deployed
+REVISION: 3
+TEST SUITE: None
+
+13.218.96.194 | 172.31.26.58 | t3.micro | https://github.com/javeed-mohd/helm.git
+[ ec2-user@ip-172-31-26-58 ~/helm ]$ kubectl get pods
+NAME                     READY   STATUS    RESTARTS   AGE
+nginx-765dbb7648-wqs76   1/1     Running   0          4m8s
+
+
+helm-roboshop:
+==============
+
+1. MongoDB:
+~~~~~~~~~~~
+
+==> cd
+==> git clone https://github.com/javeed-mohd/helm-roboshop.git
+==> cd helm-roboshop/
+==> kubectl apply -f namespace.yaml (OR) kubectl create namespace roboshop
+--> kubens roboshop
+==> kubens	[Check if namespace is in roboshop or not]
+==> cd mongodb/
+[helm upgrade --install <chart-name> .]
+==> helm upgrade --install mongodb .
+Release "mongodb" does not exist. Installing it now.
+NAME: mongodb
+LAST DEPLOYED: Wed Apr 15 12:04:43 2026
+NAMESPACE: roboshop
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+
+--> kubectl get pods
+NAME                      READY   STATUS    RESTARTS   AGE
+mongodb-7fc4fbcf4-5bg2k   1/1     Running   0          11s
+
+--> kubectl get svc
+NAME      TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)     AGE
+mongodb   ClusterIP   10.100.163.40   <none>        27017/TCP   20s
+
+
+==> If any further changes in future, just make changes in Chart.yaml and values.yaml then run it.
+
+
+2. Catalogue:
+~~~~~~~~~~~~~
+
+==> git pull
+--> cd ../catalogue/
+[helm upgrade --install <chart-name> .]
+-->  helm upgrade --install catalogue  .
+Release "catalogue" does not exist. Installing it now.
+NAME: catalogue
+LAST DEPLOYED: Wed Apr 15 12:08:44 2026
+NAMESPACE: roboshop
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+
+==> kubectl get svc
+NAME        TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)     AGE
+catalogue   ClusterIP   10.100.127.21   <none>        8080/TCP    28s
+mongodb     ClusterIP   10.100.163.40   <none>        27017/TCP   4m30s
+
+--> kubectl get pods
+NAME                         READY   STATUS    RESTARTS   AGE
+catalogue-5b9d4ddc46-zh75s   1/1     Running   0          33s
+mongodb-7fc4fbcf4-5bg2k      1/1     Running   0          4m34s
+
+
+
+If we gave version as 1.0.0, then if we want to upgrade, we will do it in CLI itself:
+==> helm upgrade catalogue --set deployment.imageVersion=1.4.0 --version "0.0.1" --description "Upgrading Catalogue to 1.4.0" .
+
+[helm history <chart-name>]
+==> helm history catalogue
+REVISION        UPDATED                         STATUS          CHART           APP VERSION     DESCRIPTION
+1               Wed Apr 15 12:08:44 2026        superseded      catalogue-0.0.1 1.4.0           Install complete
+2               Wed Apr 15 12:14:54 2026        deployed        catalogue-0.0.1 1.4.0           Upgrading Catalogue to 1.0.0
+
+==> To check deployment,
+--> kubectl get deployment catalogue -o yaml		[Gets the upgraded version]
+
+==> Now, if we want to rollback to previous version, we use:
+--> helm rollback catalogue [Moves to one step back -> Previous version]
+--> helm history catalogue
+--> kubectl get deployment catalogue -o yaml		[Gets the previous version]
+
+==> cd
+==> helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver		[It means manifest files are also present in this]
+dnf -> Linux package manager
+==> helm repo update
+==> helm upgrade --install aws-ebs-csi-driver \
+    --namespace kube-system \
+    aws-ebs-csi-driver/aws-ebs-csi-driver
+
+where helm upgrade --install aws-ebs-csi-driver(Third with this name in kube-system will be created) \
+    --namespace kube-system \
+    aws-ebs-csi-driver(First goes to this repo)/aws-ebs-csi-driver(second refers to this manifest file)
+
+==> To check,
+helm list -n kube-system
+
+NAME                    NAMESPACE       REVISION        UPDATED                                 STATUS          CHART                           APP VERSION
+aws-ebs-csi-driver      kube-system     1               2026-04-15 12:32:00.516420514 +0000 UTC deployed        aws-ebs-csi-driver-2.58.0       1.58.0
+
+
+
+To install Prometheus and Grafana (Kubernetes open-source application) in Linux:
+--------------------------------------------------------------------------------
+
+==> helm repo add grafana-community https://grafana-community.github.io/helm-charts
+==> helm repo update
+==> kubectl create namespace monitoring
+==> helm search repo grafana-community/Grafana
+
+NAME                            CHART VERSION   APP VERSION     DESCRIPTION
+grafana-community/grafana       11.6.1          12.4.3          The leading tool for querying and visualizing t...
+grafana-community/grafana-mcp   0.9.2           0.11.6          MCP server for Grafana.
+
+==> helm upgrade --install roboshop-grafana grafana-community/grafana --set service.type=LoadBalancer --namespace monitoring
+
+Release "roboshop-grafana" does not exist. Installing it now.
+NAME: roboshop-grafana
+LAST DEPLOYED: Wed Apr 15 12:35:02 2026
+NAMESPACE: monitoring
+STATUS: deployed
+REVISION: 1
+TEST SUITE: None
+NOTES:
+1. Get your 'admin' user password by running:
+
+   kubectl get secret --namespace monitoring roboshop-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+
+
+2. The Grafana server can be accessed via port 80 on the following DNS name from within your cluster:
+
+   roboshop-grafana.monitoring.svc.cluster.local
+
+   Get the Grafana URL to visit by running these commands in the same shell:
+   NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+        You can watch the status of by running 'kubectl get svc --namespace monitoring -w roboshop-grafana'
+     export SERVICE_IP=$(kubectl get svc --namespace monitoring roboshop-grafana -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+     http://$SERVICE_IP:80
+
+3. Login with the password from step 1 and the username: admin
+
+
+******
+After entering this, we will get admin and password prompt:
+
+--> kubectl get secret --namespace monitoring roboshop-grafana -o jsonpath="{.data.admin-password}" | base64 --decode ; echo
+spBSL3Erz97g7bPvCmF2uZdclDp8WtT1Rq4h4jE3
+
+==> Run it to get the Password (Encrypted), username: admin , password: spBSL3Erz97g7bPvCmF2uZdclDp8WtT1Rq4h4jE3
+
+
+--> kubectl get svc -n monitoring
+NAME               TYPE           CLUSTER-IP       EXTERNAL-IP                                                              PORT(S)        AGE
+roboshop-grafana   LoadBalancer   10.100.128.120   a196077dfa2804295a7ecf1a6e38babf-670815058.us-east-1.elb.amazonaws.com   80:32455/TCP   111s
+
+
+After running this, we will be getting loadbalancer URL (a196077dfa2804295a7ecf1a6e38babf-670815058.us-east-1.elb.amazonaws.com) 
+(Copy it and hit the browser, we will be getting response after some time. This is called Package manager.)
+--> kubectl get pods -n monitoring
+NAME                                READY   STATUS    RESTARTS   AGE
+roboshop-grafana-7dc476c9c8-hnqzf   1/1     Running   0          2m57s
+
+(Open-source)
+This process is called as Package Manager.... Same for Jenkins, Grafana, Promtheus, Consul Elastic Search...can be installed in the same above process.
+
+
+==> To unistall we use, 
+--> helm uninstall roboshop-grafana -n monitoring
+
+==> helm uninstall catalogue
+==> helm uninstall mongodb
+As we are in roboshop namespace
+
+==> helm uninstall nginx -n default
+
+
+CI CD Pipeline:
+================
+
+--> build image, push image, run helm command, check app is running fine or not, if not rollback
+
+==> Main advantage in k8s or helm is faster deployment.
+
+==> If we do it in VM's, it takes minimum of 2-3 minutes but here it completes within seconds with no downtime.
+
+Package Manager: 
+~~~~~~~~~~~~~~~~
+
+EBS drivers, EFS drivers (This images will be available in online and also has steps how to run in online only)
+
+
+ebs drivers install (git) - helm repo and also charts
+
+In Linux:
+---------
+
+dnf repo add docker.repo
+dnf update
+dnf install docker-ce -y
+
+Helm repos:
+-----------
+
+helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+helm repo update
+helm repo add <url>
+helm repo update
+helm
+helm upgrade --install aws-ebs-csi-driver \
+    --namespace kube-system \
+    aws-ebs-csi-driver/aws-ebs-csi-driver
+
+prometheus/Grafana (Will take official image)
+run the image -> manifest
+
+statefulset, svc, role and rolebindings, 
+
+official helm repos -> statefulset, svc, role and rolebindings, (They will provide)
+values.yaml
+
+
+*******
+Search helm install Prometheus and Grafana (Browse)-Deploy Grafana using Helm Charts
+
+--> helm repo add grafana-community https://grafana-community.github.io/helm-charts
+--> helm repo update
+--> kubectl create namespace monitoring
+--> helm search repo grafana-community/grafana
+--> helm upgrade --install roboshop-grafana grafana-community/grafana --set service.type=LoadBalancer --namespace monitoring
+
+--> helm list -n monitoring	  	==> To check the status of deployment
+--> kubectl get all -n monitoring 	==> To check all in namespace
+
+==> https://grafana-community.github.io/helm-charts ==> In this, we can find Prometheus and Grafana helm charts.
+
+
+
+Role Based Access Control (RBAC): (Search RBAC Kubernetes)
+================================
+
+User who created EKS cluster by default gets admin access.
+
+DevOps engineer for roboshop project -> admin access to roboshop namespace. We don't have access to cluster level.
+
+Nouns (resources), Verbs (actions)
+
+Authentication (Prove your identity) and Authorization (Scan your ID at ODC)
+User
+Group
+
+api group
+pod, deployment, configmap, etc..
+create pod, list pod, watch pod, update, delete, etc..
+
+An api group have multiple resources, you can perform multiple actions on resources.
+
+Trainee -> Only read access.
+Junior -> Only read access+core(api/v1) deployments update access.
+Senior -> Full access to app/v1 group.
+TL -> roboshop namesapce all api groups, all resources, all actions.
+
+Role -> Binds to users through rolebinding. For example, Suresh user has trainee role.
+
+Kubernetes -> PaaS (Platform as a Service) -> Has its own authentication mechanism
+
+You can integrate IAM user to EKS.
+
+Authentication is through IAM (Identity and Access Management).
+Authorization is handled in EKS (Elastic Kubernetes Service).
+
+
+Namespace level and Cluster level:
+==================================
+
+Role and RoleBinding -> Namespace level access
+PV (Persistent Volume) -> Cluster level access
+ClusterRole and ClusterRoleBinding -> Cluster level resources
+
+Roboshop devops engineer sends a email to K8 admin.
+create roboshop namespace and give access to us.
+
+roboshop-eks-client -> kubectl install -> authenticate with cluster -> run their workloads
+
+
+1.30 -> build
+
+--set imageVersion=1.30 --description "Upgrading to 1.30"

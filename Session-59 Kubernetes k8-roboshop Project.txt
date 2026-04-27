@@ -1,0 +1,177 @@
+1. Building images in Docker -> best practices
+2. Running inside k8s as manifest files
+
+NodeJs	node_modules + copy source_code -> almost platform(OS) independent
+Java -> jar file = compiled code + dependencies -> platform(OS) independent
+Python -> dependencies will be installed in python directory -> platform(OS) dependent
+
+
+
+*****
+Payment: Python is tightly dependent on OS. It is OS dependent.
+========
+
+==> python path in linux will be in /usr/bin/python3 or /usr/local/bin/python3  ==> This is OS specific
+
+
+Requirements while doing improvements in Dockerfile:
+====================================================
+
+1. Install dependencies in different path, so that we can copy into another stage 		(pip install prefix)
+2. Build stage python needs more packages build-base, linux-headers and pcre-dev		(alpine add install packages) (apk -> Alpine Package Keeper)
+3. run time you need pcre package only  (Important)
+
+
+Package Breakdown --> build-base, linux-headers and pcre-dev
+build-base: A meta-package equivalent to Ubuntu's build-essential. It installs the GCC compiler, G++, make, and standard C libraries. 
+
+linux-headers: Provides the header files for the Linux kernel, which are required when a program needs to interact directly with kernel features (e.g., compiling drivers or low-level network tools). 
+
+pcre-dev: Includes the development files for Perl Compatible Regular Expressions (PCRE). These are frequently required for building high-performance web servers like Nginx or HAProxy. 
+
+--no-cache: This flag ensures the package index is downloaded on-the-fly and then deleted after installation.
+
+
+
+==> Check the size of by building the image with old Dockerfile 1.4.0 . (Debian/Ubuntu) will consist of cache, built time and so on will be installed.
+
+==> Now, python (official image -> docker hub) Edit in dockerfile
+
+python:3.9.25-alpine3.22 
+
+
+COPY --from=builder /install /usr/local   ==>  /usr/local --> This path commands are always executable. or (/bin)d
+COPY --chown=roboshop:roboshop   ==> copy instruction in dockerfile is used to copy with which user, we can provide it in one of the layer.
+
+Hardened Image --> Only has what we want and should not have privilege access.
+
+In payment (k9s) -> cd /usr/local/
+ls -l
+cd bin/
+ls -l
+
+***** 
+Payment.ini:
+~~~~~~~~~~~~
+
+uid, gid in payment.ini should be commented for second time building as we are running it with non root user access and they are actually designed for root started processes that need to drop privileges after binding to a port (8080).
+
+
+
+*****
+Frontend: (nginx non root docker image - browse (Running Nginx Official image as non root-General (dockerhub))
+=========
+
+nginx expects a lot of directories log, process instance ID (PID), parent process instance ID (PPID), configuration and so on.
+
+
+RUN rm /etc/nginx/nginx.conf /etc/nginx/conf.d/default.conf
+
+RUN mkdir -p /var/cache/nginx/client_temp && \
+    mkdir -p /var/cache/nginx/proxy_temp && \
+    mkdir -p /var/cache/nginx/fastcgi_temp && \
+    mkdir -p /var/cache/nginx/uwsgi_temp && \
+    mkdir -p /var/cache/nginx/scgi_temp && \
+    chown -R nginx:nginx /var/cache/nginx && \
+    chown -R nginx:nginx /etc/nginx/ && \
+    chmod -R 755 /etc/nginx/ && \
+    chown -R nginx:nginx /var/log/nginx
+
+RUN mkdir -p /etc/nginx/ssl/ && \
+    chown -R nginx:nginx /etc/nginx/ssl/ && \
+    chmod -R 755 /etc/nginx/ssl/
+
+RUN touch /var/run/nginx.pid && \
+    chown -R nginx:nginx /var/run/nginx.pid /run/nginx.pid
+COPY nginx.conf /etc/nginx/nginx.conf
+COPY static /usr/share/nginx/html/
+USER nginx
+CMD ["nginx", "-g", "daemon off;"]
+
+nginx:1.24.0-alpine3.17-slim
+
+
+******
+==> Without configmap file (nginx.conf) in frontend/manifest.yaml, we should run and check. We will get the response as loadbalancer url to check the roboshop application on the browser.
+
+But, if we make any configuration changes in nginx.conf file of frontend in docker image, then we have to rebuild the image, push the image to hub and then pull the image by running manifest.yaml file of frontend (restart the Pod).
+
+==> To use in configmap, we cannot keep files in configmap same as key-value pairs. If we want to keep files then we have to add as volume nginx.conf (volume=data=disk), then we tell nginx container to mount nginx.conf file (we will keep it as volume which in turn has data in it). Container to volume mount and get the data from it.
+
+==> Advantage by using this is that we need not rebuild the image from docker... We can directly make changes in configmap and push the changes.
+
+In configMap, we have add volumes in specifications in container level with a proper name and we have to mount it to the container we want by providing volumeMounts and give it a name, mountPath and readOnly as true.
+
+==> By doing this, in future if any configuration changed, we need not rebuild the image in docker rather than doing that we will edit the changes in configMap and restart the container.
+
+
+It should be pod-level in specifications:
+
+volumes:
+- name: nginx-config
+  configMap
+    name: frontend
+
+
+This should be in containers which will help volumes to mount.
+volumeMounts:
+- name: nginx-config
+  # By default it mounts and thinks as directory
+  mountPath: "/etc/nginx/nginx.conf"
+  subPath: nginx.conf
+  readOnly: true
+
+
+
+**** First, we have to run the manifest.yaml file of frontend without configMap, volumeMounts and volumes and further you can use it after running from next time when we make any changes in configuration, we can directly edit in the configMap itself and restart the container rather than rebuild the image in docker.
+
+==> Then we have to apply frontend/manifest.yaml file after making any configuration changes.
+
+Edit in nginx.conf -> Apply -> Restart the container
+
+
+==> nginx.conf (key) -> value is the nginx.conf file
+
+
+
+Kubernetes implementation process:
+==================================
+
+--> Containerize the docker images
+--> Creation of Manifest file which contains --> configMap, Deployments, Service and add volumeMounts whereever necessary and also we will be adding the secret.
+
+In real projects, we will replace load balancer with ingress controller. But the process is same.
+
+
+******
+==> If we keep data anywhere in cluster it will be temporary (ephemereal volume). In case, if we want to run stateful applications, we have to keep the data outside the NodeGroup as EBS (Eternal volume). We should not keep data in cluster only. 
+
+If in case, entire cluster got deleted for some reason, then we can create a new cluster and assign it to Pod and mount the data from EBS to NodeGroup.
+
+
+==> Administartor level topic: (volumes)
+
+k8S volumes
+===========
+
+1. static provisioning
+2. dynamic provisioning
+
+In K8, we have two levels:
+--> Namespace level
+--> Cluster level
+
+--> Volumes are cluster level.
+
+EBS/EFS 
+==> EBS → Elastic Block Store  ==> Works like a hard disk attached to a server
+==> EFS → Elastic File System  ==> Works like a shared folder accessible by many servers
+
+
+In Kubernetes, we have two roles:
+1. admin role (Cluster level)
+2. project role --> roboshop project (Namespace level)
+
+If only project role is given, then we have to contact admin to make any changes in cluster level.
+
+RBAC -> role based access control

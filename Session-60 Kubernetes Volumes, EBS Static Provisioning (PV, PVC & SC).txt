@@ -1,0 +1,484 @@
+terraform-aws-workstation after creating everything we need to run this command with workstation instance to get the authentication information because we are automatically creating the cluster so we need to define it. 
+If we would have done manually creating cluster using, eksctl create cluster --config-file=eks.yaml, then no need to run it.
+
+==> But, it is created automatically by terraform, so we have to run this command:
+
+==> aws eks update-kubeconfig --region us-east-1 --name roboshop 
+
+region and cluster name need to be defined.
+
+After running it, in backend eks command will take aws-configure credentials and sends to AWS and will create cluster information.
+
+--> Cluster authentication will be in .kube (ls -la)
+cd .kube/
+ls -l
+==> config
+cat config
+
+==> Everytime when we run kubectl command, this information which is in config file will be sent to aws and then aws will decide whether you have access or not.
+
+==> At any time, if the authentication fails, then we have to run this command to regain authentication:
+
+aws eks update-kubeconfig --region us-east-1 --name roboshop 
+
+
+Next, kubectl get nodes
+
+`````````````````````````````````````````````````````````````
+
+
+Administartor level topic: (volumes)
+
+
+k8S volumes:
+============
+1. static provisioning
+2. dynamic provisioning
+
+In K8, we have two levels:
+--> Namespace level
+--> Cluster level
+
+--> Volumes are cluster level.
+
+EBS/EFS 
+==> EBS → Elastic Block Store  ==> Works like a hard disk attached to a server
+==> EFS → Elastic File System  ==> Works like a shared folder accessible by many servers
+
+
+In Kubernetes, we have two roles:
+1. admin role (Cluster level)
+2. project role --> roboshop project (Namespace level)
+
+If only project role is given, then we have to contact admin to make any changes in cluster level.
+
+RBAC -> Role Based Access Control
+
+
+Volumes:
+========
+
+******
+==> Entire Kubernetes Cluster is ephemeral, except data. That might be end-user data, log data or any data. Expect data, everything is temporary.
+Any time server can be crashed or anything might happen, so main focus is to carefully backup data and duplicate it. Other than data, we can create Kubernetes cluster by just giving a command. If we don't make a backup of it, once is data is lost we cannot get it back whether it might be log data, metrics data, products data, end user data.
+
+==> Since it is ephemeral, we will maintain disk (Volumes/Data) outside the cluster. Then, we will mount it to Kubernetes.
+
+
+storage admins (Disks/Hard Disks) --> Those who manage disks
+--------------
+
+1. Keep the storage secure
+2. Daily backup
+3. Restore
+4. Restore testing (At any point, the data should not be down)
+5. Replication -> another copy (We need to configure replication for Disaster Recovery purpose) 
+6. Archival -> secondary  (archival storage for /backup, we do keep in secondary region for data partition)
+
+--> We will manage storage level snapshots as per SLA. We do restore from storage when needed. 
+--> We will take manual snapshots depends upon the request from the application and database teams. 
+
+==> Replication means copying data from a primary system to a secondary system (DR site) continuously or at intervals.
+
+If something goes wrong (server crash, outage, disaster), the DR system already has up-to-date data and can take over.
+
+==> Disaster Recovery (DR) is the process of restoring systems, data, and operations after a failure or disaster.
+
+Ex: eks version upgrade
+~~~
+1. Send a email to storage team
+2. Give them servers address
+3. Tell them to take the backup before upgrade
+4. Once they take backup, they respond it is completed
+5. Then we start upgrade
+
+
+
+Two types of volumes:
+======================
+
+1. ephemeral volumes (Temporary) --> inside pods and hosts  ==> Ephemeral volumes are temporary storage types that exist only for the lifetime of a Pod.
+2. eternal volumes (Permanent)	 --> We can manage this to mount the data as a backup.
+
+
+Types of Kubernetes Volumes:
+=============================
+
+emptyDir (ephemeral) (emptyDir in K8 (Browse -> Volumes) (project level/ namespace level task)
+--------
+
+For a Pod that defines an emptyDir volume, the volume is created when the Pod is assigned to a node. As the name says, the emptyDir volume is initially empty. All containers in the Pod can read and write the same files in the emptyDir volume, though that volume can be mounted at the same or different paths in each container. When a Pod is removed from a node for any reason, the data in the emptyDir is deleted permanently.
+
+Created when a Pod starts, deleted when Pod is removed
+Stored on node (disk or memory)
+
+==> Use case: temporary data, caching
+
+1. containers in pod can share same storage.
+2. create volume at the pod level
+3. mount to the containers you want inside pod
+
+==> In case of sidecar containers, to read the storage and push the logs outside of cluster, we can use emptyDir. This volume, we can assign it for 'n' no of containers and mount it.
+==> We can consider this as our laptop, each one are individual programs. Few programs have write access and few programs have only read access. We can control it (K8-volumes).
+
+==> git clone <k8s-resources git url>
+cd k8s-resources/volumes/
+==> kubectl apply -f 01-empty-dir.yaml  (If we get any error in k9s, first we need to delete it by using ctrl+d and then update the configuration and restart the container).
+pod/test-pd created
+
+
+press s for shell, go inside almalinux container and type cd /mnt/
+ls -l -> nginx-logs
+cd nginx-logs/
+ls -l -> access.log, error.log
+cat error.log
+
+==> We can readOnly here, we can not write. nginx will write and sidecar container will read and push outside.
+
+
+Linux Permissions:
+==================
+
+Each permission has a numeric value:
+
+Read (r) = 4
+Write (w) = 2
+Execute (x) = 1You add the values together for each set of permissions:
+
+How Numbers Are Formed:
+
+7 = 4 + 2 + 1 → rwx (read, write, execute)
+6 = 4 + 2 → rw- (read, write)
+5 = 4 + 1 → r-x (read, execute)
+4 = 4 → r-- (read only)
+3 = 2 + 1 → -wx (write, execute)
+2 = 2 → -w- (write only)
+1 = 1 → --x (execute only)
+0 = 0 → --- (no permissions)
+
+Three Groups:
+==> Permissions are usually shown as three digits:
+[Owner][Group][Others]
+
+Example:
+
+755 → Owner: rwx (7), Group: r-x (5), Others: r-x (5)
+644 → Owner: rw- (6), Group: r-- (4), Others: r-- (4)
+
+
+Ex: chmod 755 file.txt
+
+Means:
+
+Owner can read, write, execute
+Others can read and execute only
+
+
+hostPath ==> local node storage (daemonset in k8) It is administration task because it contains kube-system namespace. Host path is entire cluster.
+--------
+
+(A container running in the server can access the data which is in host-level is called hostpath).
+
+Maps a file/directory from the host node into the Pod
+
+==> Use case: accessing host system files
+==>  Not recommended for production (security risk)
+
+ 
+1. hostPath is not secure, we can not allow containers/pods to access host data.
+2. But in rare cases, we allow pods and containers to access hostPath in read-only mode.
+3. Daemonset makes sure of a pod replica runs on each and every worker node. While worker nodes are adding to the cluster, daemonset make sure a replica runs on new node also.
+4. Daemonset pod replicas access the underlying host information through hostpath volumes, and can ship it to the external clusters. (At the time of ELK, we will able to understand this).
+
+
+*****
+==> To monitor the worker nodes, we require Daemonset. We don't use replicas in daemonset. We did not mention replicas anywhere in daemonset, then daemonset will make sure a replica runs on each and every node in the cluster.
+
+--> Daemonset is one of the usecase in hostPath, it can access whatever the path we give. But, we use only for selected use cases. We can see two pods inside the kube-system namespace as we have desired capacity of cluster nodes as 2. (If we increase desiredCapacity=3 in autoscaling group, a worker node will be added in cluster, then automatically daemonset detects it and will increase one replica in kube-system namespace).
+
+
+==> hostPath daemonset is in special cases, it will read worker nodes information and will be used to push. 
+
+--> hostpath is ephemeral volume because host storage will be present only when host is present. Once the host is deleted, hostpath will also be deleted.
+
+--> hostPath is admin level task and emptyDir is project/namespace level task.
+
+So, emptyDIr and hostPath are ephemeral volumes.
+
+--> kubectl apply -f 02-host-path.yaml
+daemonset.apps/fluentd-elasticsearch created
+
+
+1. Send email to storage admin about disk creation, 100GB
+2. Disk id and how to connect
+
+1. Static provisioning - Manual
+2. Dynamic provisioning - Disk will be created dynamically when necessary and deletes after use.
+
+
+Elastic Block Store (EBS) Static Provisioning:  ==>  Works like a hard disk attached to a server
+==============================================
+
+1. HardDisk should be as near as possible to server.
+2. EBS can be mounted to only one server at a time.
+3. EBS is faster than  EFS.
+4. EBS is suitable for OS and databases because of low latency. (latency -> Should not be late) (fast)
+
+
+Data center is nothing but availability zone not region. One region will have multiple availability zones. 
+If disks are in same availability zone then we can add them.
+==> Create volume with an availability zone manually. Suppose we have created the disk in 1a az then we have to attach the volume to same az instance that is the limitation from hard disk. 
+If our pod goes to any of the desired az instance then it will mount to only specified az (1a) and will not mount to other az (1b).
+
+
+*****Kubernetes administrators does not have idea about storage but they have to use the storage. To fill this understanding gap, they have created a wrapper in between Kubernetes and storage. They are:
+Persistent volumes (PV)
+Persistent volume claim (PVC)   ==> Together, PV + PVC provide persistent storage abstraction.
+Storage class
+
+
+Persistent Volume (PV): (ebs static provisioning (browse)- git)
+=======================
+
+1. Physical representation of the disk
+2. Equivalent object/resource for the disk inside k8S cluster
+
+vol-0f66b40ccee8ec08d --> Volume ID
+
+
+Access modes in k8 volumes:
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+Persistent Volume Access Modes:
+===============================
+
+There are four primary access modes supported in Kubernetes: 
+ReadWriteOnce (RWO): The volume can be mounted as read-write by a single node. Multiple pods on that same node can still access the volume.
+ReadOnlyMany (ROX): The volume can be mounted as read-only by many nodes at the same time.
+ReadWriteMany (RWX): The volume can be mounted as read-write by many nodes simultaneously. This is common for shared file systems like EFS.
+ReadWriteOncePod (RWOP): A newer mode (stable as of v1.29) that restricts access to exactly one pod in the entire cluster. This ensures no other pod—even on the same node—can mount the volume.
+
+
+Access Mode               Access Level    Multi-Node
+===========               ============    ===========
+
+ReadWriteOnce (RWO)       Read-Write      No
+ReadOnlyMany (ROX)        Read-Only       Yes
+ReadWriteMany (RWX)       Read-Write      Yes
+ReadWriteOncePod (RWOP)   Read-Write      No (One Pod Only)
+
+
+*******
+We can use below access modes for EBS
+1. ReadWriteOnce 
+2. ReadWriteOncePod -> can mount only a particular pod
+
+Pod is running means it is running in the server.
+Data Mount will be done first to server then only pod. Kubernetes handles that complexity. If no server no pod.
+
+
+--> If Kubernetes want to understand then we need to add ebs drivers also.
+*****
+Drivers installation: (aws ebs cli driver [browse static provisioning ebs])
+=====================
+
+1. Create the disk in the same az as your servers are there
+2. Install the ebs drivers for k8 to understand ebs (static provisioning ebs (browse) - git - readme.md - driver installation - Kustomize)
+kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.58"
+3. Your worker nodes should have ebs permission to mount the disk. Attach AmazonEBSCSIDriverPolicy to any of the worker node in IAM role to provide authorization.
+
+==> After installing the drivers, now Kubernetes cluster can communicate with ebs drivers.
+
+At the same time, we do require permission for the above,
+Click on any worker node -> security group (we can see iam role url), in IAM role we need to add the permission to attach to EBS disks. [Add Permission -> Attach Policies -> AmazonEBSCSIDriverPolicy]
+
+--> kubectl apply -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.58"
+--> kubectl apply -f 03-ebs-static.yaml
+persistentvolume/ebs-static created
+
+--> kubectl get pv
+NAME         CAPACITY   ACCESS MODES   RECLAIM POLICY   STATUS      CLAIM   STORAGECLASS   VOLUMEATTRIBUTESCLASS   REASON   AGE
+ebs-static   5Gi        RWO            Retain           Available                          <unset>                          41s
+
+
+PV object is created.
+
+==> To uninstall driver, use: kubectl delete -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-<YOUR-CSI-DRIVER-VERSION-NUMBER>"
+Ex:- kubectl delete -k "github.com/kubernetes-sigs/aws-ebs-csi-driver/deploy/kubernetes/overlays/stable/?ref=release-1.58"
+
+
+
+Reclaim policies: (reclaim policy in k8)
+=================
+
+Retain -> Keep the disk and data even after the node is deleted (stateful applications).
+Delete -> Delete the disk
+Recycle -> Delete the data in disk, but keep the disk.
+
+By default, we have retain as reclaim policy... If we want, we change the policy but obviously that is not required. If we do so, then is no use of volume usage only.
+
+
+
+Persistent Volume Claim (PVC):
+==============================
+
+It is claiming the PV that it needs storage.
+
+
+kid -> mother -> father -> wallet
+Pod ->	PVC   -> PV	-> EBS (Disk
+
+kid -> mother -> UPI wallet
+
+-->  kubectl apply -f 03-ebs-static.yaml
+persistentvolume/ebs-static unchanged
+persistentvolumeclaim/ebs-static created
+
+--> kubectl get pvc
+NAME         STATUS   VOLUME       CAPACITY   ACCESS MODES   STORAGECLASS   VOLUMEATTRIBUTESCLASS   AGE
+ebs-static   Bound    ebs-static   5Gi        RWO                           <unset>                 38s 
+
+pvc ebs is bound with pv ebs.
+
+pvc is attached to pv and pv is attached to disk.
+
+
+If we keep the data in /us/share/nginx/html then it will be stored in ebs disk (PV).
+Volume status is in bound mode as we did not mount it to pod. After running the pod creation, we can able to see it as mount.
+
+--> kubectl apply -f 03-ebs-static.yaml
+persistentvolume/ebs-static unchanged
+persistentvolumeclaim/ebs-static unchanged
+pod/app created
+
+In k9s, shift: namespace -> default -> describe (app). It is successfully assigned to one of the node but it will fail as we did not specify availability zone same as instance [In some cases, it may attach to exact az by luck], it was decided by eks to assign it to any node as a random decision. 
+
+But by using nodeselector aws az in k8, we can specify it accurately,
+
+nodeSelector:
+  topology.kubernetes.io/zone: us-east-1b
+
+
+--> kubectl delete pod <pod-name> [app] --> If the pod becomes forbidden.
+kubectl delete pod app
+pod "app" deleted from default namespace
+
+Apply again,
+--> kubectl apply -f 03-ebs-static.yaml
+In k9s, shift: namespace -> default -> describe (app).
+
+--> By doing this, we can assign to a particular node with same az as instance and volume will be attached successfully to node, then it created and started the container. If that destination node becomes full, we can not do anything then k8s will through an error.
+
+--> Now, if we check the volume status in aws, it will be in-use as it was mounted.
+
+s->shell (app) -> cd /usr/share/nginx/html/
+echo "Hi, I am from EBS" > hello.html
+ls -l
+exit
+
+Now, if we delete the pod -> app (ctrl+d). Then, now if we check the status of volume, it changes from in-use to available.
+Then again, if we run the kubectl apply -f 03-ebs-static.yaml. Container starts and the volume will attach to the desired node and the volume changes to in-use state and we can able to see the earlier data. Data will not go anywhere as we used retain reclaim policy.
+
+******
+==> You cannot operate external volume directly from Kubernetes, you operate it through PV only.
+
+
+
+PV object type -> kubectl api-resources
+kubectl api-resources | grep pv
+persistentvolumeclaims              pvc          v1                                true         PersistentVolumeClaim
+persistentvolumes                   pv           v1                                false        PersistentVolume
+
+pv is cluster level resource, should be managed by k8 admin.
+pvc is namespace level, should be managed by project/namespace admin.
+
+--> If I have assigned as project admin then if I want to delete, then I can delete PVC and Pod not PV.
+kubectl delete pod <pod-name> [app]
+kubectl delete pvc <pvc-name> [ebs-static]
+
+--> kubectl delete pod app
+pod "app" deleted from default namespace
+
+--> kubectl delete pvc ebs-static
+persistentvolumeclaim "ebs-static" deleted from default namespace
+
+
+--> Your PV will be there only, then it means data will be present. We can see the status as released. If we want, we can mount again, data will not go anywhere.
+If not required we can delete pv, and also we can clean up the disk which we have created.
+kubectl delete pv <pv-name> [ebs-static]
+
+--> kubectl delete pv ebs-static
+persistentvolume "ebs-static" deleted
+
+EBS -> PV -> PVC -> Pod (reverse), if not required
+
+
+
+Roles:
+------
+
+Storage admins:
+===============
+
+--> Creating the disks
+
+K8s admins:
+===========
+
+--> Create PV
+
+Project/Namespace: devops engineer
+==================
+
+--> Create PVC and Pod
+
+
+
+Elastic Block Store (EBS) Dynamic Provisioning:
+================================================
+
+Storage Class:  One time admin task (A StorageClass defines how storage is dynamically created).
+==============
+
+--> You can create disks and PV using storage class...
+
+==> kubectl api-resources | grep sc --> Storage Class is cluster level resource.
+
+roboshop-ebs is the storage class for roboshop project. When starting the roboshop project, we will contact administrator and ask them to create a storage class and we will manage our own disks. Then they will create one and give that name to us. i.e., roboshop-ebs.
+
+--> kubectl apply -f 04-ebs-sc.yaml
+storageclass.storage.k8s.io/roboshop-ebs created
+
+--> kubectl get sc
+NAME           PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+gp2            kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer   false                  142m
+roboshop-ebs   ebs.csi.aws.com         Delete          WaitForFirstConsumer   false                  3s
+
+Reclaim policy should not be in delete state, change it to retain.
+
+--> kubectl get sc roboshop-ebs -o yaml
+kubectl delete sc  <sc-name> [roboshop-ebs] (if forbidden)
+--> kubectl delete sc roboshop-ebs
+storageclass.storage.k8s.io "roboshop-ebs" deleted
+
+Apply again after changing it to retain,
+
+--> kubectl apply -f 04-ebs-sc.yaml
+--> kubectl get sc (now will get as retain)
+kubectl get sc
+NAME           PROVISIONER             RECLAIMPOLICY   VOLUMEBINDINGMODE      ALLOWVOLUMEEXPANSION   AGE
+gp2            kubernetes.io/aws-ebs   Delete          WaitForFirstConsumer   false                  144m
+roboshop-ebs   ebs.csi.aws.com         Retain          WaitForFirstConsumer   false                  13s
+
+
+--> kubectl apply -f 05-ebs-dynamic.yaml (Now, we can see 4gb volume in use)
+
+--> kubectl apply -f 05-ebs-dynamic.yaml
+persistentvolumeclaim/ebs-dynamic created
+pod/app created
+
+
+Execution ==> We are running, Pod -> PVC -> SC (It will create disk (EBS) and PV (4Gb)).
+
+
+We verify EKS deletion by checking aws eks list-clusters, ensuring no cluster exists, and also confirming CloudFormation stacks and EC2 resources are cleaned up.

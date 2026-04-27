@@ -1,0 +1,19 @@
+mysql -h host -u root -p password < /file/path/.sql
+
+- name: Import Shipping data # Database collection module is used to create, delete and  import/export MySQL dbs
+    community.mysql.mysql_db:
+      state: import
+      name: all
+      login_host: "{{ MYSQL_HOST }}"
+      login_user: root
+      login_password: RoboShop@1
+      target: "{{ item }}"
+    loop:
+    - /app/db/schema.sql
+    - /app/db/app-user.sql
+    - /app/db/master-data.sql
+
+code and configuration
+
+--> Compile time issues
+--> Run time issues

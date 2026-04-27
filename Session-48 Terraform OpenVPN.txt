@@ -1,0 +1,469 @@
+For Roboshop:
+=============
+
+for i in 00-vpc/ 10-sg/ 20-sg-rules/ 30-bastion/ 50-backend-alb/ 70-acm/ 80-frontend-alb/; do cd $i; terraform init -reconfigure; terraform apply -auto-approve; cd ..;done
+
+do 40 and 90 folders in mobaxterm
+
+do 95 & 98 folders in gitbash(cdn and openvpn)
+
+**** For 90 folder use terraform init -reconfigure and terraform get -update ****
+
+==> 00[31] 10[26+2=28] 20[31+3=34] 30[4] 50[4] 70[4] 80[4] ==> 40[16] 90[60(10*6)] 95[2] 98[1]
+
+for i in 98-openvpn/ 80-frontend-alb/ 70-acm/ 50-backend-alb/ 30-bastion/ 20-sg-rules/ 10-sg/ 00-vpc/ ; do cd $i; terraform destroy -auto-approve; cd ..;done
+
+
+CISCO VPN:
+==========
+
+For connection of vpn use openvpn port numbers.
+
+VPN.sh:
+========
+
+openvpn userdata aws for automatic configuration [Through internet] (Setting up OpenVPN Access Server in Amazon VPC)
+
+
+==> We can tell in interview that in development environment in our roboshop project, we have created and used openvpn.
+
+OpenVPN is an open-source software application used to create a secure connection over the internet, commonly known as a Virtual Private Network (VPN).
+
+Definition:
+===========
+OpenVPN allows you to securely connect your device to another network (like your office network or the internet) by encrypting your data and routing it through a protected tunnel.
+
+
+Key Points:
+===========
+
+--> Encryption: Protects your data from hackers and surveillance
+--> Remote Access: Lets you access private networks from anywhere
+--> Privacy: Hides your IP address and online activity
+--> Flexible: Works on many platforms (Windows, Linux, macOS, Android)
+
+
+How it works:
+=============
+OpenVPN uses encryption protocols (like SSL/TLS) to create a secure “tunnel” between your device and a VPN server. All your internet traffic passes through this tunnel, keeping it safe and private.
+
+
+OpenVPN Access Server Community Image-8fbe3379-63b6-43e8-87bd-0e93fd7be8f3
+
+ami-03ea534e3e9b6f519 (t3.small) by default
+
+OpenVPN Access Server Community Image-8fbe3379-63b6-43e8-87bd-0e93fd7be8f3
+Image ID: ami-03ea534e3e9b6f519
+
+ssh access username: openvpnas [ssh -i daws-88s openvpnas@publicIp of openvpn] (Application server)  ==> ssh -i private key username@public_ip of instance
+admin UI username: openvpn
+Password : Openvpn#123 (@)
+
+https://32.195.50.8:943/admin ==> Admin UI
+
+We require vpn client to connect VPN ==> Download openvpn client for windows
+
+Admin  UI: https://32.195.50.8:943/admin
+Client UI: https://32.195.50.8:943/
+
+**** Every Internet request done by me from my laptop to us vpn server, from there it goes out through VPN with the help of HTTPS(443).
+
+
+Forward Proxy:
+==============
+
+1. Hiding client identity
+2. Sits in between client and server
+3. Client aware
+4. VPN, content filtering, traffic monitoring
+5. Can be used as caching also
+
+
+Reverse Proxy:
+==============
+
+1. Hiding server identity
+2. Server Aware
+3. Security reasons and queue management
+4. Load balancing
+5. Used for SSL/TLS/HTTPS termination
+
+*******
+FORWARD PROXY is used in VPN server.
+
+
+VPN is used in:
+===============
+
+--> Bastion is usually used by Linux/Devops administrators.
+
+For suppose developers want to test their API's, they cannot directly connect to backend services because they are in private subnet.
+Everyone has VPN access in the company,
+
+--> So through VPN, we can give access to backend alb & backend services like catalogue, cart, user, shipping and payment. Then they can connect and check their health checks and test API's whether the data is retrieving or not.
+
+
+Interviews:
+===========
+
+--> Manually in console
+
+--> import existing infra into terraform
+
+resource definition -> infra
+
+
+Reverse in reality (Tough an manual process):
+===================
+
+infra -> resource
+
+reverse engineering
+
+
+Terraform Import: (Usually used for few resources)
+=================
+
+Importing the existing infra
+
+1. Terraform import is the option if already created instance in console manually.
+2. Create skeleton syntax for all the resources and provider file.
+3. Run import command to get the details from terraform state.
+4. We get full details, we can pick and place them into resource definition.
+
+
+terraform import aws_instance.web i-12345678 (aws instance terraform import) [terraform import aws_instance.openvpn i-0baf2c93c72dba04d->instance id of openvpn]
+
+In Terraform, the command terraform import is used to bring existing infrastructure resources under Terraform management.
+
+It lets you take resources that were created outside Terraform (manually, via console, or other tools) and add them into Terraform’s state file, so Terraform can manage them going forward.
+
+Why it's needed:
+================
+
+Normally, Terraform only manages resources it creates. But in real-world scenarios:
+
+--> You may already have servers, databases, etc.
+--> You want Terraform to start managing them without recreating them
+
+That’s where terraform import comes in.
+
+How it works:
+=============
+
+terraform import does NOT create resources. Instead, it:
+
+--> Links an existing real-world resource
+--> To a Terraform resource block
+--> By updating the state file
+
+Syntax:
+~~~~~~~
+
+terraform import <resource_type.name> <resource_id>
+
+ex:- terraform import aws_instance.import i-0baf2c93c72dba04d
+
+By using import main.tf file, we can make changes there itself instead of doing it in console manually...
+
+
+R53 (frontend-dev.devopsdaws.online) [Only end user know this] -> frontend ALB -> frontend -> backend alb -> components -> db
+
+create infra parallelly
+
+
+stateless vs stateful:
+======================
+
+stateful  -> state(data) is important. databases (MongoDB, Redis, MySQL, RabbitMQ) are stateful applications. We can do it through import (vpc also)
+stateless -> backend and frontend applications created using programming languages are called stateless applications, We can easily even they crash [It cannot be done through import, if done it takes lot of human efforts] Time taking process...
+
+If anything deleted by mistake in databases, we will do backup of it and takes lot of time for checking and testing it, so we tell users to expect downtime for the application for a certain period of time and do the below process and after new updates also if we get any error we will redirect our customers to earlier chain so they could access as usual.
+
+dummy R53 -> new frontend ALB -> new frontend -> new backend alb -> components -> db [After testing only we redirect it to actual R53]
+
+R53 -> new frontend ALB
+
+Tell this process in interview, that we have assisted vendors in doing this.
+
+****
+Terraform target:
+=================
+
+Used to destroy the target resource. If asked about this, its very dangerous if we target to delete one resource, it may delete its dependencies also. Carefully we should delete it, we can also do it manually in console if needed.
+
+First, we need to analyze it before doing target. We can also comment the resource in terraform. So, think and take the decision before targeting any resource to delete or create.
+
+Terraform is better to apply and destroy only and in between the services we need to do it carefully and make it through console manually.
+
+You can target specific resource for creation or deletion.
+
+In Terraform, the -target option is used to apply or plan changes only for specific resources, instead of the entire configuration.
+
+The -target option is not for routine use, and is provided only for exceptional situations such as recovering from errors or mistakes, or when Terraform specifically suggests to use it as part of an error message.
+
+Basic Syntax:
+~~~~~~~~~~~~~
+
+terraform apply -target=RESOURCE_TYPE.NAME
+terraform destroy -target=RESOURCE_TYPE.NAME
+
+
+Example:
+~~~~~~~~
+
+terraform apply -target=aws_instance.my_ec2
+terraform destroy -target=aws_instance.my_ec2
+
+This tells Terraform to only apply changes to the aws_instance.my_ec2 resource.
+
+
+When to Use -target:
+====================
+
+--> Debugging a specific resource
+--> Recovering from a failed apply
+--> Incrementally applying infrastructure changes
+
+
+Important:
+==========
+
+-target is considered an advanced feature and should not be used routinely because:
+
+--> It can create partial state changes
+--> It may skip dependencies, leading to inconsistent infrastructure
+--> Terraform itself warns that it's for exceptional situations only
+
+
+Terraform taint:
+================
+
+If you find any resource is corrupted outside of terraform, (OR) it is difficult to repair that resource, you may feel creating from scratch is easy than repairing that service then you go for taint command. Taint the resource and then apply terraform, it will destroy and then recreate again.
+
+Used to destroy the corrupted resource.
+
+taint -> paint/pollute/corrupt
+
+
+In Terraform, the terraform taint command was used to manually mark a resource as “tainted”, meaning Terraform would destroy and recreate it on the next apply.
+
+What it did
+===========
+
+When you ran:
+~~~~~~~~~~~~~
+
+terraform taint <resource_address>
+ 
+you told Terraform:
+
+“This resource is bad or corrupted—recreate it next time.”
+
+Example:
+~~~~~~~~
+
+terraform taint aws_instance.my_server
+
+On the next:
+~~~~~~~~~~~~
+
+terraform apply
+
+Terraform would:
+
+--> Destroy aws_instance.my_server
+--> Recreate it from scratch
+
+Important (Modern Terraform)
+============================
+
+terraform taint is deprecated in newer versions of Terraform.
+
+Instead, use:
+~~~~~~~~~~~~~
+
+terraform apply -replace=<resource_address>
+
+Example:
+
+terraform apply -replace=aws_instance.my_server
+
+This is safer and more explicit because:
+
+--> It happens in one step
+--> It shows clearly in the execution plan
+--> It avoids modifying state separately
+
+When you'd use it:
+===================
+
+--> A VM is misconfigured or corrupted
+--> A resource drifted in a way Terraform can't fix
+--> You want to force recreation without changing config
+
+Summary:
+========
+
+Old way (deprecated)		New way
+====================    =======
+terraform taint         terraform apply -replace
+Separate step           Single step
+Alters state directly   Safer, plan-driven
+
+
+Terraform Lifecycle:
+====================
+
+First, it will create new instance and modify it accordingly and delete the old resource instance.
+
+In Terraform, the lifecycle block is a meta-argument used inside a resource to control how Terraform manages that resource during creation, updates, and deletion.
+
+Basic Syntax:
+~~~~~~~~~~~~~
+
+resource "aws_instance" "example" {
+  ami           = "ami-123456"
+  instance_type = "t2.micro"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+==> Lifecycle Arguments:
+
+1. create_before_destroy:
+=========================
+
+--> Ensures a new resource is created before the old one is destroyed.
+--> Useful for avoiding downtime.
+
+lifecycle {
+  create_before_destroy = true
+}
+
+Example: Updating a server without taking the app offline.
+
+2. prevent_destroy:
+====================
+
+--> Prevents accidental deletion of a resource.
+--> Terraform will throw an error if a destroy is attempted.
+
+lifecycle {
+  prevent_destroy = true
+}
+
+Good for critical resources like databases.
+
+3. ignore_changes:
+==================
+
+--> Tells Terraform to ignore changes to certain attributes.
+--> Useful when external systems modify the resource.
+
+lifecycle {
+  ignore_changes = [tags]
+}
+
+Example: If tags are modified manually or by another tool.
+
+4. replace_triggered_by:
+========================
+
+--> Forces replacement when another resource or attribute changes.
+
+lifecycle {
+  replace_triggered_by = [aws_security_group.sg]
+}
+
+Ensures dependent resources are recreated when needed.
+
+
+When to Use Lifecycle:
+======================
+
+--> You need zero downtime deployments
+--> You want to protect critical infrastructure
+--> External systems modify resources
+--> You need fine control over updates
+
+
+Important:
+===========
+--> Overusing ignore_changes can cause drift between Terraform state and real infrastructure.
+--> prevent_destroy can block legitimate changes if not handled carefully.
+--> Always test lifecycle changes in a staging environment.
+
+Perfect Format: It makes the terraform code in a perfect alignment and adjust exactly. 
+===============
+
+In Terraform, formatting your code properly is important for readability, consistency, and avoiding errors. Terraform provides a built-in command specifically for this.
+
+
+terraform fmt (Format Command):
+================================
+
+This command automatically formats your .tf files according to Terraform’s standard style.
+
+Basic Usage
+~~~~~~~~~~~~
+
+terraform fmt
+
+Formats all Terraform files in the current directory.
+
+Common Options:
+===============
+
+Format recursively
+~~~~~~~~~~~~~~~~~~
+
+terraform fmt -recursive
+
+--> Formats files in all subdirectories.
+
+Check formatting (without changing files)
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+terraform fmt -check
+
+--> Useful in CI/CD pipelines to enforce style.
+
+Show differences
+~~~~~~~~~~~~~~~~
+
+terraform fmt -diff
+
+--> Displays what changes would be made.
+
+Example:
+~~~~~~~~
+
+==> Before formatting (Wrong)
+
+resource "aws_instance" "example"{ami="ami-123456"instance_type="t2.micro"}
+
+==> After terraform fmt (Correct)
+
+resource "aws_instance" "example" {
+  ami           = "ami-123456"
+  instance_type = "t2.micro"
+}
+
+==> Formatting Rules (What Terraform Enforces)
+
+--> Proper indentation (2 spaces)
+--> Alignment of = signs
+--> Consistent spacing between blocks
+--> Clean line breaks
+
+Best Practices:
+===============
+
+--> Run terraform fmt before every commit
+Combine with:
+--> terraform validate → syntax check
+--> terraform plan → preview changes
+Add it to pre-commit hooks or CI pipelines

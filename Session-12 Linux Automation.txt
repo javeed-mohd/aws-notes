@@ -1,0 +1,93 @@
+Java:
+=====
+
+Build tool -> Ant, Maven, Gradle, etc.
+.java
+
+JDK -> Java development kit
+JRE -> Java Runtime environment
+
+While developing, we need JDK
+While running, JRE is enough
+
+JDK = JRE + development utilities
+
+Source code -> Compile -> Byte code -> 0 and 1
+node js = compile + running
+java = running directly
+
+Build tool = Maven
+output format -> .ear, .war, .jar
+.jar has inbuilt lightweight server
+
+
+Old Enterprise applications -> IBM Websphere, Oracle weblogic, JBOSS EAP, etc.,
+===========================
+
+enterprise archive = frontend+backend+libraries -> .ear
+roboshop.ear
+
+1. Tight couple
+2. Small problem makes both frontend and backend down
+3. A small change is also costly. end to end testing should be done again
+4. Every time frontend components should be downloaded from server
+
+Jquery, Angular JS, etc..
+
+
+Monolithic -> Apache Tomcat, JBOSS AS, etc.
+==========
+
+.war
+frontend and backend
+1. Easy maintenance
+2. Data only will be served by backend through API
+3. Loose coupling
+
+Problems:
+=========
+
+1. Problem in catalogue makes entire backend down
+2. Entire application should be developed in same programming language
+3. Tight coupling between backend components
+
+
+Microservices -> inbuilt servers
+=============
+
+catalogue, user, cart, shipping, payment.
+
+1. Each component is independent
+2. Different programming languages can be used
+3. Problem in one component can't disturb other components
+
+nodejs =  node + npm
+maven = java + maven
+
+programming language == programming runtime
+
+mvn clean package -> clean previous builds + install dependencies + pack the application
+
+a new directory target will be created
+
+
+Python:
+=======
+
+.py
+pip
+requirements.txt
+
+1. OOPS
+2. Scripting
+
+frontend logs -> backend component logs -> DB is running fine or not
+
+1. Frontend nginx config recheck
+2. Backend may not be running
+3. Data is not loaded into DB
+4. Database is not running
+5. DNS records are not updated
+
+502 -> Bad gateway -> proxy server not able to get response from upstream server
+500 -> internal server error -> proxy able to reach upstream server, but proper response is not there

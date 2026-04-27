@@ -1,0 +1,288 @@
+Ansible can connect using KEYS:
+==============================
+
+Ansible -> node
+
+node -> public key
+
+Ansible -> private key
+
+ssh -i private-key ec2-user@PublicIP
+
+ssh -i private-key ec2-user@NodePublicIP
+
+ssh -i daws-88s ec2-user@18.209.56.184(publicnodeip)(Local repo gitbash connection)
+
+servers -> create one system account(user)/service account for ansible
+
+--> Get the private key access to ansible server
+--> Configure the path in ansible.cfg
+--> Make sure keys are RSA based
+
+
+ls -la
+cd .ssh/
+touch remote_server.pem
+vim remote_server.pem (Keep the private key from cat daws-88s)
+chmod 400 remote_server.pem
+ssh -i remote_server.pem ec2-user@NodePrivateIp
+
+Troubleshooting:
+----------------
+
+ls -l
+cat reomte_erver.pm
+cd ..
+ls -la
+cd .ssh/ (SSH not able to connect which means ansible also not able to connect to managed node service)....
+
+ssh -v -i remote_server.pem ec2-user@NodePrivateIp (Debug)
+mv remote_server.pem ../
+cd ..
+ls -l
+ssh -i remote_server.pem ec2-user@172.31.22.61
+mv remote_server.pem daws-88s
+ssh -i daws-88 ec2-user@172.31.22.61
+cat daws-88s
+ssh -i daws-88s ec2-user@18.209.56.184(public nodeip)
+ls -l
+chmod 600 daws-88s
+ssh -i daws-88s ec2-user@172.31.22.61
+ssh -v -i daws-88s ec2-user@172.31.22.61
+
+Here, it is able to connect only within our laptop but unable to connect to remote server i.e., ansible due to ed25519 based key as it won't allow.
+So, check
+cat daws-88s.pub (Check in laptop(gitbash).It is of ed25519 key based so ansible won't allow ed keys. This algorithm is not accepted by remote servers).
+
+We create a separate user for ansible(remote server connection).
+It accepts RSA based key authentication.
+ssh -i daws-88s ec2-user@18.209.56.184 (Node public ip) create rsa key
+
+ssh-keygen -t rsa -f ansible (Gitbash) ==> Generate an RSA SSH key pair and save it with the name "ansible".
+means SSH ==> Secure Shell
+key ==> cryptographic key(public & private)
+gen ==> generate
+ssh-keygen ==> Generate SSH authentication key pair (private + public key)
+-t ==> type of key algorithm (You are telling SSH which encryption algorithm to use)
+rsa ==> Rivest Shamir Adleman
+Here, It:
+-> Generates RSA private key
+-> Generates RSA public key
+-> Compatible with FIPS mode (important for RHEL)
+-f ==> file name
+
+You are specifying the name of the key files.
+ansible        → Private key
+ansible.pub    → Public key
+Full path:
+~/.ssh/ansible (Location .ssh/)
+~/.ssh/ansible.pub
+
+ansible 		→ stays on control node (private key)
+ansible.pub		→ copied to managed nodes (authorized_keys)
+
+Enables passwordless SSH
+
+FIPS = Federal Information Processing Standards
+FIPS standards are published by:
+National Institute of Standards and Technology (NIST), USA.
+
+When a system is in FIPS mode, it means:
+=> The operating system allows ONLY government-approved cryptographic algorithms.
+=> Non-approved algorithms are blocked.
+
+FIPS mode initialized
+Skipping ssh-ed25519 key
+
+==> Your RHEL is running in FIPS mode
+==> It rejected ED25519 SSH key
+==> It accepts RSA keys
+
+NORMAL MODE: Any modern secure encryption can be used.
+
+FIPS MODE: Only officially approved encryption algorithms are allowed.
+
+
+FIPS-approved alternatives:
+-> RSA (2048+ bits)
+-> ECDSA using NIST curves (P-256, P-384, P-521)
+-> SHA-2 hashing
+
+Blocked in FIPS mode:
+-> ED25519
+-> Curve25519
+-> Some modern non-NIST curves
+
+We create a separate user for ansible(remote server connection).
+It accepts RSA based key authentication.
+ssh -i daws-88s ec2-user@18.209.56.184 (Node public ip) create rsa key
+
+ssh-keygen -t rsa -f ansible (Gitbash) ==> Generate an RSA SSH key pair and save it with the name "ansible".
+cat ansible.pub(Keep this rsa key)
+ls -l
+sudo useradd ansible
+sudo su -
+cd /home/ansible/
+ls -la
+mkdir .ssh (create hidden directory if not present)
+chmod -R 700 .ssh/
+cd .ssh/
+touch authorized_keys
+vim authorized_keys (Place the ansible.pub rsa key value)
+chmod 600 authorized_keys
+ls -la
+chown ansible:ansible authorized_keys
+cd ..
+ls -la
+chown ansible:ansible -R .ssh/
+exit
+ls -la(Now, we have created user using ansible in the remote server).
+Now using we can connect to remote server using private key --> cat ansible
+
+In Remote server 
+vim ansible (Place the private rsa key)
+chmod 600 ansible
+ls -la
+ssh -i ansible ansible@Privatenodeip (managed node) (CONNECTED).
+exit
+
+pwd
+ls -la (Change in ansible.cfg configuration file private_key_file=pwd, remote_user=ansible)
+[Add ansible in inventory.ini with node private ip for connection of managed node]
+
+
+If same name after cloning then, mkdir ansible-1, cd ansible-1/, now clone here, cd ansible, pwd, ls -l 
+cat ansible.cfg
+=> ansible all -i private ip address node, -m ping
+
+[WARNING]: Platform linux on host 172.31.22.61 is using the discovered Python interpreter at /usr/bin/python3.9, but future installation of another Python
+interpreter could change the meaning of that path. See https://docs.ansible.com/ansible-core/2.14/reference_appendices/interpreter_discovery.html for more
+information.
+172.31.22.61 | SUCCESS => {
+    "ansible_facts": {
+        "discovered_interpreter_python": "/usr/bin/python3.9"
+    },
+    "changed": false,
+    "ping": "pong"
+}
+
+
+=> ansible-playbook -i inventory.ini 01-playboook.yaml (To check connection establishment)
+
+PLAY [Ping the Server] ***************************************************************************************************************************************
+
+TASK [Gathering Facts] ***************************************************************************************************************************************
+[WARNING]: Platform linux on host 172.31.22.61 is using the discovered Python interpreter at /usr/bin/python3.9, but future installation of another Python
+interpreter could change the meaning of that path. See https://docs.ansible.com/ansible-core/2.14/reference_appendices/interpreter_discovery.html for more
+information.
+ok: [172.31.22.61]
+
+TASK [Ping the Web Server] ***********************************************************************************************************************************
+ok: [172.31.22.61]
+
+PLAY RECAP ***************************************************************************************************************************************************
+172.31.22.61               : ok=2    changed=0    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+
+
+TERRAFORM
+==========
+
+IaC tool (Infrastructure as a code)
+Pulumi (For Developers), Cloudformation (AWS), Arm, etc.,
+
+multi-cloud
+connects to any platform
+
+Advantages of TERRAFORM:
+========================
+
+1. Version control -> We can have history of our infra. Easy to restore. Can track who changed and review
+2. Consistent infra -> DEV, UAT and PROD
+3. CRUD -> inventory management
+4. Cost optimisation 
+5. Dependency management -> automatic in terraform
+6. Reusable infra -> terraform modules
+7. Time saving and no human errors
+
+
+1. Install terraform
+2. Setup the PATH in ENVIRONMENT variables (System variables->path->new->add C:\Softwares->ok->ok->ok)
+Check after restarting the cmd/powershell -> terraform version  [It takes credentials from aws cli and authenticates]
+3. Install AWS CLI V2 (Restart)
+4. Run aws configure (Provide details)
+
+
+echo $PATH ==> Path variable in Linux 
+
+Providers:
+==========
+
+Providers are a logical abstraction of an upstream API. They are responsible for understanding API interactions and exposing resources.
+
+AWS
+Azure
+Google Cloud Platform
+Kubernetes
+Alibaba Cloud
+Oracle Cloud Infrastructure and so on.
+
+HCL -> Hashicorp configuration language
+.tf -> extension for Terraform
+
+{
+} => It refers to block in terraform
+
+block_name "type" "name" {
+
+}
+
+block_name can be resource, data, output, variable, module, terraform, etc..
+
+
+resource "aws_instance" "name-of-the-instance" {
+	key = value
+}
+
+Here,
+Everything is a resource in terraform, anything we create is a resource.
+
+aws_instance -> syntax (We cannot change)
+name-of-the-instance -> we can change, this is for terraform reference
+key=value pairs can be ami, name, sg, instance_type
+
+Terraform is developed on golang.
+
+Terraform aws ec2 registry --> Argument (Input) -> Attribute (Output)
+
+==> terraform version (version check in gitbash)
+
+We should give these commands only when we see .tf files:
+
+-> terraform init => initialize terraform
+-> terraform plan
+-> terraform apply
+
+-> terraform apply -auto-approve
+-> terraform destroy -auto-approve
+
+
+
+For cloning:
+============
+
+git clone https://github.com/javeed-mohd/terraform.git
+cd terraform/
+ls -l
+[We should give terraform commands only when we see .tf files]
+cd ec2/
+ls -l
+terraform init ( It looks for terraform block and searches for provider, whatever we use the provider that provider will be downloaded from the internet ) From which a folder will be created in vs code as .terraform (Hidden directory)
+terraform plan
+terraform apply 
+
+terraform apply -auto-approve
+terraform destroy -auto-approve ==> To delete the instance
+
+AWS
+Terraform

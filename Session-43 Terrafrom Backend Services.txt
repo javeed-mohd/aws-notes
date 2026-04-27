@@ -1,0 +1,176 @@
+Format for Application Load Balancer:
+
+*.backend-alb-dev.devopsdawsonline(Route53 record) -> Application Load Balancer -> Listener(80/443) -> Rule -> Target Group(EC2 Instances one/more).
+
+for i in 00-vpc/ 10-sg/ 20-sg-rules/ 30-bastion/ 50-backend-alb/; do cd $i; terraform apply -auto-approve; cd ..; done ==> Manually creating infra using terraform for our project...
+
+Git-bash -> 00(31) 10(26) 20(10) 30(4) 50(3)  MobaXterm -> 40(16), 60(6)
+
+
+Connection Establishment for the Instance/Server:
+==================================================
+
+ssh ec2-user@private_ip of the instance 'netstat -lntp'				--> Checking network connection for the instance.
+ssh ec2-user@private_ip of the instance 'systemctl status instance'		--> Status check of the instance whether it is active or not.
+ssh ec2-user@private_ip of the instance 'curl http://localhost:8080/health'	--> Health check of the instance.
+
+
+1. Launch catalogue instance
+2. Configure using terraform_data and remote-exec provisioner
+3. Stop instance before taking AMI
+	aws_instance creates first
+	terraform_data and aws_ec2_instance_state both are dependent on aws_instance
+	when instance created, terraform immediately triggers both terraform_data and aws_ec2_instance_state parallelly. (Wrong Behaviour, so we use step by step process using depends_on).
+
+Depends on should be used... Which means one resource depends on the other resource.[Similar to chain reaction].
+In our project,
+--> terraform_data depends on aws_instance for triggering the instance.
+--> aws_ec2_instance_state depends on terraform_data to stop the instance.
+--> aws_ami_from_instance depends on aws_ec2_instance_state to start the new instance using ami id.
+
+4. Create Target group 
+5. Create Launch template
+5. Input to Autoscaling group
+6. Ask Autoscaling to launch instances into target group
+7. Create a rule in listener for catalogue
+8. Delete instance used for ami
+
+Launch template	-> Template to launch instance
+Autoscaling	-> Uses launch template as input, can trigger instance if CPU utilisation is more than 70%
+Scaling Policy	–> Rules for scaling up or down
+
+We cannot access load balancer through port number 22. Because it is completely managed by AWS managed service.
+
+
+Launch Template(LT):
+====================
+
+A Launch Template in Terraform is used to define the configuration for launching EC2 instances in Amazon Web Services.
+It stores settings like AMI, instance type, security groups, key pair, and user data, so you can reuse them when launching instances or Auto Scaling groups.
+
+It acts as a reusable blueprint that stores instance settings such as:
+-> AMI ID
+-> Instance type
+-> Security groups
+-> Key pair
+-> User data (startup scripts)
+-> Network settings
+-> Tags
+
+This template can be reused when launching EC2 instances or creating Auto Scaling Groups, making infrastructure management easier and more consistent in Terraform.
+
+
+Auto Scaling Group(ASG): 
+========================
+
+Auto Scaling in Terraform means automatically increasing or decreasing the number of EC2 instances based on load in Amazon Web Services.
+
+It helps your application:
+-> Handle high traffic automatically
+-> Reduce cost when traffic is low
+-> Maintain high availability
+
+Auto Scaling = Automatic server adjustment
+
+Example:
+~~~~~~~~
+-> If traffic increases → add more EC2 instances
+-> If traffic decreases → remove extra instances
+
+Health check grace period in autoscaling group ==> This time period delays the first health check until your instances finish initializing. It doesn't prevent an instance from terminating when placed into a non-running state.
+
+Health check grace period is around 2 minutes -> 120 seconds. Usually, instance creation takes around 60 seconds so we keep health grace period as 120 seconds.
+
+
+Auto Scaling Policy(ASP):
+=========================
+
+A Scaling Policy in Terraform defines when and how an Auto Scaling Group should increase or decrease EC2 instances in Amazon Web Services.
+
+It tells the Auto Scaling Group what action to take when a condition (like high CPU usage) occurs.
+
+Scaling Policy = Rule for scaling
+
+Example:
+~~~~~~~~
+-> If CPU > 70% → add 1 instance
+-> If CPU < 30% → remove 1 instance
+
+
+1a instance (One data center -> Within this availability zone we can have 'n' number of requests which is free of cost but if we want to communicate with the other availability zone(1b) then aws will incur the data charges for that)
+1b instance (Another data center -> Within this availability zone we can have 'n' number of requests which costs nothing but if we want to communicate with the other availability zone(1a) then aws will incur the data charges for that).
+
+But, if we keep both the availability zones then we can have high availability of usage when one az gets downtime then other acts as a backup.
+
+If launches fail in one Availability Zone, Auto Scaling will attempt to launch in another healthy Availability Zone.
+
+Minimum	-> At any point of time, how many instances you want.
+Desired -> How many you want right now.
+Maximum	-> Maximum instances autoscaling group can create.
+
+Minimum = 2
+Desired = 4
+Maximum = 10
+
+In an Amazon EC2 Auto Scaling Auto Scaling Group (ASG), the parameters Desired, Minimum, and Maximum capacity control how many EC2 instances run automatically.
+
+
+Minimum Capacity:
+=================
+
+The minimum number of instances that must always be running.
+
+Auto Scaling will never scale below this number, even during low demand.
+
+Ex:
+Minimum = 2 → At least 2 EC2 instances will always run.
+
+
+Desired Capacity:
+=================
+
+The number of instances the Auto Scaling group tries to maintain.
+
+If instances fail (or) are terminated, the ASG will launch new ones to maintain this number.
+
+Ex:
+Desired = 4 → ASG ensures 4 instances are running.
+
+
+Maximum Capacity:
+=================
+
+The upper limit of instances the Auto Scaling group can scale up to.
+
+Even during high demand, it cannot exceed this number.
+
+Ex:
+Maximum = 10 → ASG can scale up to 10 instances only.
+
+Example Configuration:
+
+Setting	Value	Meaning
+=============	=======
+Minimum	2	Always keep at least 2 instances
+Desired	4	Maintain 4 instances normally
+Maximum	10	Scale up to 10 during high load
+
+==> How Scaling Works
+
+If CPU usage increases, scaling policies may increase instances from 4 → 6 → 8 → up to 10.
+
+If traffic decreases, ASG reduces instances but never below 2.
+
+Minimum → Lowest limit
+Desired → Normal running number
+Maximum → Highest limit
+
+Open all this in different tabs:
+
+=> EC2 Instances
+=> Auto Scaling Groups
+=> CloudWatch Metrics
+=> Load Balancer
+=> Target Groups
+
+This helps you monitor scaling, health checks, and logs simultaneously.

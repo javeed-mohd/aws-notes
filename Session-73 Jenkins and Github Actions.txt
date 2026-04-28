@@ -1,0 +1,216 @@
+merge vs rebase
+branching strategy
+	* Git flow
+	* GitHub flow/Feature branching strategy
+reset, revert
+squash/interactive-rebase
+stash
+
+
+cherry-pick:
+============
+
+When you want only a certain commit/changes in another branch, we can go for cherry-pick. 
+
+C1 C2 C3 C4
+C2-C1 = A particular feature
+
+==> git cherry-pick C2
+
+--> A hot fix came, fixed it in hot-fix branch. Directly deployed into PROD. You can get that code as cherry-pick into release branch. [Old branch strategy]
+
+
+Any branch other than main branch is called as feature branch.
+==> git checkout main
+--> git pull origin main
+--> git checkout -b neyyi-karam-dosa
+--> git add . ; git commit -m "dosa batter added" ; git push origin neyyi-karam-dosa
+--> git add . ; git commit -m "ghee added" ; git push origin neyyi-karam-dosa
+
+==> git log --oneline
+fe56a67 (HEAD -> neyyi-karam-dosa, origin/neyyi-karam-dosa) ghee added
+c8ba5e4 dosa batter added
+a108028 (origin/main, origin/HEAD, main, egg-dosa-ramesh) Merge pull request #4 from javeed-mohd/egg-dosa-suresh
+9251966 conflict resolved
+98d768b oil and karam added
+c4bc33d Merge pull request #3 from javeed-mohd/egg-dosa-ramesh
+91009f6 dosa batter added
+affd6e5 (origin/egg-dosa-ramesh) oil and karam added
+646d7e8 two eggs added
+a56a4bd dosa batter added
+2d83c73 erra karam
+0f41cea karam added
+ae5b49c oil added
+06da299 dosa batter added
+b0da088 (plain-dosa) Merge pull request #1 from javeed-mohd/plain-dosa
+88bd6cd (origin/plain-dosa) light oil added
+3e64cbc dosa batter added
+edb7bc2 plain dosa started
+bfd85f4 initial commit
+
+If we don't want to add required item in our code rather getting it from elsewhere in the same code using cherry-pick.
+--> git cherry-pick 2d83c7
+
+After adding changes in vs code do this,
+==>  git add . ; git commit -m "got erra karam from karam-dosa" ; git push origin neyyi-karam-dosa
+
+
+CI (Continuous Integration):
+==========================
+
+--> Image/AMI build
+--> Infra creation
+--> Commands to deploy k8 applications
+
+--> Application is an artifact
+--> Build the application
+--> Test the application
+--> Scan the code
+--> Deploy the application
+
+3 months sprint - Once everyone says development completed, then they go for deployment in DEV.
+
+CI means developers regularly merge their code into a shared project—and each change is automatically tested.
+
+Useful for:
+--> Finding bugs early
+--> Prevents integration problems
+--> Saves time
+
+*******
+shift-left:
+===========
+
+Instead of testing and scanning the application, after deployment can introduce lot of issues, fixing them takes more cycles again and again. But, we can shift this before deployment.
+
+functional defects	-> Functionality is not working as expected
+build errors		-> You can't build image/AMI
+deployment errors	-> You can't deploy applications
+configuration errors	-> You cannot configure
+
+******** CI:
+--> It is a process of integrating code into artifact. We can trigger this CI after every commit into git. We can also follow shift-left, we can do testing and scanning the code before build.
+
+==> Shift Left means doing testing and quality checks earlier in the development process instead of waiting until the end.
+
+Useful for:
+--> Bugs are cheaper to fix early
+--> Better software quality
+--> Faster delivery
+
+
+Popular tools:
+--------------
+
+Jenkins and GitHub actions: Jenkins is a plain web server, developed in Java.
+===========================
+
+1. Complete control with us, We must depend on GitHub
+2. In Jenkins, we need to main extra CI server and take care of upgrade, patching, etc., No need of extra server for GitHub, we must use GitHub as coding platform.
+
+GitHub purchased by Microsoft.
+
+logs, visualisation, rbac, different platforms testing, automation etc., To address this, CI tool came.
+--> plugins add extra capabilities to Jenkins. In Jenkins, everything is a plugin. If you don't require, then you can remove it.
+
+
+Jenkins will open port number 8080.
+CI: (search install Jenkins - Installing Jenkins - Linux - RHEL)
+==
+--> sudo curl -o /etc/yum.repos.d/jenkins.repo     https://pkg.jenkins.io/rpm-stable/jenkins.repo
+--> sudo yum install fontconfig java-21-openjdk
+--> sudo yum install jenkins -y
+--> sudo systemctl daemon-reload
+--> sudo systemctl enable jenkins
+--> sudo systemctl start jenkins
+--> sudo systemctl status jenkins
+
+In browser hit with the IP public address with 8080. Then, it will redirect to jenkins	login page.
+
+/var/lib/jenkins/secrets/initialAdminPassword
+
+In Mobaxterm: sudo cat /var/lib/jenkins/secrets/initialAdminPassword	[Will get password, use it and login]
+
+--> After this, we have to install plugins so that jenkins gets power and can access the desired applications with those plugins. Plugins are nothing but client software or commands in the background.
+
+Create Admin User:
+--> admin
+
+Freestyle job:
+==============
+
+Issues:
+--------
+--> Code directly in jenkins
+--> Accidental changes
+--> Can't easily track, who did that changes
+--> Tough to restore
+--> No version control
+
+
+Pipeline: (Search pipeline syntax)
+=========
+We can keep the code in git
+
+SCM -> Source Code Management
+
+Syntax: - Declarative pipeline
+--------
+
+pipeline {
+	stages {
+		stage('Clone') {
+			steps {
+				echo "Cloning"
+			}
+		}
+	}
+}
+
+
+Declarative Vs Scripted pipeline:
+=================================
+
+Scripted pipeline	-> Old pipeline, groovy syntax. Before pipeline execution, it can't check for errors. At run time if error comes it will exit. We have more control to write scripts. Starts with node.
+Declarative pipeline	-> Latest pipeline from jenkins 2.0. It allows groovy syntax, but before execution it check for errors.
+
+We use a hybrid approach, we have script block in our declarative pipeline to have more control on the stages. (Mixing both the pipelines for better usage)
+
+script:
+-------
+The script step takes a block of Scripted Pipeline and executes that in the Declarative Pipeline.
+
+Download stage view in plugins.
+
+First upto sh only do it and push and check in jenkins.
+
+
+Jenkins Agents:
+===============
+We have the VM agents, we are managing separate agents for different kind of programming languages. We connected through SSH (22). Give 50GB space while creating because we jenkins agents are also developed in Java. If we want to run agent server then we need to install Java.
+
+We have to install java in jenkins-agent instance.
+==> sudo yum install fontconfig java-21-openjdk -y
+
+In Jenkins - Settings - Nodes - New Node - roboshop (permanent) - 3 executors
+
+Remote directory - /home/ec2-user/jenkins-agent
+
+==> If your instance capacity is more, then you can run multiple jobs at a time.
+==> If your instance capacity is less, then you can not run multiple jobs parallelly.
+
+
+Master and Node architecture:
+=============================
+
+pre-build
+build
+post-build
+
+TRIGGERS:
+=========
+web-hooks
+
+event driven
+
+If someone commits to git repo, we can trigger this pipeline

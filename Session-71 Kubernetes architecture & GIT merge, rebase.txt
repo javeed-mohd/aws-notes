@@ -350,8 +350,6 @@ Date:   Tue Apr 28 00:21:41 2026 +0530
     initial commit
 
 
-
-
 ******
 ==> To check information any time, we use this:
 
@@ -438,7 +436,7 @@ It is circular history.
 --> git checkout main
 --> git log 
 
-We can delete our earlier branch, no problem because after switching to main we still have git log, like for example here we can delete plain-dosa branch.
+We can delete our earlier branch, no problem because after switching to main because we still have the references using git log, like for example here we can delete plain-dosa branch.
 
 
 *******

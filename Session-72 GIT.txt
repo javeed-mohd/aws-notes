@@ -1,32 +1,175 @@
-Merge vs Rebase:
+Merge Vs Rebase: 
 ================
 
+(Search merge vs rebase)
 1. Merge creates extra commit, rebase will not create extra commit
 2. Merge preserves history, rebase rewrites the history
 3. Rebase changes the commit id references
 
---> If shared branch go with merge, if private/local branch go for rebase
+--> If shared (multiple persons work on same branch) branch go with merge, if private/local (single person on individual branch) branch go for rebase. Rebase should be done in local branches only.
 --> Merge is the safest option.
+
+**********
+Every time,before you create a branch make sure to run,
+--> git pull origin main
+
+From https://github.com/javeed-mohd/dosa-shop
+ * branch            main       -> FETCH_HEAD
+Already up to date.
 
 
 How we get conflicts? How to resolve conflicts?
-================================================
+===============================================
 
+Task given to two members Ramesh and Suresh separately who makes dosa faster and will push the best one out of it.
 egg-dosa-ramesh
 egg-dosa-suresh
 
-If git sees diffe content in the same line number, it gives conflict. whoever responsible for that, code should sit and resolve the conflict.
+Create in separate folders for both persons:
+1. egg-dosa-ramesh	--> /c/devops/daws-88s/repos/dosa-shop
+2. egg-dosa-suresh	--> /c/devops/daws-88s/dosa-shop
+
+1. egg-dosa-ramesh
+DELL@JAVEED-LAPTOP MINGW64 /c/devops/daws-88s/repos/dosa-shop (main)
+--> git checkout -b egg-dosa-ramesh
+Switched to a new branch 'egg-dosa-ramesh'
+
+==> git add . ; git commit -m "dosa batter added" ; git push origin egg-dosa-ramesh
+==> git add . ; git commit -m "two eggs added" ; git push origin egg-dosa-ramesh
+==> git add . ; git commit -m "oil and karam added" ; git push origin egg-dosa-ramesh
+
+
+
+Suresh is slow compared to Ramesh.
+2. egg-dosa-suresh
+DELL@JAVEED-LAPTOP MINGW64 /c/devops/daws-88s/dosa-shop (main)
+$ git checkout -b egg-dosa-suresh
+Switched to a new branch 'egg-dosa-suresh'
+
+--> ls -l
+--> vim README.md
+
+==> git add . ; git commit -m "dosa batter added" ; git push origin egg-dosa-suresh
+
+
+Ramesh:
+-------
+--> git log --oneline
+affd6e5 (HEAD -> egg-dosa-ramesh, origin/egg-dosa-ramesh) oil and karam added
+646d7e8 two eggs added
+a56a4bd dosa batter added
+2d83c73 (origin/main, origin/HEAD, main) erra karam
+0f41cea karam added
+ae5b49c oil added
+06da299 dosa batter added
+b0da088 (plain-dosa) Merge pull request #1 from javeed-mohd/plain-dosa
+88bd6cd (origin/plain-dosa) light oil added
+3e64cbc dosa batter added
+edb7bc2 plain dosa started
+bfd85f4 initial commit
+
+
+Suresh:
+-------
+-->  git log --oneline
+91009f6 (HEAD -> egg-dosa-suresh, origin/egg-dosa-suresh) dosa batter added
+2d83c73 (origin/main, origin/HEAD, main) erra karam
+0f41cea karam added
+ae5b49c oil added
+06da299 dosa batter added
+b0da088 Merge pull request #1 from javeed-mohd/plain-dosa
+88bd6cd (origin/plain-dosa) light oil added
+3e64cbc dosa batter added
+edb7bc2 plain dosa started
+bfd85f4 initial commit
+
+
+*******
+==> If git sees different content in the same line number, it gives conflict. Whoever responsible for that code, should sit and resolve the conflict.
+
+Since, Suresh's main branch is not to update, so he need to checkout the main branch and pull it (because main branch is forwarded) and merge it locally with his branch.
+
+
+Suresh:
+-------
+==> git checkout main
+--> git pull origin main	[Because main branch is forwarded and he have to take that changes and merge it locally with his branch] 
+--> git checkout egg-dosa-suresh
+==> git merge main
+Auto-merging README.md
+CONFLICT (content): Merge conflict in README.md
+Automatic merge failed; fix conflicts and then commit the result.
+
+--> vim README.md
+--> git add . ; git commit -m "conflict resolved" ; git push origin egg-dosa-suresh
+
+==> git log --oneline
+9251966 (HEAD -> egg-dosa-suresh, origin/egg-dosa-suresh) conflict resolved
+98d768b oil and karam added
+c4bc33d (origin/main, origin/HEAD, main) Merge pull request #3 from javeed-mohd/egg-dosa-ramesh
+91009f6 dosa batter added
+affd6e5 oil and karam added
+646d7e8 two eggs added
+a56a4bd dosa batter added
+2d83c73 erra karam
+0f41cea karam added
+ae5b49c oil added
+06da299 dosa batter added
+b0da088 Merge pull request #1 from javeed-mohd/plain-dosa
+88bd6cd (origin/plain-dosa) light oil added
+3e64cbc dosa batter added
+edb7bc2 plain dosa started
+bfd85f4 initial commit
+
+
+*******
+Ramesh:
+--------
+Before creating a new branch always move inside main using,
+--> git checkout main
+
+If any changes made in main branch, pull it using,
+--> git pull origin main
+
+==>  git log --oneline
+a108028 (HEAD -> main, origin/main, origin/HEAD, egg-dosa-ramesh) Merge pull request #4 from javeed-mohd/egg-dosa-suresh
+9251966 conflict resolved
+98d768b oil and karam added
+c4bc33d Merge pull request #3 from javeed-mohd/egg-dosa-ramesh
+91009f6 dosa batter added
+affd6e5 (origin/egg-dosa-ramesh) oil and karam added
+646d7e8 two eggs added
+a56a4bd dosa batter added
+2d83c73 erra karam
+0f41cea karam added
+ae5b49c oil added
+06da299 dosa batter added
+b0da088 (plain-dosa) Merge pull request #1 from javeed-mohd/plain-dosa
+88bd6cd (origin/plain-dosa) light oil added
+3e64cbc dosa batter added
+edb7bc2 plain dosa started
+bfd85f4 initial commit
+
+
 
 
 Branching strategy:
 ===================
 
+Hotfix is used in Git workflows to mean a quick, urgent fix applied to production code.
+
+--> A small, critical fix (e.g., bug, security issue)
+--> Made directly against the production branch (main/master branch)
+--> Release as soon as possible, without waiting for the next full release
+
 How you bring changes in code from DEV -> PROD
 
 develop -> uat -> production
 
+==> If you software should support multiple versions at a time, then you can use branching strategy Ex: Instagram, VS Code.
+--> If your software is purely web applications, then you no need to use this branching strategy as it is difficult to maintain.
 
-git flow:
+git flow: (search git flow, a successful git branching model) It is used for desktop applications not for web/enterprise applications.
 =========
 
 merge and rebase -> merging strategy
@@ -34,18 +177,19 @@ merge and rebase -> merging strategy
 master and develop
 release
 
-feature -> source from develop, target release branch
-release -> source from develop, merge to master
-develop -> get changes from master
+feature	-> source from develop, target release branch
+release	-> source from develop, merge to master
+develop	-> get changes from master
 
 long lived branches
 short lived branches
 
-main, develop -> long lived branches
-short lived branches -> release, feature, hotfix
+main, develop		-> long lived branches
+short lived branches	-> release, feature, hotfix
 
-main -> always points to production
-develop -> source=main, target=main
+main	-> Always points to production
+develop	-> source=main, target=main
+
 
 Feature branches:
 =================
@@ -53,67 +197,219 @@ Feature branches:
 feature/1 -> source=develop, target=develop
 feature/2 -> source=develop, target=develop
 
-current -> 2.53
-release -> 2.54 -> release/2.54 source=develop
-test the code into diff environments like dev,uat, sit, etc...
-create bug fixes branches and raise PR to release branch
+current	-> 2.53
+release	-> 2.54	-> release/2.54 source=develop
+Test the code into different environments like dev, uat (User Acceptance Testing), sit (System Integration Testing), etc.,
+Create bug fixes branches and raise pull request (PR) to release branch
 release/2.54 -> .exe .zip
-deploy to PROD
-then raise PR to develop
-main branch points to release/2.54
+Deploy to PROD
+Then raise pull request (PR) to develop
+main branch points to release/2.54 (tag)
+
 
 2.53
-2.53.1 -> hotfix/bugfix
+2.53.1	-> hotfix/bugfix
 
 
-Feature branching strategy:
-===========================
+********
+Earlier, we used to have this branching strategy of master, development, release, feature and hotfix. It has become tough (over head) to maintain as per the internet suggestion who has developed the git flow (Vincent Driessen), we have migrated to Feature branching strategy/GitHub Flow:.
+
+
+*********
+Feature branching strategy/GitHub Flow:
+=======================================
 
 main and feature
 
-do the development in feature
-merge to master/main
+--> Do the development in feature
+--> Merge to master/main
 
 develop, uat, sit, prod
 
-tag the version at successful commit
-configuration is different, but code is always same
-we maintain config-map seperate for diff env, sep values-dev.yaml or values-prod.yaml
+--> tag the version at successful commit
+--> Configuration is different, but code is always same
+--> We maintain config-map separate for different env (or) if we use helm, then separate values-dev.yaml or values-prod.yaml
+
 
 git reset/revert:
 =================
-
 To undo the changes
 
-soft -> it brings the changes from local to staging
-mixed -> it brings the changes from local to workspace
-hard -> delete the changes
 
-reset is used only for local branches
+DELL@JAVEED-LAPTOP MINGW64 /c/devops/daws-88s/repos/dosa-shop (main)
+$ git checkout -b panner-dosa
 
-revert is used to undo the changes in remote branches, it will not delete the commit, it will correct the code through extra commit...
+--> git add . ; git commit -m "dosa batter added" ;
+
+--> git add . ; git commit -m "panner added" ;
+
+--> git add . ; git commit -m "mysore masala added" ;
+
+--> git add . ; git commit -m "tomato and keera added" ;
+
+--> git add . ; git commit -m "cheese and butter added" ;
+
+--> git add . ; git commit -m "oil added" ;
+
+==> git log --oneline
+d1465ae (HEAD -> panner-dosa) oil added
+d13bec0 cheese and butter added
+ab970e7 tomato and keera added
+4b1790f mysore masala added
+e3d008b panner added
+40c162c dosa batter added
 
 
-git squash/interactive rebase:
+Reset:
+------
+soft	-> It brings the changes from local repo to staging
+mixed	-> It brings the changes from local repo to workspace
+hard	-> Delete the changes
+
+reset is used only for local branches. reset removes the commit id.
+
+==> My code is in local repo, I have to undo it. Then, I can use git reset option to do that.
+
+soft reset:	It brings the changes from local repo to staging
+-----------
+--> git reset --soft HEAD~1
+==>  git status
+On branch panner-dosa
+Changes to be committed:
+  (use "git restore --staged <file>..." to unstage)
+        modified:   README.md
+
+HEAD~1 ==> Means 1 commit back to current commit.
+
+--> git log --oneline
+d13bec0 (HEAD -> panner-dosa) cheese and butter added
+ab970e7 tomato and keera added
+4b1790f mysore masala added
+e3d008b panner added
+40c162c dosa batter added
+
+
+mixed reset:	It brings the changes from local repo to workspace
+------------
+-->  git reset HEAD~1
+==> git status
+On branch panner-dosa
+Changes not staged for commit:
+  (use "git add <file>..." to update what will be committed)
+  (use "git restore <file>..." to discard changes in working directory)
+        modified:   README.md
+
+==> git log --oneline
+ab970e7 (HEAD -> panner-dosa) tomato and keera added
+4b1790f mysore masala added
+e3d008b panner added
+40c162c dosa batter added
+
+
+hard reset:	Deletes the changes and keep the commit as it is till specified.
+-----------
+--> git reset --hard e3d008b
+HEAD is now at e3d008b panner added
+
+==> git status
+On branch panner-dosa
+nothing to commit, working tree clean
+
+--> git log --oneline
+e3d008b (HEAD -> panner-dosa) panner added
+40c162c dosa batter added
+
+
+******
+Revert:
+=======
+
+revert is used to undo the changes in remote branches, it will not delete the commit, it will correct the code through extra commit.
+
+--> git add . ; git commit -m "carrot and beetroot added" ;
+
+--> git add . ; git commit -m "ghee added" ;
+
+--> git add . ; git commit -m "mysore masala added" ;
+
+--> git add . ; git commit -m "mysore masala added" ; git push origin panner-dosa
+
+==> git log --oneline
+50755fd (HEAD -> panner-dosa, origin/panner-dosa) mysore masala added
+84e04f8 ghee added
+e856981 carrot and beetroot added
+e3d008b panner added
+40c162c dosa batter added
+
+
+==> DELL@JAVEED-LAPTOP MINGW64 /c/devops/daws-88s/repos/dosa-shop (panner-dosa)
+$ git revert 84e04f
+
+--> DELL@JAVEED-LAPTOP MINGW64 /c/devops/daws-88s/repos/dosa-shop (panner-dosa|REVERTING)
+$ git add . ; git commit -m "changes reverted" ; git push origin panner-dosa
+
+==> git log --oneline
+fb2ead1 (HEAD -> panner-dosa, origin/panner-dosa) changes reverted
+50755fd mysore masala added
+84e04f8 ghee added
+e856981 carrot and beetroot added
+e3d008b panner added
+40c162c dosa batter added
+a108028 (origin/main, origin/HEAD, main, egg-dosa-ramesh) Merge pull request #4 from javeed-mohd/egg-dosa-suresh
+
+
+**********
+git squash/interactive rebase:	It is used to squash the multiple commits into a single commit.
 ==============================
 
-main -> 10 commits
-feature -> 200 commits
+main	-> 10 commits
+feature	-> 200 commits
 
-210 commits -> only one feature is the difference
+210 commits	-> Only one feature is the difference.
 210 - 10 = extra feature
-feature-1 -> 10 commits
-feature-2 -> 11 commits
+feature-1	-> 10 commits
+feature-2	-> 11 commits
 
 11-10 = extra feature
-git rebase -i eccd68e
+==> git rebase -i a10802	[Making all the commits after this id as a single commit]
 
-replace pick with squash except 1st line
+--> Replace pick with squash except 1st line by using, %s/pick/squash in vim editor. Keep pick for first line only. - %d (panner dosa) :wq!
+
+==> git log --oneline
+8ca9d30 (HEAD -> panner-dosa) panner dosa
+a108028 (origin/main, origin/HEAD, main, egg-dosa-ramesh) Merge pull request #4 from javeed-mohd/egg-dosa-suresh
+
+==> git add . ; git commit -m "changes reverted" ; git push origin panner-dosa
+On branch panner-dosa
+nothing to commit, working tree clean
+To https://github.com/javeed-mohd/dosa-shop.git
+ ! [rejected]        panner-dosa -> panner-dosa (non-fast-forward)
+error: failed to push some refs to 'https://github.com/javeed-mohd/dosa-shop.git'
+
+==> git add . ; git commit -m "changes reverted" ; git push origin panner-dosa -f
+
 
 git stash:
 ==========
 
 You are working in some feature branch, suddenly you got emergency defect in production.
 
-git stash ->  saves your code to stash memory
-git stash pop -> brings your code to workspace
+*******
+==> When we are working in some feature branch, meanwhile you got sudden defect in master branch. We need to stash our changes and move to master, create hotfix and do the fix and come back to the feature branch using git stash pop and do the development.
+
+git stash	-> Saves your code to stash memory
+git stash pop	-> Brings your code to workspace
+
+--> git checkout main
+error: Your local changes to the following files would be overwritten by checkout:
+        README.md
+Please commit your changes or stash them before you switch branches.
+Aborting
+
+==>  git stash		[Saves your work anywhere in stash memory]
+
+--> git checkout main	[Complete your work where you have conflicts and after that move to your working branch]
+
+--> git checkout panner-dosa
+
+--> git stash pop	[It brings back your code to workspace so that you can work on it]

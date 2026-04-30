@@ -77,18 +77,20 @@ Useful for:
 --> Prevents integration problems
 --> Saves time
 
+
 *******
 shift-left:
 ===========
 
-Instead of testing and scanning the application, after deployment can introduce lot of issues, fixing them takes more cycles again and again. But, we can shift this before deployment.
+Instead of testing and scanning the application after deployment can introduce lot of issues, fixing them takes more cycles again and again. But, we can shift this before deployment.
 
 functional defects	-> Functionality is not working as expected
 build errors		-> You can't build image/AMI
 deployment errors	-> You can't deploy applications
 configuration errors	-> You cannot configure
 
-******** CI:
+***
+CI:
 --> It is a process of integrating code into artifact. We can trigger this CI after every commit into git. We can also follow shift-left, we can do testing and scanning the code before build.
 
 ==> Shift Left means doing testing and quality checks earlier in the development process instead of waiting until the end.
@@ -105,43 +107,58 @@ Popular tools:
 Jenkins and GitHub actions: Jenkins is a plain web server, developed in Java.
 ===========================
 
-1. Complete control with us, We must depend on GitHub
-2. In Jenkins, we need to main extra CI server and take care of upgrade, patching, etc., No need of extra server for GitHub, we must use GitHub as coding platform.
+Advantage:
+----------
+For jenkins, complete control with us. For GitHub actions, we must depend on GitHub.
+
+Disadvantage:
+-------------
+In Jenkins, we need to main extra CI server and take care of upgrade, patching, etc., In GitHub actions, No need of extra server for GitHub, we must use GitHub as coding platform. It won't work in GitLab and Bit Bucket.
 
 GitHub purchased by Microsoft.
 
-logs, visualisation, rbac, different platforms testing, automation etc., To address this, CI tool came.
---> plugins add extra capabilities to Jenkins. In Jenkins, everything is a plugin. If you don't require, then you can remove it.
 
+*********
+Problems while using workstation:
+----------------------------------
+--> Workstation does not have proper UI.
+--> logs, visualisation, rbac, different platforms for testing, automation etc., To address all this, CI tool came.
+
+
+How does workstation got access to connect docker, Kubernetes because we have installed docker, kubectl. Similarly, Jenkins also can connect in the same way. Jenkins is a plain web server which is developed in Java. Jenkins use plugins to connect to particular applications/servers. This plugins install commands in the background for the Jenkins to connect. If we install kubectl then we can connect EKS Cluster. If we install SonarQube then we can connect to SonarQube server. Whatever we require we can install through plugins, then Jenkins can connect through it. Jenkins power is in plugins.
+
+--> Plugins add extra capabilities to Jenkins. In Jenkins, everything is a plugin. If you don't require, then you can remove it.
+
+Generally, in Linux server whatever command we install, we can interact and connect with that. Similarly Jenkins also do the same. In Jenkins, we call them as plugins. 
 
 Jenkins will open port number 8080.
 CI: (search install Jenkins - Installing Jenkins - Linux - RHEL)
 ==
 --> sudo curl -o /etc/yum.repos.d/jenkins.repo     https://pkg.jenkins.io/rpm-stable/jenkins.repo
---> sudo yum install fontconfig java-21-openjdk
+--> sudo yum install fontconfig java-21-openjdk -y
 --> sudo yum install jenkins -y
 --> sudo systemctl daemon-reload
 --> sudo systemctl enable jenkins
 --> sudo systemctl start jenkins
 --> sudo systemctl status jenkins
 
-In browser hit with the IP public address with 8080. Then, it will redirect to jenkins	login page.
+In browser hit with the IP public address with 8080 (http://204.236.203.138:8080/). Then, it will redirect to jenkins login page.
 
 /var/lib/jenkins/secrets/initialAdminPassword
 
-In Mobaxterm: sudo cat /var/lib/jenkins/secrets/initialAdminPassword	[Will get password, use it and login]
+In Mobaxterm: sudo cat /var/lib/jenkins/secrets/initialAdminPassword	[Will get password, use it and login] d671ff9c21ec4fe8a67961c29e64e906
 
 --> After this, we have to install plugins so that jenkins gets power and can access the desired applications with those plugins. Plugins are nothing but client software or commands in the background.
 
 Create Admin User:
 --> admin
 
-Freestyle job:
+Freestyle job: It is still used now also in some legacy applications but now we use pipeline.
 ==============
 
 Issues:
 --------
---> Code directly in jenkins
+--> Code directly saved in jenkins
 --> Accidental changes
 --> Can't easily track, who did that changes
 --> Tough to restore
@@ -154,7 +171,7 @@ We can keep the code in git
 
 SCM -> Source Code Management
 
-Syntax: - Declarative pipeline
+Syntax: - Declarative pipeline --> Means whatever we write or ask to do Jenkins, it can do.
 --------
 
 pipeline {
@@ -171,22 +188,34 @@ pipeline {
 Declarative Vs Scripted pipeline:
 =================================
 
-Scripted pipeline	-> Old pipeline, groovy syntax. Before pipeline execution, it can't check for errors. At run time if error comes it will exit. We have more control to write scripts. Starts with node.
-Declarative pipeline	-> Latest pipeline from jenkins 2.0. It allows groovy syntax, but before execution it check for errors.
+Scripted pipeline	-> Old pipeline, groovy syntax. Before pipeline execution, it can't check for errors. At run time, if error comes it will exit. We have more control to write scripts. Starts with node.
+Declarative pipeline	-> Latest pipeline from jenkins 2.0. It allows groovy syntax, but before execution it check for errors. We have to do whatever the code they give after installing plugins in this declarative pipeline.
 
-We use a hybrid approach, we have script block in our declarative pipeline to have more control on the stages. (Mixing both the pipelines for better usage)
+We use a hybrid approach, we have script block in our declarative pipeline to have more control on the stages. (Mixing both the pipelines and use to get the better results).
 
-script:
--------
-The script step takes a block of Scripted Pipeline and executes that in the Declarative Pipeline.
+--> The script step takes a block of Scripted Pipeline and executes that in the Declarative Pipeline.
 
-Download stage view in plugins.
+==> In Jenkins,
+--> Pipeline (hello-pipeline) - Pipeline for SCM - git (https://github.com/jenkins.git)
+Build Now
 
-First upto sh only do it and push and check in jenkins.
+Download stage view in plugins to get every stage view. Settings - Plugin - Pipeline Stage view --> For logs, better visualisation and so on we use this.
+
+First upto sh only do it and push and check in Jenkins for Jenkinsfile. (For multi-line scripts, we use """	""")
 
 
-Jenkins Agents:
-===============
+Master and Node/Master Agent architecture:
+==========================================
+
+--> We have only one Jenkins for each project. But, we have lot of components like catalogue, cart, user... To get nodejs, java and so on capabilities for Jenkins, we add them and Jenkins will get lot of load on it. To overcome this, we use master and node architecture, so that Jenkins don't get load on it and distributes the work loads to agents same as EKS Master Node (It doesn't run any work loads).
+
+If we trigger pipeline in jenkins, then according to our project jenkins allocates the work to different agents as per the requirement. Basically through jenkins we can connect to any server. In companies, jenkins agents will have full permissions. So, we have do any work through jenkins only because we can have clear visualization, logs... If we give ssh access then they will not know what we are doing, so they will restrict us using through ssh. Whatever we want to do, do it through jenkins.
+
+--> If jenkins is having access to all the servers, we can write anything not only pipeline, you can write some scripts to execute and so on.
+  
+
+How you configure Jenkins Agents:
+=================================
 We have the VM agents, we are managing separate agents for different kind of programming languages. We connected through SSH (22). Give 50GB space while creating because we jenkins agents are also developed in Java. If we want to run agent server then we need to install Java.
 
 We have to install java in jenkins-agent instance.
@@ -194,23 +223,237 @@ We have to install java in jenkins-agent instance.
 
 In Jenkins - Settings - Nodes - New Node - roboshop (permanent) - 3 executors
 
-Remote directory - /home/ec2-user/jenkins-agent
-
 ==> If your instance capacity is more, then you can run multiple jobs at a time.
 ==> If your instance capacity is less, then you can not run multiple jobs parallelly.
 
+Remote directory - /home/ec2-user/jenkins-agent
 
-Master and Node architecture:
-=============================
+After adding everything, check in roboshop log, You will see agent successfully connected and online.
+
+
+--> cd /home/ec2-user/jenkins-agent
+==> ls -l
+total 1376
+drwxr-xr-x 4 ec2-user ec2-user      34 Apr 30 08:03 remoting
+-rw-r--r-- 1 ec2-user ec2-user 1407936 Apr 30 08:03 remoting.jar
+
+--> This remoting.jar is the software that connects master and node, this will be taken care by master. In agent architecture, any one agent should run and that is remoting.jar.
+
+Our roboshop node went offline as it require minimum of 1GB free space to be in online so that we have created jenkins-agent with 50GB for this purpose and will extend that.
+--> df -hT
+--> lsblk
+==> sudo su -
+--> sudo growpart /dev/nvme0n1 4
+--> sudo lvextend -L +10G /dev/mapper/RootVG-homeVol			[10GB disk for home directory]
+  Size of logical volume RootVG/homeVol changed from 1.00 GiB (256 extents) to 11.00 GiB (2816 extents).
+  Logical volume RootVG/homeVol successfully resized.
+
+--> sudo lvextend -L +10G /dev/mapper/RootVG-rootVol			[10GB disk for root directory]
+  Size of logical volume RootVG/rootVol changed from 6.00 GiB (1536 extents) to 16.00 GiB (4096 extents).
+  Logical volume RootVG/rootVol successfully resized.
+
+--> sudo lvextend -L +10G /dev/mapper/RootVG-varVol			[10GB disk for var directory]
+  Size of logical volume RootVG/varVol changed from 2.00 GiB (512 extents) to 12.00 GiB (3072 extents).
+  Logical volume RootVG/varVol successfully resized.
+
+If not increased the disk space, it will fail.
+
+--> sudo xfs_growfs /
+--> sudo xfs_growfs /home
+--> sudo xfs_growfs /var
+==> df -hT
+Filesystem                   Type      Size  Used Avail Use% Mounted on
+devtmpfs                     devtmpfs  4.0M     0  4.0M   0% /dev
+tmpfs                        tmpfs     359M     0  359M   0% /dev/shm
+tmpfs                        tmpfs     144M  2.4M  142M   2% /run
+efivarfs                     efivarfs  128K  4.0K  120K   4% /sys/firmware/efi/efivars
+/dev/mapper/RootVG-rootVol   xfs        16G  3.0G   13G  19% /
+/dev/mapper/RootVG-varVol    xfs        12G  666M   12G   6% /var
+/dev/mapper/RootVG-homeVol   xfs        11G  134M   11G   2% /home
+/dev/nvme0n1p3               xfs       424M  343M   82M  81% /boot
+/dev/nvme0n1p2               vfat      122M  7.4M  115M   7% /boot/efi
+/dev/mapper/RootVG-logVol    xfs       2.0G   92M  1.9G   5% /var/log
+/dev/mapper/RootVG-varTmpVol xfs       2.0G   47M  1.9G   3% /var/tmp
+/dev/mapper/RootVG-auditVol  xfs       4.4G   65M  4.3G   2% /var/log/audit
+tmpfs                        tmpfs      72M     0   72M   0% /run/user/1001
+
+
+--> Refresh the roboshop node, now it will connect successfully to the agent.
+
+
+Sections in pipeline syntax:
+----------------------------
+AGENT:
+======
+
+agent { node { label 'labelName' } } behaves the same as agent { label 'labelName' }, but node allows for additional options (such as customWorkspace).
+
+agent {
+	node {
+		label 'ROBOSHOP'
+	}
+}
+
+--> cd /home/ec2-user/jenkins-agent/workspace/hello-pipeline
+
+--> ls -l
+total 8
+-rw-r--r-- 1 ec2-user ec2-user 726 Apr 30 09:03 Jenkinsfile
+-rw-r--r-- 1 ec2-user ec2-user 348 Apr 30 09:03 Jenkinsfile.dcl
+
+--> cat Jenkinsfile
+==> exit
+
+It is running in agent and master fetches the logs of it.
+
+
+POST:
+=====
+
+The post section defines one or more additional steps that are run upon the completion of a Pipeline’s or stage’s run (depending on the location of the post section within the Pipeline). 
 
 pre-build
 build
 post-build
 
-TRIGGERS:
-=========
+Based on the status, we can take the actions.
+
+post build:
+-----------
+post { 
+        always { 
+            echo 'I will always say Hello again!'
+        }
+        success { 
+            echo 'Pipeline success'
+        }
+        failure { 
+            echo 'Pipeline failure'
+        }
+    }
+
+==> If we don't specify success and failure, then it will always show the output as always.
+==> If we have specified them, then it will show the desired output based on the given build along with the always. If exit 1 is given in build section as it is a failure, it will display failure output and always output. Otherwise, we will be getting success along with always output.
+
+
+ENVIRONMENT:
+============
+
+It specifies a sequence of key-value pairs which will be defined as environment variables for all steps, or stage-specific steps, depending on where the environment directive is located within the Pipeline.
+
+pipeline {
+    agent {
+        node {
+            label 'ROBOSHOP' 
+        } 
+    }
+    environment {
+        COURSE = "Jenkins"
+    }
+}
+
+It is common for all stages. If not we can specifically give environment to that stage.
+
+
+OPTIONS:
+========
+
+It allows configuring Pipeline-specific options from within the Pipeline itself. Pipeline provides a number of these options, such as buildDiscarder, but they may also be provided by plugins, such as timestamps.
+
+options {
+        disableConcurrentBuilds()
+        timeout(time: 5, unit: 'SECONDS')
+}
+
+==> At a time, we should not do two production deployments/builds. for that we use disableConcurrentBuilds()
+--> In timeout option, if everything is good, it should complete in 10 minutes. If that exceeds 10 minutes, then it will not execute and abort.
+
+
+
+*********
+PARAMETERS:
+===========
+
+It provides a list of parameters that a user should provide when triggering the Pipeline. The values for these user-specified parameters are made available to Pipeline steps via the params object, refer to the Parameters, Declarative Pipeline for its specific usage.
+
+Each parameter has a Name and Value, depending on the parameter type.
+
+parameters {
+        string(name: 'PERSON', defaultValue: 'Mr Jenkins', description: 'Who should I say hello to?')
+        text(name: 'BIOGRAPHY', defaultValue: '', description: 'Enter some information about the person')
+        booleanParam(name: 'TOGGLE', defaultValue: true, description: 'Toggle this value')
+        choice(name: 'CHOICE', choices: ['One', 'Two', 'Three'], description: 'Pick something')
+        password(name: 'PASSWORD', defaultValue: 'SECRET', description: 'Enter a password')
+}
+
+
+steps {
+	script {               
+		sh """                    
+   			echo "Testing"
+   			echo "Hello ${params.PERSON}"
+   			echo "Biography: ${params.BIOGRAPHY}"
+  	 		echo "Toggle: ${params.TOGGLE}"
+   			echo "Choice: ${params.CHOICE}"
+   			echo "Password: ${params.PASSWORD}"
+		""""
+	}
+}
+           
+
+--> Whenever we add parameters for the first time then we have run it first, after first time execution only we will know whether parameters are there or not.
+
+==> For pipelines, parameters are used, which version and component to deploy and so on. Then, we can handle them dynamically using in which environment to deploy.
+
+ 
+
+TRIGGERS: (search GitHub and jenkins web hook (blaze master))
+========= 
+
+
+The triggers defines the automated ways in which the Pipeline should be re-triggered. For Pipelines which are integrated with a source such as GitHub or BitBucket, triggers may not be necessary as webhooks-based integration will likely already be present.
+
 web-hooks
 
 event driven
 
-If someone commits to git repo, we can trigger this pipeline
+If someone commits to git repo, we can trigger this pipeline.
+
+--> In GitHub - jenkins repo - add webhooks - http://204.236.203.138:8080/github-webhook/ (PayLoad URL) - Disable SSH - Create
+
+==> Jenkins - Configure - Triggers through GitSCM.
+--> After this, even if we do small changes in our code, it will trigger.
+
+==> You can see who triggered the event.
+
+
+Build periodically (Monolithic applications) has:
+This field follows the syntax of cron (with minor differences). Specifically, each line consists of 5 fields separated by TAB or whitespace:
+MINUTE HOUR DOM MONTH DOW
+MINUTE	Minutes within the hour (0–59)
+HOUR	The hour of the day (0–23)
+DOM	The day of the month (1–31)
+MONTH	The month (1–12)
+DOW	The day of the week (0–7) where 0 and 7 are Sunday.
+To specify multiple values for one field, the following operators are available. In the order of precedence,
+
+* specifies all valid values
+M-N specifies a range of values
+M-N/X or */X steps by intervals of X through the specified range or whole valid range
+A,B,...,Z enumerates multiple values
+To allow periodically scheduled tasks to produce even load on the system, the symbol H (for “hash”) should be used wherever possible. For example, using 0 0 * * * for a dozen daily jobs will cause a large spike at midnight. In contrast, using H H * * * would still execute each job once a day, but not all at the same time, better using limited resources.
+
+The H symbol can be used with a range. For example, H H(0-7) * * * means some time between 12:00 AM (midnight) to 7:59 AM. You can also use step intervals with H, with or without ranges.
+
+Ex:
+```
+# Every fifteen minutes (perhaps at :07, :22, :37, :52):
+H/15 * * * *
+# Every ten minutes in the first half of every hour (three times, perhaps at :04, :14, :24):
+H(0-29)/10 * * * *
+# Once every two hours at 45 minutes past the hour starting at 9:45 AM and finishing at 3:45 PM every weekday:
+45 9-16/2 * * 1-5
+# Once in every two hour slot between 8 AM and 4 PM every weekday (perhaps at 9:38 AM, 11:38 AM, 1:38 PM, 3:38 PM):
+H H(8-15)/2 * * 1-5
+# Once a day on the 1st and 15th of every month except December:
+H H 1,15 1-11 *

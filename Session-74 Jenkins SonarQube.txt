@@ -93,7 +93,7 @@ exit logout and login again
 After this installation, once disconnect the agent and launch it again in Jenkins.
 
 In JENKINS, we create a ROBOSHOP Folder (for every project, we create a folder) and will add each component in it.
-In ROBOSHOP Folder, create catalogue pipeline - pipeline SCM - git(catalogue) - Create - Build now.
+In ROBOSHOP Folder, create catalogue pipeline - pipeline SCM - git (https://github.com/javeed-mohd/catalogue.git) - */main - Create - Build Now.
 
 ==> After installing dependencies and docker, once disconnect the agent and reconnect.
 
@@ -190,7 +190,7 @@ In Jenkins, Settings - Tools - SonarQube Scanner installations - Add - sonar-8 (
 *******
 ==> You also have to tell SonarQube scanner where the central server (SonarQube server) is. To do that in system configurations, we have to add SonarQube server,
 
-In Jenkins, Settings - System - SonarQube servers - Add - sonar-server (Name) - http://sonar.devopsdaws.online:9000 (Server URL) - Server Authentication Token [To get that, in SonarQube - my account - security - jenkins	(Global Analysis Token - 30 days) Generate Token (copy the URL and paste in jenkins token place by generating global credentials using secret text - Secret(Paste the secret) - sonar-creds(id and description)) - Create ==> This is one time configuration and we have to do it to let know SonarQube scanner where the SonarQube server is.	[This token is used to connect the SonarQube from outside] 
+In Jenkins, Settings - System - SonarQube servers - Add - sonar-server (Name) - http://sonar.devopsdaws.online:9000 (Server URL) - Server Authentication Token [To get that, in SonarQube - my account - security - jenkins	(Global Analysis Token - 30 days) Generate Token (copy the URL and paste in jenkins token place by generating global credentials using secret text - Secret(Paste the secret) - sonar-creds(id and description)) - Create ==> This is one time configuration and we have to do it to let know SonarQube scanner where the SonarQube server is. [This token is used to connect the SonarQube from outside]
 
 
 Now, we have to scan the code in pipeline, for that we need to have SonarQube code,
@@ -315,11 +315,11 @@ Code sections that are potentially sensitive and need manual review, not necessa
 
 ==> In SonarQube server, Quality Gates - Create - roboshop (Name) - Add condition (On Overall Code) - Security Rating - A [We should not have any issues related to security]. If this is passed, then only code moves forward to another stage.
 
-Deleted - Coverage in New Code and Duplicated lines should be not more than 3%
+Deleted - Coverage in New Code (Will cover it) and Duplicated lines should be not more than 3% and also we can edit them accordingly.
 
 --> In Overall code, Bugs, Vulnerabilities, Code smells - Add condition which should be 0% and Maintainability Rating - A
 
-==> We have to set it as default. (Quality Gate)
+==> We have to set it as default. (Quality Gate - roboshop)
 
 
 --> We will check all the analysis whether any issue in quality, If any issue arise we will stop the build which means Docker image won't be build and pipeline will be stopped. Then, we can't release the new application version. That issues will be generally cleared by developers.

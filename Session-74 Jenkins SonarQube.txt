@@ -1,0 +1,382 @@
+for i in 00-vpc/ 10-sg/ 20-sg-rules/ 31-cicd-tools/; do cd $i; terraform init -reconfigure; terraform apply -auto-approve; cd ..; done  ==> Manually creating infra using terraform for Jenkins.
+
+00-vpc		[33]
+10-sg		[22]
+20-sg-rules	[17]
+31-cicd-tools	[4]
+
+for i in 31-cicd-tools/ 20-sg-rules/ 10-sg/  00-vpc/; do cd $i; terraform destroy -auto-approve; cd ..; done
+
+SonarQube CE on AWS - AWS Marketplace - [ ami-0e132678e65cadfcc] ==> https://aws.amazon.com/marketplace/pp?sku=dg8aeb8kj64p67rzps7pg16zo
+
+--> java --version
+openjdk 21.0.11 2026-04-21 LTS
+OpenJDK Runtime Environment (Red_Hat-21.0.11.0.10-1) (build 21.0.11+10-LTS)
+OpenJDK 64-Bit Server VM (Red_Hat-21.0.11.0.10-1) (build 21.0.11+10-LTS, mixed mode, sharing)
+
+==> jenkins --version
+2.555.1
+
+--> Add Stage view plugin and create roboshop node (permanent agent)
+
+Pipeline Syntax: --> Declarative Pipeline:
+==========================================
+
+Input:
+======
+--> In Jenkins folder for manual approval, we write input { } condition in our code. This allows you to prompt for input, using the input step. The stage will pause after any options have been applied, and before entering the agent block for that stage or evaluating the when condition of the stage. If the input is approved, the stage will then continue.
+
+	stage('Example') {
+            input {
+                message "Should we continue?"
+                ok "Yes, we should."
+                submitter "alice,bob"
+                parameters {
+                    string(name: 'PERSON', defaultValue: 'Mr Jenkins', description: 'Who should I say hello to?')
+                }
+            }
+            steps {
+                echo "Hello, ${PERSON}, nice to meet you."
+            }
+        }
+
+--> This is how, we can put some gates to approve or not for building and deploying the images.
+
+
+When:
+=====
+
+The when directive allows the Pipeline to determine whether the stage should be executed depending on the given condition. The when directive must contain at least one condition. If the when directive contains more than one condition, all the child conditions must return true for the stage to execute. This is the same as if the child conditions were nested in an allOf condition. If an anyOf condition is used, note that the condition skips remaining tests as soon as the first "true" condition is found.
+
+Based on the branches and custom parameters, we can use this condition to allow or not.
+
+	stage('Deploy') {
+            when {
+                expression { "${params.DEPLOY}" == "true" }
+            }
+	}
+
+
+Sequential Stages:
+===================
+
+Continuous Integration (CI):	Installing dependencies and building the images.
+============================
+npm install
+docker build
+
+Deployment is CD part.
+
+
+shift-left: 
+===========
+I have handled this, earlier in our project we just built the docker images but I was involved in shift-left things for testing and scanning the images. It is used to catch  problems earlier instead of later.		
+--> testing and scanning
+
+docker build -t catalogue:1.0.0		--> ecr repo
+
+search Jenkins read package.json
+(Pipeline utility steps plugin, install this plugin in Jenkins)
+
+Using root access (sudo su -) in jenkins-agent instance:	[If not mentioned in user data in cicd tools folder, do it manually]
+--> npm (dnf module enable nodejs:20 -y --> dnf install nodejs -y)
+--> Docker Installation
+dnf -y install dnf-plugins-core
+dnf config-manager --add-repo https://download.docker.com/linux/rhel/docker-ce.repo
+dnf install docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin -y
+systemctl start docker
+systemctl enable docker
+usermod -aG docker ec2-user 
+docker ps
+exit logout and login again
+
+After this installation, once disconnect the agent and launch it again in Jenkins.
+
+In JENKINS, we create a ROBOSHOP Folder (for every project, we create a folder) and will add each component in it.
+In ROBOSHOP Folder, create catalogue pipeline - pipeline SCM - git(catalogue) - Create - Build now.
+
+==> After installing dependencies and docker, once disconnect the agent and reconnect.
+
+We have to create ECR in aws with roboshop/catalogue and view push commands.	[Mutable means we can push the same version again and again, if we use immutable then same version will not be accepted again. So, we use mutable]. We use trivy tool for scanning the image.
+
+View Push commands:
+-------------------
+
+--> Retrieve an authentication token and authenticate your Docker client to your registry. Use the AWS CLI:
+aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com
+
+Note: If you receive an error using the AWS CLI, make sure that you have the latest version of the AWS CLI and Docker installed.
+
+--> Build your Docker image using the following command. For information on building a Docker file from scratch see the instructions here . You can skip this step if your image is already built:
+docker build -t roboshop/catalogue .
+
+--> After the build completes, tag your image so you can push the image to this repository:	[It is required when build the image with other tag, if same tag no need to retag]
+docker tag roboshop/catalogue:latest ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/roboshop/catalogue:latest
+
+--> Run the following command to push this image to your newly created AWS repository:
+docker push ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/roboshop/catalogue:latest
+
+
+To login to aws ecr repo, we need to have credentials.
+--> In Jenkins, For aws secret key and access key to add in Jenkins we have to install plugin of AWS Credentials.
+
+Jenkins - Settings - Credentials - Add it - AWS Credentials (Plugin) - we have to give name and description as aws-creds and provide access key and secret key of our access keys. - create 
+
+(Search with aws jenkinsfile) - withAWS(credentials: 'aws-creds', region: "${region}") - For this, we have to add Pipeline: AWS Steps plugin ==> It is used to connect with AWS.
+
+==> Images other than 1.0.0 in our ecr repo are considered as intermittent images.
+It is the basic image building in ecr repo.
+
+
+Shift-left:
+==========
+
+Security:
+=========
+--> Application security --> We handle this.
+--> Network security
+--> Data security
+
+
+DevSecOps
+==========
+********
+SonarQube:
+----------
+It is popular tool used for scanning. It is a heavy server which uses t3.large instance which is developed in Java.
+
+For all the enterprise level tools or dynamic application, they also follow the same method as SonarQube. Instead of SonarQube server agent they use other agent in place of it.
+--> They will have a scanner agent (SonarQube scanner) which analyzes the code and sends the results to central server (SonarQube server here). And finally, there all the calculations happen and will do all the required works.
+
+sonarqube alternatives
+- CodeQL
+- Semgrep
+- Joern
+- CodeScene
+
+--> After launching the instance in aws for SonarQube. Use spot instances and in variables of cicd tools folder. If required, keep sonar=true otherwise keep it as false.
+--> Use the PublicIP of SonarQube instance as it is not our ami. It is a third party ami from ubuntu. So,
+
+In gitbash: (Open new window)
+-----------
+==> cd /d/devops/daws-88s/
+--> ssh -i <private-key> ec2-user@public IP	--> ssh -i daws-88s ubuntu@public IP of SonarQube (yes)
+
+our username and password will be in --> /opt/default-sonar-login.txt	(username - admin)
+--> cat  /opt/default-sonar-login.txt		[We will get SonarQube access and PostgreSQL access)
+
+
+==> Hit the browser with http://sonar.devopsdaws.online:9000	[9000-port number for SonarQube]
+--> It is a UI which shows projects and all other activities. Developers access this UI, if any issues are there, then they will fix it.
+
+
+
+Scanning:
+=========
+Static source code analysis
+Static application security testing
+
+Dynamic application security testing
+Opensource libraries scanning - dependencies
+Image scanning - images from docker and so on
+
+1. SonarQube scanner	-> agent running in jenkins agent
+2. SonarQube server	-> central server
+
+In Jenkins, we have install necessary plugins like SonarQube Scanner (If we install this, we can integrate it with SonarQube)
+
+In Jenkins, Settings - Tools - SonarQube Scanner installations - Add - sonar-8 (Name) - Create		[Few projects also have 7 version, use it accordingly]
+
+*******
+==> You also have to tell SonarQube scanner where the central server (SonarQube server) is. To do that in system configurations, we have to add SonarQube server,
+
+In Jenkins, Settings - System - SonarQube servers - Add - sonar-server (Name) - http://sonar.devopsdaws.online:9000 (Server URL) - Server Authentication Token [To get that, in SonarQube - my account - security - jenkins	(Global Analysis Token - 30 days) Generate Token (copy the URL and paste in jenkins token place by generating global credentials using secret text - Secret(Paste the secret) - sonar-creds(id and description)) - Create ==> This is one time configuration and we have to do it to let know SonarQube scanner where the SonarQube server is.	[This token is used to connect the SonarQube from outside] 
+
+
+Now, we have to scan the code in pipeline, for that we need to have SonarQube code,
+==> Search in browser jenkins SonarQube	pipeline code with tool
+
+	stage('SonarQube Analysis') {
+            steps {
+                // 'SonarQubeServer' must match the name in Jenkins System Configuration
+                withSonarQubeEnv('SonarQubeServer') {
+                    sh 'sonar-scanner'
+                }
+            }
+        }
+
+--> sonar-scanner ==> This Command line requires sonar properties. Then search sonar project properties sample
+A sonar-project.properties file is a configuration file placed in the root directory of your project to define how the SonarScanner should analyze your source code.
+The SonarScanner CLI is a code analysis scanner for CI/CD pipelines, used when no build-system-specific scanner is available. Distinct from the SonarQube CLI, a developer management interface.
+
+sonar-project.properties ==> In this file, we will mention sonar project code and place the project key and name.
+
+# Required metadata
+sonar.projectKey=my-unique-project-key
+sonar.projectName=My Project Name
+sonar.projectVersion=1.0
+
+# Path to the source directories (relative to this file)
+sonar.sources=src
+
+# Encoding of the source code
+sonar.sourceEncoding=UTF-8
+
+sonar.exclusions=Jenkinsfile, Dockerfile, **/node_modules/**
+
+--> sonar.exclusions excludes the files mentioned there and scans only source code which are not excluded. We only need to scan the application code. So, we will have sonar.exclusions line. (search sonar exclusions property)
+
+==> The sonar.exclusions property is used to define path-matching patterns for files or directories that should be completely filtered out from a SonarQube or SonarCloud analysis.
+
+sonar.exclusionsExcludes		--> Specific source files from all analysis.
+sonar.test.exclusionsExcludes		--> Specific test files from analysis.
+sonar.coverage.exclusionsExcludes	--> Files from code coverage reports while still analyzing them for code quality issues.
+sonar.cpd.exclusionsExcludes		--> Files from duplication detection (Copy-Paste Detection).
+
+
+Pattern Syntax Exclusions use a comma-separated list of wildcard patterns:
+*: Matches zero or more characters.
+**: Matches zero or more directories.
+?: Matches a single character.
+
+Common Examples:
+**/node_modules/**: Excludes everything in any node_modules directory.
+**/*.java: Excludes all Java files in the project.
+src/generated/**/*: Excludes all files within the src/generated folder.
+
+==> At the time of sonar scanner running, it will read sonar-properties and scans all necessary files and excludes whichever not required as mentioned in sonar.exclusions.
+
+--> In Claude, I have sonarqube scanner plugin installed and configured it as tool in manage jenkins, I named it as sonar-8. Require stage for that sonarscanner. 
+
+	stage('SonarQube Analysis') {
+            steps {
+                script {
+                    def scannerHome = tool name: 'sonar-8'      // agent configuration
+                    withSonarQubeEnv('sonar-server') {          // analysing and uploading to server
+                        sh "${scannerHome}/bin/sonar-scanner"
+                    }
+                }
+            }
+        }
+
+
+==> Our agent sonar scanner (sonar-8) scans the code and directly uploads it to SonarQube Server (sonar-server). After this, build now in jenkins.
+
+--> As DevOps Engineer, we will install agent and configure sonarqube inside jenkins, involve sonarqube analysis in pipeline and we have set up quality gates and will connect with developers (they will write what to scan in sonar-properties). After analyzing it will appear in sonarqube website. (Here, we will be getting roboshop-catalogue component in projects section).
+Developers also has the access to this sonarqube server to check the issues and fix them.
+
+Will check how the issues will arise?
+--> Change this == > Administration - General Settings - Mode - Standard experience rather than multi-quality rule (MQR) - save.
+
+After changing this and check in projects (roboshop-catalogue), We can see:
+- Vulnerabilities
+- Bugs
+- Codesmells
+- Duplications
+- Security Hotspots, coverage and so on.
+
+
+Overall code = total code
+new code = C2-C1
+
+********
+Vulnerabilities		--> Issues in code that can be used by attackers to exploit
+
+Bugs			--> Bugs that can cause unexpected behaviour in runtime
+
+Code Smells		--> Very hard to understand
+
+Coverage		--> How many lines of code is tested
+
+Duplications		--> Code should not be duplicated	[We have to write functions and should call them when required. We should not repeatedly copy paste our code.]
+
+Security Hotspots	--> SAST (Static Application Security Testing) scans code and finds both vulnerabilities and hotspots
+
+==> Vulnerabilities
+Weaknesses in code that can be exploited by attackers, leading to security risks (e.g., SQL injection)
+
+Bugs
+Issues in code that cause incorrect or unexpected behavior during execution
+
+Code Smells
+Poor coding practices that don’t break functionality but make code hard to maintain, read, or extend
+
+Coverage
+The percentage of code executed by automated tests (usually unit tests)
+
+Duplications
+Repeated blocks of code that should be refactored to improve maintainability
+
+Security Hotspots
+Code sections that are potentially sensitive and need manual review, not necessarily vulnerabilities
+(e.g., authentication logic, encryption usage)
+
+
+
+==> In SonarQube server, Quality Gates - Create - roboshop (Name) - Add condition (On Overall Code) - Security Rating - A [We should not have any issues related to security]. If this is passed, then only code moves forward to another stage.
+
+Deleted - Coverage in New Code and Duplicated lines should be not more than 3%
+
+--> In Overall code, Bugs, Vulnerabilities, Code smells - Add condition which should be 0% and Maintainability Rating - A
+
+==> We have to set it as default. (Quality Gate)
+
+
+--> We will check all the analysis whether any issue in quality, If any issue arise we will stop the build which means Docker image won't be build and pipeline will be stopped. Then, we can't release the new application version. That issues will be generally cleared by developers.
+
+==> As DevOps Engineer, we are enforcing quality gates in our pipeline, If the code is not passing the quality gates then we will be stopping the build. Then developers receive notification regarding this and obviously if they clear the issues then only they will move forward otherwise we don't allow.
+
+DevOps role is to setup quality gates and enforce them.
+
+The parameters of vulnerabilities, bugs, ... will come from project architect.
+
+*****
+Quality Gates:
+==============
+We are keeping certain parameters to the threshold level, if the code is not passing through it we are stopping the build until fixed.
+
+Interview, we should say that i have setup vulnerabilities, bugs, code smells, security rating, maintainability rating, code coverages in both new and overall code.
+
+Build Now in Jenkins. We don't have any condition in default quality gate of sonarqube.
+
+--> Quality gate will be failed as we have given parameters as 0, but pipeline is not failed, it moved further. (Before writing quality gate code in Jenkinsfile).
+
+To enforce quality gate in Jenkins, then we have to write, (search SonarQube Jenkins quality gate)
+
+	stage('Quality Gate') {
+            steps {
+                // Optional: Pauses the pipeline until SonarQube returns a pass/fail status
+                timeout(time: 1, unit: 'HOURS') {
+                    waitForQualityGate abortPipeline: true
+                }
+            }
+        }
+
+==> Means SonarQube should give information to Jenkins that what happened in SonarQube. To do that, we require webhooks.
+
+In SonarQube - Administration - Configuration - Webhooks - Create - Name (jenkins) - URL (http://jenkins.devopsdaws.online:8080/sonarqube-webhook/ - Create
+
+Build now in Jenkins. Now, we will get failed in both our Jenkins and SonarQube server (pipeline). Check the issues and fix them and build it again and now it will be passed.
+
+
+code + node_modules -> catalogue.zip
+
+jenkins
+jenkins agent
+
+
+Plugins to be installed in Jenkins:
+------------------------------------
+
+* stage view
+* aws creds
+* aws steps
+* pipeline utility steps
+* sonarqube
+
+
+* master agent
+* add creds
+
+* sonarqube tool setup
+* sonarqube system setup

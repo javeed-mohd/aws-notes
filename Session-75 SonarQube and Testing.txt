@@ -58,7 +58,7 @@ In gitbash: (Open new window)
 --> ssh -i <private-key> ec2-user@public IP	--> ssh -i daws-88s ubuntu@public IP of SonarQube (yes)
 
 our username and password will be in --> /opt/default-sonar-login.txt	(username - admin)
---> cat  /opt/default-sonar-login.txt		[We will get SonarQube access and PostgreSQL access)
+--> cat  /opt/default-sonar-login.txt		[We will get SonarQube access and PostgreSQL access]
 
 
 ==> Hit the browser with http://sonar.devopsdaws.online:9000	[9000-port number for SonarQube] and Enter the credentials.
@@ -71,7 +71,7 @@ This is one time configuration and we have to do it to let know SonarQube scanne
 
 ==> Means SonarQube should give information to Jenkins that what happened in SonarQube. To do that, we require webhooks.
 
-In SonarQube - Administration - Configuration - Webhooks - Create - Name (jenkins) - URL (http://jenkins.devopsdaws.online:8080/sonarqube-webhook/ - Create.
+In SonarQube - Administration - Configuration - Webhooks - Create - Name (jenkins) - URL (http://jenkins.devopsdaws.online:8080/sonarqube-webhook/) - Create.
 
 ==> Administration - General Settings - Mode - Standard experience rather than multi-quality rule (MQR) - save.
 
@@ -206,13 +206,13 @@ what is the criticality ->
 which version this bug is fixed
 maintainer
 
-Severity	CVSS Score Range
-========	================
-None		0.0
-Low		0.1 – 3.9
-Medium		4.0 – 6.9
-High		7.0 – 8.9
-Critical	9.0 – 10.0
+Severity      CVSS Score Range
+========      ================
+None          0.0
+Low           0.1 – 3.9
+Medium        4.0 – 6.9
+High          7.0 – 8.9
+Critical      9.0 – 10.0
 
 
 ==> Example:
@@ -297,13 +297,13 @@ Because, we are using dependabot alerts for library scanning, we want base os sc
 
 
 trivy image \
-                                --scanners vuln \
-                                --pkg-types os \
-                                --severity HIGH,MEDIUM \
-                                --format table \
-                                --exit-code 1 \
-                                --quiet \
-                        	160885265516.dkr.ecr.us-east-1.amazonaws.com/roboshop/catalogue:1.0.0
+    --scanners vuln \
+    --pkg-types os \
+    --severity HIGH,MEDIUM \
+    --format table \
+    --exit-code 1 \
+    --quiet \
+    <ACCOUNT_ID>.dkr.ecr.us-east-1.amazonaws.com/roboshop/catalogue:1.0.0
 			
 --> We have to comment Installing dependencies also, because it is for VM's.
 

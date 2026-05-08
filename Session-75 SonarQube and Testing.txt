@@ -1,0 +1,327 @@
+for i in 00-vpc/ 10-sg/ 20-sg-rules/ 31-cicd-tools/; do cd $i; terraform init -reconfigure; terraform apply -auto-approve; cd ..; done  ==> Manually creating infra using terraform for Jenkins.
+
+00-vpc		[33]
+10-sg		[22]
+20-sg-rules	[17]
+31-cicd-tools	[4]
+
+for i in 31-cicd-tools/ 20-sg-rules/ 10-sg/  00-vpc/; do cd $i; terraform destroy -auto-approve; cd ..; done
+
+SonarQube CE on AWS - AWS Marketplace - [ ami-0e132678e65cadfcc] ==> https://aws.amazon.com/marketplace/pp?sku=dg8aeb8kj64p67rzps7pg16zo
+
+--> java --version
+openjdk 21.0.11 2026-04-21 LTS
+OpenJDK Runtime Environment (Red_Hat-21.0.11.0.10-1) (build 21.0.11+10-LTS)
+OpenJDK 64-Bit Server VM (Red_Hat-21.0.11.0.10-1) (build 21.0.11+10-LTS, mixed mode, sharing)
+
+==> jenkins --version
+2.555.1
+
+jenkins.devopsdaws.online:8080 Hit the browser to login into Jenkins.
+
+In Jenkins, Settings - Plugins - Manage Plugins - 
+* Pipeline Stage View
+* Pipeline Utility Steps
+* Pipeline AWS Steps
+* AWS Credentials
+* Sonarqube Scanner
+- Install this plugins
+
+
+Next, In Jenkins, Settings - Credentials - 
+* ssh-creds	[It is for ec2-user username and enter password]
+* aws-creds	[It is for AWS configuration, enter Access Key ID and Secret Access Key of AWS]
+* sonar-creds	[Do this after SonarQube login] [Enter the Secret text - Paste the Secret token generated from sonarqube]
+- Create
+
+In Jenkins, Settings  - Nodes - New Node - roboshop (permanent agent) - Executors (3) - Remote root directory (/home/ec2-user/jenkins-agent) - Labels (roboshop) - Usage (only build jobs with label expressions matching this node - Launch method (via SSH) - Host (jenkins-agent.devopsdaws.online) - Credentials (ssh-creds) - Host key (Non verifying Verification strategy) - save. ==> Check whether connected or not, by using Log in that node. (Agent successfully connected and online).
+
+==> Do it after SonarQube setup,
+--> In Jenkins, Settings - Tools - SonarQube Scanner installations - Add - sonar-8 (Name) - Create		[Few projects also use 7 version, use it accordingly and refer]
+
+--> You also have to tell SonarQube scanner where the central server (SonarQube server) is. To do that in system configurations, we have to add SonarQube server,
+
+In Jenkins, Settings - System - SonarQube servers - Add - sonar-server (Name) - http://sonar.devopsdaws.online:9000 (Server URL) - Server Authentication Token [To get that, in SonarQube - my account - security - jenkins	(Global Analysis Token - 30 days) Generate Token (copy the URL and paste in jenkins token place by generating global credentials using secret text - Secret(Paste the secret) - sonar-creds(id and description)) - Create ==> This is one time configuration and we have to do it to let know SonarQube scanner where the SonarQube server is. [This token is used to connect the SonarQube from outside].
+
+In JENKINS, we create a ROBOSHOP Folder (for every project, we create a folder) and will add each component in it.
+In ROBOSHOP Folder, create catalogue pipeline - pipeline SCM - git ((https://github.com/javeed-mohd/catalogue.git)) - */main - Create - Build Now.
+
+
+SonarQube setup:
+================
+
+Copy the Public IP of sonar instance.
+
+In gitbash: (Open new window)
+-----------
+==> cd /d/devops/daws-88s/
+--> ssh -i <private-key> ec2-user@public IP	--> ssh -i daws-88s ubuntu@public IP of SonarQube (yes)
+
+our username and password will be in --> /opt/default-sonar-login.txt	(username - admin)
+--> cat  /opt/default-sonar-login.txt		[We will get SonarQube access and PostgreSQL access)
+
+
+==> Hit the browser with http://sonar.devopsdaws.online:9000	[9000-port number for SonarQube] and Enter the credentials.
+--> It is a UI which shows projects and all other activities. Developers access this UI, if any issues are there, then they will fix it.
+
+
+==> my account - security - jenkins	(Global Analysis Token - 30 days) Generate Token (copy the URL and paste in jenkins token place by generating global credentials using secret text - Secret(Paste the secret) - sonar-creds(id and description)) - Create.
+
+This is one time configuration and we have to do it to let know SonarQube scanner where the SonarQube server is. [This token is used to connect the SonarQube from outside] 
+
+==> Means SonarQube should give information to Jenkins that what happened in SonarQube. To do that, we require webhooks.
+
+In SonarQube - Administration - Configuration - Webhooks - Create - Name (jenkins) - URL (http://jenkins.devopsdaws.online:8080/sonarqube-webhook/ - Create.
+
+==> Administration - General Settings - Mode - Standard experience rather than multi-quality rule (MQR) - save.
+
+After changing this and check in projects (roboshop-catalogue), We can see:
+- Vulnerabilities
+- Bugs
+- Codesmells
+- Duplications
+- Security Hotspots, coverage and so on.
+
+--> In SonarQube server, Quality Gates - Create - roboshop (Name)
+
+In New code, Bugs, Vulnerabilities, Code smells - Add condition which should be 0% and Maintainability Rating - A
+
+Also do it In Overall Code and we can edit them accordingly.
+
+==> We have to set it as default. (Quality Gate - roboshop)
+
+******
+Coverage:
+=========
+brick -> basic building block
+
+code -> function
+
+login (username, password)
+signup (details)
+forgot password (email_id)
+
+what is object/class?
+
+1. knows -> parameters/variables/fields/attributes
+2. does	 -> what that object can do/methods (functions) - Behavior/Actions
+
+1000 functions
+
+
+catalogue:
+==========
+
+Unit testing -> Testing Individual function -> developers	[Most important - If we done properly, automatically other tests are covered]. But developers resists and they will try to skip doing this unit testing. And we, as DevOps engineer will enforce them through Quality Gates. This is called Code Coverage.
+
+Functionality testing -> Involves multiple functions -> developers/testing team		After microservices came into existence, few team test will be done by developers and few team test will be done by testing team].
+
+
+Integration testing: (Entire application is running properly or not)
+====================
+
+--> All components integratedly working or not?
+cart -> catalogue
+shipping -> cart
+
+==> When we are deploying the entire project, together all the components are working properly or not and also functionality between the components is working or not is called "INTEGRATION TESTING".
+
+
+--> Smoke testing -> After deployment, we need o check our basic functionality. How can we guarantee that the deployment is success, after deploying it in production. We can't directly test in production, ex: Banking applications. So, they will have testing users, only for testing purpose real users and accounts will be created. They will make smoke test as per the change we make in our application and will check functionality. Our system is working or not.
+
+--> Regression testing -> After change, check everything. system working as expected or not.
+
+==> All these integration, smoke and regression testing are entirely done by TESTING team.
+
+login(username, password){
+	check_user_in_database()
+	if (success){
+		getHomePage()
+	}
+	else{
+		sendCredentialsFailure()
+	}
+}
+
+
+10 functions -> 9 functions -> 90% (Code Coverage)
+
+--> In our roboshop-catalogue (Projects) - Code Coverage is 0% which shows that our developers did not write unit testing for anything.
+
+
+********
+We have to tell in interview as, how we brought SonarQube,
+--> We don't had scanning in our projects.
+
+6 months (claim)
+=========
+
+1st month	-> sonarqube installation -> dev, prod
+2nd month	-> Onboard every project and include scanning for them
+2 months (Time)	-> High and critical bugs should be fixed (3rd and 4th month)
+5th month	-> We will stop the build, if bugs and vulnerabilities are found	[We are keeping Quality Gate strict]
+6th month	-> At least new code building, code coverage 80%, overall code 10%
+
+According to this plan, we will send mail and track them, to which stage application is going and will give report to our management.
+At that time, we slowly enforced quality gates and all the new and overall code.
+
+--> We also have quality profiles and rules in SonarQube which means who is checking the code in SonarQube is updated by quality profile. It has rules for programming languages like Java, Python... All this are placed by architect team in quality profile and rules. They will define and keep them in quality profile and rules.
+
+
+Our task is to enforce in pipeline and to do onboard and increase.
+
+
+Code Coverage Calculation: (Developer)
+===========================
+
+npm test -> Run the unit test cases
+It will save the report -> .txt, .json, .html
+sonarqube -> Send this test report, then it shows code coverage report there
+
+==> Create another pipeline in ROBOSHOP folder as catalogue-unit-tests (pipeline) - pipeline SCM - git (https://github.com/javeed-mohd/catalogue-unit-tests.git) - */main - Create - Build Now.	And set the quality gate of roboshop as default. Then all the conditions in both new and overall code in that quality gate will be enforced.
+
+We will be getting the report while building,
+--> Generally in unit testing, even if 1 test case is failed, it will fail. All the test cases should be passed then only pipeline will be successful otherwise it will fail (obviously it won't allow even if 1 test case is fail, pipeline automatically will be failed). 
+ 
+==> After analysis, we can clearly see in our roboshop-catalogue project, it is passed with code coverage of >90% which is greater than threshold value (>=80%).
+
+quality profiles -> dev team architect
+
+NVD -> National Vulnerability Database -> Non-Profit Organization -> Funded by US government.	[Libraries should be continuously updated and fix any bugs that are found. It is managed by NVD].
+google, facebook, amazon, etc.,
+
+
+They continuously scan for vulnerabilities -> bounty programs
+
+CVE -> Common Vulnerabilities and Exposures
+Metadata --
+which package, version
+what is the bug
+what is the effect
+
+what is the criticality -> 
+7/10 -> critical
+6 -> high
+1 -> low
+which version this bug is fixed
+maintainer
+
+Severity	CVSS Score Range
+========	================
+None		0.0
+Low		0.1 – 3.9
+Medium		4.0 – 6.9
+High		7.0 – 8.9
+Critical	9.0 – 10.0
+
+
+==> Example:
+
+2.5 → Low
+6.4 → Medium
+8.1 → High
+9.8 → Critical
+CVSS -> Common Vulnerability Scoring System
+
+
+scanning software -> internal DB -> NVD
+
+
+Library scanning:
+=================
+
+nexusiq, blackduck, github dependabot
+
+==> What you are doing for security purpose (DevSecOps)?
+We are using SonarQube for static source code analysis, static application security testing (SAST), enforced quality gates and coding standards. Then, we are scanning the libraries also, we are using github dependabot and keeping quality gates.
+
+Our system should not have high and critical. May be initially, we allow medium bugs. But, after fixing high and critical bugs, then we will work on medium because we shoudl not fix all at at a time. Finally, our system should not have medium, high and critical levle bugs. Going forward, after becoming perfect, we will enforce low level bugs too. Then, developers has no other option than fixing them.
+
+For github dependabot
+We can enable (catalogue) settings - advanced security - Dependabot and dependency graph enable them. Check in  security and quality for any dependabot alerts.
+
+CVE-2021-29469 - Search with this id in browser to get the full details of the alert.
+
+search github dependabot api
+curl -L \
+  -H "Accept: application/vnd.github+json" \
+  -H "Authorization: Bearer <GITHUB-TOKEN>" \
+  -H "X-GitHub-Api-Version: 2026-03-10" \
+  https://api.github.com/repos/javeed-mohd/catalogue/dependabot/alerts
+  
+==> To generate token in github, go to settings - developer settings - personal access tokens (fine grained tokens) - generate new token - jenkins-scan (token name) - javeed-mohd (owner) - only selected repositories (catalogue) (repository access) - dependabot (permissions) - Generate Token. 
+
+<GITHUB-TOKEN>
+
+
+==> query dependabot, check for high and critical, if found, it should fail the pipeline (if >0). We need to create stage code for this.
+
+In Claude, I want dependabot alerts checking stage code for jenkins, it should query high and critical. If found, it should fail the pipeline. Provide repo link (https://github.com/javeed-mohd/catalogue.git). I have generated a github token already fetch from there.
+
+Now after adding dependabot alerts stage code, we need to add our github token credentials in jenkins.
+
+--> In Jenkins, Settings - Credentials - Add - Secret text - Secret (<GITHUB-TOKEN>) - github-token (ID & Description) - Create.
+
+****
+Comment SonarQube Analysis and Quality Gate.
+
+In Jenkins, catalogue - build now - we will find 1 High/Critical dependabot alerts detected.
+--> Simply developers click on this, https://api.github.com/repos/javeed-mohd/catalogue/dependabot/alerts?severity=high,critical&state=open&per_page=100
+
+--> In GitHub, they check for vulnerabilities in dependabot alerts and fix them in the code.
+Now, In Jenkins, (build now) trigger the pipeline again, then it will be fixed now. We won't find any alerts.
+
+
+==> As our team grew stronger, we will be including medium level bugs also. Earlier it was not there, we just enabled it and did not enforce. We just showed like an information, we thought to announce it that after 1 month it will be enforced and in the mean time you can fix the bugs or else that you won't be allowed for production. So, in this way, slowly we have done with high and critical, reached medium level bugs. Further, we are planning to fix the low level bugs too.
+
+
+
+Image scanning:
+===============
+
+Docker -> base images		If base images has issues then our catalogue component has also issues. So, we have to scan the images too.
+
+trivy -> image scanning tool
+
+
+--> We have to install trivy in our jenkins-agent. It is also Command line tool and in background it will query NVD.	[Search Trivy install - Trivy Installation]
+In Mobaxterm,
+Install script - curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.70.0
+
+--> docker images 
+==> trivy image ${ACCOUNT_ID}.dkr.ecr.us-east-1.amazonaws.com/roboshop/catalogue:1.0.0		[By default, it will be doing full scan which include package.json (libraries and dependent libraries also will be scanned)]
+
+base os scan, check for high and medium alerts, if found exit, give report in table/html format.	[Search with it, in claude adding trivy command]
+
+Because, we are using dependabot alerts for library scanning, we want base os scan.
+
+
+trivy image \
+                                --scanners vuln \
+                                --pkg-types os \
+                                --severity HIGH,MEDIUM \
+                                --format table \
+                                --exit-code 1 \
+                                --quiet \
+                        	160885265516.dkr.ecr.us-east-1.amazonaws.com/roboshop/catalogue:1.0.0
+			
+--> We have to comment Installing dependencies also, because it is for VM's.
+
+Try to change dockerfile with node:20.1.0-alpine to check vulnerabilities. After seeing, they will fix it with newer version. It does not affect functionality, just patches will be updated.
+--> It stores the report.
+
+Generally after building, we won't push the image. If image is safe regarding security then only we will push the image. After trivy scan,  we will push the image to ECR repo.
+
+If everything is perfect, if there is no issue in our code, libraries has no issue, base os no issue, then we can push our image to ECR. We can make sure proper scanned and tested code is coming even to the development environment.
+
+We also have dynamic application security testing (DAST), it comes only when our application is deployed. We have to attach it to the application. 
+
+docker -> internal repo proxy
+whitelisted base images -> 
+
+node:18
+RUN apk updte 
+
+custom-node:18.1.0
+
+FROM custom-node:18.1.0

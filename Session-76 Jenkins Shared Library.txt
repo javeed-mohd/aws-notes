@@ -1,0 +1,157 @@
+shared library
+
+DRY --> Don't Repeat Yourself
+common functions
+ansible roles
+terraform modules
+
+pipeline as library -> shared library
+
+search Jenkins shared library
+
+==> testing -- shared-library-test -> In catalogue folder make jenkinsfile to .bkp and create another jenkinsfile (We are referring, it is like importing those libraries of shared-library-test (jenkins-test-library') into catalogue pipeline)
+
+
+--> In Jenkins - Settings - System - Global Trusted Pipeline Libraries - Add - jenkins-test-library (Name) - main (Default version) - Modern SCM (Retrieval Method) - git - https://github.com/javeed-mohd/shared-library-test.git (Repo) - Create		[Telling Jenkins to trust this library]
+
+
+Jenkinsfile:
+============
+
+@Library('jenkins-test-library') _  // The underscore imports all global variables
+
+def configMap = [
+    project: "roboshop",
+    component: "catalogue"
+]
+
+echo "Triggering the Library Pipeline"
+
+if (env.BRANCH_NAME.equalsIgnoreCase('main')) {
+    echo "Checking later"
+}
+else{
+    testPipeline(configMap)
+}
+
+
+--> equalsIgnoreCase (search string comparison in groovy)
+
+
+jenkins will give us default variables in env (search Jenkins default variables branch name in env)
+
+In reality, each person create feature branch and build pipeline individually, not in main branch.
+
+call is the default function in groovy, if we call by filename by default it calls call() function.
+
+
+--> git checkout -b feature-1	[catalogue]
+--> git add . ; git commit -m "jenkins" ; git push origin feature-1
+On branch feature-1
+To https://github.com/javeed-mohd/catalogue.git
+ * [new branch]      feature-1 -> feature-1
+
+==> In Jenkin, ROBOSHOP (FOLDER) - New item - catalogue (multi branch pipeline) [For each branch, a pipeline will be created] - Git (Add source) - https://github.com/javeed-mohd/catalogue.git (Repo) - Save. - Scan Multibranch Pipeline.
+
+
+Multibranch Pipeline --> It can let the developers work with their own branches. Developers may be creating lot of branches for their requirements. So, you can create pipeline for each branch using multibranch pipeline.
+
+
+*******
+We have used multibranch pipeline in our project we created, developers whenever they want to add new feature then they will create new branch and then jenkins will automatically create pipeline for them.
+
+
+Developers should choose auto-trigger, obviously he has to give his project and component name properly. If provided wrong then it is developers mistake.
+
+language		Platform		BuildTool
+========		========		=========
+nodeJS			EKS				npm	-> nodeJSEKSPipeline
+nodeJS			VM				npm	-> nodeJSVMPipeline
+java			EKS				maven	-> javaMavenEKSPipeline
+java			EKS				gradle	-> javaGradleEKSPipeline
+java			EKS				ant	-> javaAntEKSPipeline
+java			VM				maven	-> javaVMPipeline
+java			VM				gradle
+java			VM				ant
+
+
+*******
+Onboarding -> central devops/platform engineer
+===========
+
+project
+component
+1. make sure they have the namespace created
+2. make sure they have folder in the jenkins in their project name
+3. sonarqube access
+4. do they need seperate agent requirements
+5. do they have ECR repo
+6. do they need ingress/gateway requirement
+7. any databases, do you need any firewalls
+8. github settings/tokens
+
+
+2 prod releases
+
+someone from their team, devops enginner
+
+pipeline{
+	agent{node{label 'wipro-finance'}}
+	options{
+		timeout(5 minutes)
+	}
+	parameters{
+		string param
+		boolean param
+		choice param
+	}
+	stages{
+		stage('build'){
+			steps{
+				script{
+					sh "mvn build"
+				}
+			}
+		}
+		stage('unit test'){
+			steps{
+				script{
+					sh "mvn test"
+				}
+			}
+		}
+		stage('scans'){
+			steps{
+				script{
+					sh "mvn test"
+				}
+			}
+		}
+		stage('deploy'){
+			steps{
+				script{
+					sh "mvn test"
+				}
+			}
+		}
+		
+		stage('functional test'){
+			steps{
+				script{
+					sh "mvn test"
+				}
+			}
+		}
+	}
+	post{
+		always{
+		
+		}
+		success{
+		
+		}
+		failure{
+		
+		}
+	}
+}

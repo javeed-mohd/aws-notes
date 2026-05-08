@@ -178,6 +178,8 @@ npm test -> Run the unit test cases
 It will save the report -> .txt, .json, .html
 sonarqube -> Send this test report, then it shows code coverage report there
 
+--> Add Unit test code in Jenkinsfile of catalogue-unit-tests.
+
 ==> Create another pipeline in ROBOSHOP folder as catalogue-unit-tests (pipeline) - pipeline SCM - git (https://github.com/javeed-mohd/catalogue-unit-tests.git) - */main - Create - Build Now.	And set the quality gate of roboshop as default. Then all the conditions in both new and overall code in that quality gate will be enforced.
 
 We will be getting the report while building,

@@ -75,28 +75,62 @@ java			VM				gradle
 java			VM				ant
 
 
+--> There is no guarantee that deployment will be successful for every commit as developer may be developing the features, but he need to push to remote branch before he leaves for the day. So, he can choosewhenever a particular pipeline (jenkins-shared-library --> nodeJSEKSPipeline.groovy) is triggered, whether to move for deployment or not. But, remaining stages he can not.
+
+
+--> In GitHub, Settings - Developer settings - Personal access tokens (Fine grained tokens) - jenkins (name) - GitHub organization (javeed-mohd) - All repos - Permissions (Add permissions) - Dependabot alerts (Read only) and commit statuses (Read and write) - Generate.
+
+Commit status - Against commit id, we will note down what happened.
+ 
+
+Now after adding dependabot alerts stage code, we need to add our github token credentials in jenkins.
+
+--> In Jenkins, Settings - Credentials - Add - Secret text - Secret <GITHUB-TOKEN> - github-token (ID & Description) - Create.
+
+cleanWs() ==> Means cleaning the workspace after completion. It is commonly a Jenkins Pipeline step from the Jenkins Workspace Cleanup plugin. It deletes files from the current workspace after or before a build.
+
+
+In Jenkins - Settings - System - Global Trusted Pipeline Libraries - Add - jenkins-shared-library (Name) - main (Default version) - Load implicitly (Automatically every pipeline will be loaded even if we don't refer also by loading implicitly) - Modern SCM (Retrieval Method) - git - https://github.com/javeed-mohd/jenkins-shared-library.git (Repo) - Create [Telling Jenkins to trust this library]
+
+Delete multibranch pipeline of catalogue
+
+Imagine, developer is creating a new branch to do/add some feature. Developer made some changes and pushed to git.
+--> git checkout -b feature-1	[catalogue-unit-tests]
+--> git add . ; git commit -m "jenkins" ; git push origin feature-1
+
+==> In Jenkin, ROBOSHOP (FOLDER) - New item - catalogue (multi branch pipeline) [For each branch, a pipeline will be created] - Git (Branch sources --> Add source) - https://github.com/javeed-mohd/catalogue-unit-tests.git (Repo) - Save. - Scan Multibranch Pipeline.
+
+
+==> In Jenkins, Whenever we specify multibranch pipeline for a folder/project, then the provided repository will be scanned and the branch which contains jenkinsfile will be automatically created as a pipeline.
+
+
+
 *******
-Onboarding -> central devops/platform engineer
+Onboarding -> central DevOps/Platform Engineer = For all/every project.
 ===========
 
 project
-component
-1. make sure they have the namespace created
-2. make sure they have folder in the jenkins in their project name
-3. sonarqube access
-4. do they need seperate agent requirements
-5. do they have ECR repo
-6. do they need ingress/gateway requirement
-7. any databases, do you need any firewalls
+component/application
+
+1. Make sure they have the namespace created
+2. Make sure they have folder in the jenkins in their project name
+3. SonarQube access
+4. Do they need separate agent requirements	[To expose their application to internet]
+5. Do they have ECR repo
+6. Do they need ingress/gateway requirement
+7. Any databases, do they need any firewalls
 8. github settings/tokens
 
 
 2 prod releases
 
-someone from their team, devops enginner
+someone from their team, devops engineer --> Dedicated they will work for project/component.
 
-pipeline{
-	agent{node{label 'wipro-finance'}}
+
+Which Pipeline --> Hybrid Pipeline --> Both Scripted and Declarative Pipeline.
+
+pipeline {
+	agent {node{label 'wipro-finance'}}
 	options{
 		timeout(5 minutes)
 	}
@@ -123,14 +157,14 @@ pipeline{
 		stage('scans'){
 			steps{
 				script{
-					sh "mvn test"
+					echo "Scanning"
 				}
 			}
 		}
 		stage('deploy'){
 			steps{
 				script{
-					sh "mvn test"
+					echo "Deploying"
 				}
 			}
 		}
@@ -155,3 +189,98 @@ pipeline{
 		}
 	}
 }
+
+
+
+In jenkins-shared-library folder,
+
+==> In nodeJSEKSPipeline.groovy, change this,
+
+	stage('Unit tests') {
+                steps {
+                    script{
+                        def testResult = sh(script: 'npm test', returnStatus: true)
+                        if (testResult != 0) {
+                            utils.updateCommitStatus('failure', 'Unit tests failed', 'unit-tests')
+                            error "Unit tests failed."
+                        } else {
+                            utils.updateCommitStatus('success', 'Unit tests passed', 'unit-tests')
+                        }
+                    }
+                }
+            }
+
+Also add utils.groovy file,
+
+// Updates GitHub commit status visible on PRs and commits.
+// state: 'pending' | 'success' | 'failure' | 'error'
+// description: short message shown in the GitHub UI (max 140 chars)
+// context: label for the check (e.g. 'Jenkins CI / Build', 'Jenkins CI / Trivy')
+def updateCommitStatus(String state, String description, String context = 'Jenkins CI') {
+    withCredentials([string(credentialsId: 'github-token', variable: 'GITHUB_TOKEN')]) {
+        def repoUrl = sh(script: 'git remote get-url origin', returnStdout: true).trim()
+        def repoPath = repoUrl.replaceAll(/.*github\.com[\/:]/, '').replaceAll(/\.git$/, '')
+
+        withEnv([
+            "COMMIT_STATE=${state}",
+            "COMMIT_DESC=${description}",
+            "COMMIT_CONTEXT=${context}",
+            "REPO_PATH=${repoPath}",
+            "COMMIT_SHA=${env.GIT_COMMIT}",
+            "BUILD_LINK=${env.BUILD_URL}"
+        ]) {
+            sh '''
+                jq -n \
+                    --arg state   "$COMMIT_STATE" \
+                    --arg url     "$BUILD_LINK" \
+                    --arg desc    "$COMMIT_DESC" \
+                    --arg context "$COMMIT_CONTEXT" \
+                    '{state: $state, target_url: $url, description: $desc, context: $context}' \
+                | curl -sf \
+                       -X POST \
+                       -H "Authorization: Bearer $GITHUB_TOKEN" \
+                       -H "Accept: application/vnd.github+json" \
+                       -H "Content-Type: application/json" \
+                       -H "X-GitHub-Api-Version: 2022-11-28" \
+                       --data @- \
+                       "https://api.github.com/repos/$REPO_PATH/statuses/$COMMIT_SHA"
+            '''
+        }
+    }
+}
+
+In Jenkins, we will build with parameters for feature-1 and unit tests will be successfully passed. Next, check in catalogue-unit-tests feature-1 branch, the unit tests will be passed beside the latest commit.
+
+Now, in GitHub - catalogue-unit-tests - settings - rulesets - new branch ruleset - main (Ruleset name), Enforcement status (Active) - Branch targeting criteria (Include by pattern) [main] - Rules - Branch rules [Restrict deletions, Require a pull request before merging approvals-1, Require status checks to pass (Add checks - unit-tests (If it is success then only we will allow them), sonar scan), Block force pushes] - Create.
+
+Now, developers will go and raise a pull request.
+
+--> Imagine developer is doing some change,
+
+
+********* Another test
+And also we want to automatically trigger pipeline from github to jenkins through webhooks.
+
+Earlier, we have done normal pipeline but now github jenkins multibranch pipeline webhooks (search)
+
+Multibranch Scan Webhook Trigger Plugin - Install this plugin in jenkins.
+
+--> In Jenkins - Settings - Plugins - Multibranch Scan Webhook Trigger - Install
+
+==> In Jenkins - ROBOSHOP Folder - catalogue - configure - build configration - Scan Multibranch Pipeline Triggers (Scan by webhook) - Trigger token (roboshop-catalogue) - save.
+
+==> In github - catalogue-unit-tests - settings - webhooks - Add webhook - Payload URL (http://jenkins.devopsdaws.online:8080/multibranch-webhook-trigger/invoke?token=roboshop-catalogue - Content type (application/json) - SSL verification (Disable) - Just the push event - Active - Add.
+
+
+After adding this webhook in github, if we push anything in this repository that payload url will hit the jenkins and pass the token. Then, the pipeline which that token contains that branch will be triggered.
+
+
+--> DELL@JAVEED-LAPTOP MINGW64 /d/devops/daws-88s/repos/catalogue-unit-tests (feature-1)
+$ git add . ; git commit -m "jenkins" ; git push origin feature-1
+
+Now, this feature-1 branch will be automatically triggered in Jenkins.
+
+--> catalogue team wants to pull request from feature-1 to main (catalogue-unit-tests) - create pull request - But, we are not allowing because some checks are not passed. If they pass, then only they will be allowed otherwise they are not allowed. 
+
+
+Now, in GitHub, Edit in catalogue-unit-tests - settings - rulesets - new branch ruleset - main (Ruleset name), Enforcement status (Active) - Branch targeting criteria (Include by pattern) [main] - Rules - Branch rules [Restrict deletions, Require a pull request before merging approvals-1, Require status checks to pass (Add checks - unit-tests (If it is success then only we will allow them), sonar-scan, trivy-scan, library-scan, push-image), Block force pushes] - Create.	[deploy to dev also should be successful].

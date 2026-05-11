@@ -1,0 +1,272 @@
+Jenkins shared library -> common pipelines are here, like we can use pipelines as functions, we can send parameters they will be triggered
+
+
+nodeJSEKSPipeline project:
+Using configMap as input
+--> Centralised pipelines
+--> Easy maintenance
+--> Easy updates
+--> Enforcing same (best) standards across project
+--> Proper governance
+
+Adding these as trusted global pipeline libraries in Jenkins - Manage jenkins - system
+
+then we import them in application Jenkinsfile
+
+
+def call(Map configMap){
+	Pipeline{
+	
+	}
+}
+
+
+multi branch pipeline -> You can get individual pipelines based on branches.
+
+feature-branching --> main and feature branch
+
+
+Strategies used:
+----------------
+shift-left
+build once, deploy anywhere -> Whatever tested in dev, is promoting all the way to prod.
+commit-status-> To check properly
+Scanning
+
+
+sprint-1
+========
+
+2 weeks
+Create sprint-1, add the dates, starting date and ending dates	--> Sprint Manager
+Create tasks inside them for everyone
+
+TO-DO IN-PROGRESS BLOCKED/PASSED DONE
+
+Task: Changes in catalogue,
+--> Create feature branch
+--> commits -> trigger feature branch pipeline
+--> clone, read version, npm install, unit-tests, sonar-scan, library-scan, image-build, trivy-scan, push-image
+--> If everything is fine -> feature completed
+
+
+If commit-id is changed		-> Code may or may-not changed
+If commit-id not changed	-> Code is also not changed
+
+
+Create Pull Request (PR) to main branch
+1. approvals -> 2
+2. check commit-status -> unit-tests, sonar-scan, library-scan, trivy-scan, push-image (utils.groovy)
+
+A new merge commit-id is created (Code will become available in main branch)
+
+jenkins webhook triggers main pipeline
+
+
+1. Read the version	-> From package.json (ECR must have this image)
+
+catalogue:1.0.0
+catalogue:<commit-id>
+
+commit-id is the key
+2. Image promotion	-> Pull image from ECR, retag it using commit-id and push to ECR again
+3. Deploy to DEV environment
+4. Run API/Functional testing -> Testing team will do this
+
+5. Create jira ticket -> project, component, appVersion, commit-id
+
+Jira is service management (JSM).
+
+If Dev is successful, some buttons will be enabled in Jira,
+
+	deploy to UAT -> Click this button -> It will call jenkins pipeline
+	
+	deployment to uat, version -> commit-id, appVersion -> 1.0.0
+	
+	pull image from ECR
+	deploy to UAT
+	run end-to-end/integration testing
+	update jira as success
+		
+After Jira is successful, then:
+	deploy to PROD (button) -> You must provide CR number,
+		our pipeline will be triggered,
+		-> Check CR -> approved or not? within time frame of deployment or not?
+		-> deploy to PROD
+		-> simple health checks
+		-> tag commit-id with version 1.0.0
+
+1. He should edit package.json version
+
+1.0.0 -> 1.1.0
+
+
+Change-Request or Change-Management (CR):	[Production changes]
+=========================================
+
+CR tool -> service-now, monday, custom-tools
+
+which date and time (6hr)?
+what is the change?
+what is the version?
+project, component?
+what is the description?
+what if failure?
+what is the rollback plan?
+
+After giving all the details and submitting, we will get a ticket number - CR-1GT56 (This is the reference)
+
+
+approvals -> team lead, delivery manager approval -> client approval (APPROVED state)
+
+
+catalogue-tests will be taken care by testing team, built using python.
+==> In JENKINS, we create a ROBOSHOP Folder (for every project, we create a folder) and will add each component in it.
+In ROBOSHOP Folder, create catalogue-tests pipeline - pipeline script from SCM - git ((https://github.com/javeed-mohd/catalogue-tests.git)) - */main - Create.
+
+We can't directly merge, if we want to make changes in main branch you have to pull request and get approval from some one who is authorized for it like a team member.
+You have to add a member of your another git repo and give write access so that he can approve pull request and can comment also. Obviously, our fellow members should have write access.
+After adding they will receive a mail. They will accept it. But, in real projects, we don't have to do all this because it will be done prior only.
+
+--> After merging the pull request, then the main pipeline will be triggered.
+
+
+clusters:
+dev uat prod
+
+dev qat	-> roboshop-dev -> roboshop-dev, roboshop-qa
+sit uat -> roboshop-uat -> roboshop-uat, roboshop-sit
+pre-prod prod -> roboshop-prod -> roboshop-prod, roboshop-pre-prod
+
+roboshop-dev roboshop-uat roboshop-prod	==> namespace in the same cluster.
+
+
+***********
+--> We have to install trivy in our jenkins-agent. It is also Command line tool and in background it will query NVD.	[Search Trivy install - Trivy Installation]
+In Mobaxterm,
+Install script -->
+curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh | sudo sh -s -- -b /usr/local/bin v0.70.0
+
+--> aws configure [Enter access key ID and secret access key]
+
+We have to update the security group also.
+
+--> Our EKS cluster has to allow agent on port number 443 (HTTPS).
+
+In AWS - EKS - roboshop-dev - Networking - Additional security groups (sg-0123a45678910) - Add Inbound rule (Type-HTTPS, source - roboshop-dev-Jenkins (provide sg id)) - Save.
+
+--> aws eks update-kubeconfig --region us-east-1 --name roboshop-dev
+kubectl get nodes
+
+--> kubectl create namespace roboshop-dev
+--> kubectl create namespace roboshop-uat
+--> kubectl create namespace roboshop-prod
+We have now created namespaces.
+
+
+For suppose, we got bug in main branch, we forgot some configuration.
+In catalogue-unit-tests, we have to add helm configuration. We do it with feature-1 branch.
+
+--> In SonarQube server, Quality Gates - Create - roboshop (Name)
+
+==> Application means not only source code, but configuration is also part of application. If there is problem in any of them, configuration or source code then application will fail.
+
+--> After merging the pull request, automatically the main branch pipeline will be triggered.
+
+*************
+--> We are scanning dockerfile, SonarQube, helm also. We ensure best practices in source code in the docker files and in the manifest files also.
+
+
+
++ sed -i s/IMAGE_VERSION/49e2645/g values.yaml
++ helm upgrade --install catalogue -f values-dev.yaml -n roboshop-dev --atomic --wait --timeout=5m .
+
+It will take both values.yaml and values-dev.yaml and will make union. If values-dev.yaml is overriding something then it will override values.yaml
+
+--> In Mobaxterm,
+kubens roboshop-dev	[roboshop-dev namespace]
+kubectl get pods
+
+
+We will now start building catalogue-tests for testing
+What is required for testing team to do API/Functional test? There test cases, they will write.
+They want URL.
+
+
+If they want any help in Jenkinsfile, we will setup that. Based on labels, we will be getting that URL. (kubectl get pod -l component=catalogue -n ${NAMESPACE} -o jsonpath='{.items[0].status.podIP}')
+URL --> http://10.0.1.234:8080
+ 
+--> kubectl get pods -o wide	[We can check it]
+In Kubernetes, networking will be in VPC ranging (10.0.1.234) only, so you can hit it through agent
+--> curl http://10.0.1.234:8080/health
+
+Check in report.yaml for any issues in Jenkins. It will fail due to mongodb unavailability, So:
+
+--> git clone https://github.com/javeed-mohd/k8s-roboshop.git
+cd k8s-roboshop/mongodb/
+vim manifest.yaml	[We have to modify it to roboshop-dev namespace]	(Somehow, we are making mongodb running).
+kubectl apply -f manifest.yaml
+
+--> curl http://10.0.1.234:8080/health
+We have to restart:
+kubectl get pods -o wide
+kubectl delete pod <catalogue-pod-name> 
+
+*******
+We have to install Rebuild plugin in Jenkins, to know the parameters that are set for the previous build. In Jenkins - Settings - Plugin - Rebuild - Install.
+
+In catalogue, we can trigger in Jenkins only, main branch is failed because test cases are failed. Trigger again build with parameters (Before that add rebuild plugin to check previous build parameters). Now click Rebuild to trigger the main branch pipeline of catalogue. Obviously, it will deploy again.
+
+==> kubens roboshop-dev	[roboshop-dev namespace]
+kubectl get pods -o wide
+curl http://10.0.1.345:8080/health
+
+
+
+
+* DEV -> PROD complete CICD automation
+infra creation using terraform
+EKS cluster
+Shift-left
+Build once and run anywhere
+
+--> We have implemented status checks in every environment before promoting to next environment.
+--> We are using jenkins shared libraries. we are supporting 20 components.
+--> Common pipelines powered by jenkins shared library, we let developers only to code. Remaining everything we will take care.
+
+
+We have pipelines ready based on programing language and platform, for example we have:
+nodejsEKS
+javaEKS
+pythonEKS
+
+
+Whenever developers comes to us we explain,
+branching strategy, merging strategy
+
+We do the settings in their repo. min approvals 2, status checks should be passed, only PR (pull request) to main branch.
+
+Then, we will ask them to keep a simple jenkinsfile in their repo that call our jenkins shared library
+
+1. To enforce best standards across all projects
+2. Easy maintenance and governance and compliance
+
+
+*********
+Roles and Responsibilities:
+===========================
+
+1. new projects
+2. existing projects
+
+SOP -> brand new
+jenkins, kuberentes, infra using terraform, jira(bridge between app team and jira team), repo settings
+
+SOP -> existing project
+jenkins, kuberentes, infra using terraform, jira(bridge between app team and jira team), repo settings
+
+maintain
+
+* language upgrade
+* platform(Jenkins, SonarQube, EKS, JIRA, etc) upgrade
+* AMI (OS upgrade)

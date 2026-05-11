@@ -322,7 +322,7 @@ docker -> internal repo proxy
 whitelisted base images -> 
 
 node:18
-RUN apk updte 
+RUN apk update 
 
 custom-node:18.1.0
 

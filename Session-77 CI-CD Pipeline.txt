@@ -222,17 +222,85 @@ kubectl get pods -o wide
 curl http://10.0.1.345:8080/health
 
 
+==> In Jenkins, Settings - System - JIRA Steps - Name (jira) - URL (https://username.atlassian.net/) - Connection Timeout (10000 ms) - Save.
+
+--> Add Jira Pipeline Steps plugin in Jenkins for JIRA ticket to be created.
+
+==> To create Jira ticket, we need to write function in utils.groovy file:
+
+def createJiraTicket(){
+}
+
+**********
+--> To create issue in JIRA, search jira jenkins plugin create issue
 
 
+--> Trigger the pipeline again of catalogue - main - rebuild.
+
+*********
+--> Create jira-creds with username and password (Our jira login username and password same as ec2-user) and jira-url as secret text (give your jira url in secret https://name.atlassian.net/jira) in credentials.
+
+--> Trigger the pipeline again of catalogue - main - rebuild.	[No need of jira-url code block]
+
+Now, the Jira ticket will be created.
+Login in Jira - If not found the ticket in TO DO then it may be in backlog, see in summary. Click on it, we can see all the details who has assigned and commit-id and so on.
+Click on Automation - Trigger UAT Deploy, then now it will be redirected to Jenkins and main pipeline will get triggered and it will pass the parameters. check in rebuild, we can see deploy to (which environment), VERSION (short commit), JIRA_KEY, CR_NUMBER (required for PROD deploy).
+
+--> Now, it is pushing to UAT environment (successful). Then, in JIRA we can see UAT Passed.
+
+Now, after UAT, in Automation - Trigger PROD Deploy, it will fail because CR-number is required for PROD Deploy (It is like a click button which will be created by JIRA administration).
+Create Key details - CR Number - cr-2345, Now we can trigger PROD Deploy.
+
+In Jenkins - ROBOSHOP - catalogue - main - Triggered. After giving CR number, it will check like whether CR is validated, approved or not and within change window or not.
+Now PROD is also successful. We will be getting new tag, 1.0.0 -> 1.0.0
+Then, in JIRA we can see it as DONE.
+
+--> We can see all the work log whatever we have done in JIRA.
+
+==> Now, after deploying into PROD, in GitHub - in catalogue-unit-tests - we will get a tag pointing to deploy PROD commit-id. We can not give the same tag as git do not accept same tags again. 
+
+--> We have to change the tag/version in package.json, if we want to develop new feature for the same.
+
+****
+If we give same tag/version and build everything in dev, uat and prod, it will pass all the environments but when we try to push it in git after successful PROD Deploy, it will not accept. Git will say tag already exists.
+
+
+*********** In Interview:
+Recently, we have faced a problem, developer once forgot to change the version number, PROD deployment was successful but in git, we were not able to tag that commit-id properly in our pipeline.
+[We should not override because if we do all the code becomes mistake].
+we thought, we discussed in our team, before triggering feature branch pipeline, we came up with an enhancement, we are checking whether the tag/version is already existing or not.
+we can write code in read version function whether the tag is existed or not, if it exists, fail the pipeline. (Tag is already exists, check the version).
+
+
+--> For few projects, scanning is not there, trivy scan is not available. We have introduced it, we have installed trivy in agent then we introduced that stage also in our pipelines. Theses re recently enhanced.
+
+==> If we use jira plugins from two different sources, then they can clash. (We may face lot of issues in real time that developers/admins change the configuration in Jenkins and so on).
+So, we can use the read version enhancement to overcome the version/tag issues.
+
+
+*********
+Once, everything is good where does the issues arise?
+--> When application team wants to upgrade their version, when terraform upgrade is there, we have to check our pipelines again whether the pipelines are working fine or not, compatibility check.
+
+Maintain
+
+* Language upgrade
+* Platform (Jenkins, SonarQube, EKS, JIRA, etc.,) upgrade
+* AMI (OS upgrade)
+
+
+*********
+Introduction:
+--------------
 * DEV -> PROD complete CICD automation
 infra creation using terraform
 EKS cluster
-Shift-left
+Shift-left (Strategies)
 Build once and run anywhere
 
---> We have implemented status checks in every environment before promoting to next environment.
---> We are using jenkins shared libraries. we are supporting 20 components.
---> Common pipelines powered by jenkins shared library, we let developers only to code. Remaining everything we will take care.
+--> We have implemented status checks in every environment before promoting it to next environment.
+--> We are using jenkins shared libraries. We are supporting 20 components. (10 NodeJS, 5 Java, 5 Python).
+--> Common pipelines powered by jenkins shared library, we let developers only to code. Remaining everything, we will take care.
 
 
 We have pipelines ready based on programing language and platform, for example we have:
@@ -242,31 +310,54 @@ pythonEKS
 
 
 Whenever developers comes to us we explain,
-branching strategy, merging strategy
+branching strategy, merging strategy (merge and rebase)
+--> We will suggest them to use squash, squash the commits and push to the feature branch. (Rather than pushing 100 commits in feature branch, we use squash to make it as single commit and push).
 
 We do the settings in their repo. min approvals 2, status checks should be passed, only PR (pull request) to main branch.
 
-Then, we will ask them to keep a simple jenkinsfile in their repo that call our jenkins shared library
+Then, we will ask them to keep a simple Jenkinsfile in their repo that call our jenkins shared library, (Why you are doing)
 
 1. To enforce best standards across all projects
 2. Easy maintenance and governance and compliance
+
+
+--> Generally, developers will make few changes and skip few others. We will be restricting them to do by enforcing the best governance and compliance.
+
+When ART team comes and ask how are you making sure everything is as per the process, anyone can tweak and bypass the process.
+--> No, we are not giving that option, our branching strategies are very strict and status checks are also very strict. Developers won't have option, they don't have access to change the status check or approval. That is what every project is doing, based on role they will be getting the access.
+--> In pipelines, we are enforcing checks in each and every stage wherever is required.
+
+
+What are the stages you have in your pipeline/ promoting the application from dev to PROD deployment?
+We are following feature branching strategy, main and feature branch. Whenever there is a change, developers create a feature branch and then immediately our pipeline will be triggered. We are following shift-left strategy, we are doing sonar scan, trivy scan (image scanning), library scan (GitHub dependabot). We are running unit test cases, building the image and pushing the image to ECR repo (roboshop/catalogue), then feature branch is completed. Then, developers will go and raise a pull request (PR) to main branch. Before merging feature to main, we applied a setting like minimum approvals required are 2 and it should pass all the status checks provided (scans and tests).
+Once, this two conditions are met, then we are allowing them to merge. After successful merging the code to main branch, then we are immediately triggering our main pipeline that will by default deploy to development environment and our testing team configures the test cases of what they have written API/Functional, we are triggering the test cases as well. If the deployment and testing both are successful, our pipeline is creating a JIRA ticket and there we will get an option for Trigger UAT Deploy. So, developers will go and check is everything is fine in development environment, then they will trigger UAT for the JIRA. Then our pipeline will deploy the application into UAT. So, then again our testing team will configure end to end/integration testing. If deployment and end to end testing is successful in UAT environment, then we have to start change management process/change request (CR). Support team will raise a CR request with all the details like date and time, change, version, project, component and everything. They have to give that CR Number to JIRA. So, now developers/Devops support team (L2) can trigger the PROD pipeline from JIRA. [But, in pipeline we are checking that they must provide the CR number. Without CR Number, we do not trigger the PROD deployment}. When they give use CR Number, we are checking whether the CR is completely approved and the trigger is within the time frame or not. If CR is approved and time is within the deployment window, then we are performing to the PROD Deployment and then once the PROD Deployment is successful, we are tagging the main branch commit-id with the version.
+
+==> We have two types of Pipeline, one is feature branch and other is main branch pipeline. We are following multi-branch pipeline. When developer is committed some change into feature branch, the stages are like obviously code will be cloned, we are reading the version from package.json and we are running unit test cases, sonar scan, we have implemented quality gates in sonar scan where issues, vulnerabilities, bugs should be zero and code coverage should meet at least 80%, maintainability and security ratings should be 'A' and we will wait for quality gate to clear, if it is successful, do the library scan (GitHub dependabot), we will build the docker image and scan the image using trivy scan (image scanning). If everything is successful, we are pushing the image to ECR repo. This is our feature branch pipeline. Then, developers will go and raise a pull request (PR). Once the code comes to main branch, we will trigger main pipeline that will deploy the application into development environment, trigger the API/Functional test cases written by our testing team and if it is successful, we are creating the JIRA Ticket there developers will get an option to trigger UAT Deploy, then they will trigger it Again our main pipeline will be called, now we will deploy the application to UAT Cluster where end to end/integration testing will be done. If everything goes well, we will consider UAT Passed. Then, next stage is PROD. All the CR process will happen and then deployment window opens our development/support team will trigger the deployment to PROD that will call our pipeline again, deploy to PROD, if it is successful, tag the git commit-id with the version. And we cannot tag the same version in git.
+
 
 
 *********
 Roles and Responsibilities:
 ===========================
 
-1. new projects
-2. existing projects
+1. New projects
+2. Existing projects
 
-SOP -> brand new
+Different roles for new and existing projects.
+
+If new project comes, we will have a meeting with development team, dev team lead, my team lead. We all meet and discuss about the branching strategy, merging strategy and whatever we are following. We explain our pipeline process, like we will ask their programming language, deployment platform, then we will onboard them into Jenkins, Kubernetes wherever they require. If they need some infra, we will create it using terraform and jira (if new project) [We don't have access to it, but we will be acting as a bridge between application and jira team], we will tell jira team that we are supporting their devops process, so we need this kind of jira workflow as they already have it [jira onboarding also done]. Kubernetes, if you have access you can do onboarding, rbac everything you can create. Jenkins, folder structure creation and then repo settings (standard operating procedure) enabling dependabot alerts and so on.
+
+
+Standard Operating Procedure
+SOP	-> brand new
 jenkins, kuberentes, infra using terraform, jira(bridge between app team and jira team), repo settings
 
-SOP -> existing project
+SOP	-> existing project
 jenkins, kuberentes, infra using terraform, jira(bridge between app team and jira team), repo settings
 
-maintain
 
-* language upgrade
-* platform(Jenkins, SonarQube, EKS, JIRA, etc) upgrade
+Maintain
+
+* Language upgrade
+* Platform(Jenkins, SonarQube, EKS, JIRA, etc.,) upgrade
 * AMI (OS upgrade)

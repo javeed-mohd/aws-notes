@@ -1,0 +1,56 @@
+1. Infra creation -> One time activity
+2. Tools setup
+
+1. create feature branch
+
+end-to-end/integration test cases
+
+
+CR process:
+===========
+
+create CR -> cr-1234
+date
+time
+change description
+project, component
+version
+scan results
+	sonar-scan (SonarQube)
+	trivy scan (image scanning)
+	library-scan (dependabot GitHub)
+test cases reports -> 60% (Automate) (40% - Manual)
+	unit-tests
+	api/functional-test-cases
+	integration/end-to-end test cases
+	testing-team sign off email
+roll back plan
+	We are doing microservices deployment through helm, if the application/pods are not coming to running stage, we are automatically doing rollback through helm and fail the pipeline.
+approvals -> Minimum 2
+
+This is done by L2 Support/Production support.
+
+**********
+EKSMainPipeline - We are developing and maintaining different pipelines based on programming language and deployment platform.
+For example: We have nodejsEKSPipeline, javaEKSPipeline, pythonEKSpipeline
+
+
+--> For every language we are managing two pipelines, one is feature branch pipeline and other is main branch pipeline. Whenever developers commits into feature branch, we will trigger this pipeline through webhook. We are doing all scans like sonar, library, trivy, unit test cases and quality gates setup for every scan, if we find critical and high alerts we are failing the pipeline. Then, we are building the image and pushing image into ECR repo.
+
+--> We want to make sure shift-left process. We want clean, scanned and tested code should be deployed in all the environments.
+
+==> Once feature is success, developers raise pull request (PR), we do commit checks, after approval code comes to main branch.
+
+Then, we automatically trigger main pipeline that deploys the application into development branch, here we consider commit-id as version. We download the image from ECR repo, retag it and push to ECR then deploy into DEV. If it is successful, then we are triggering functional-test-cases, if test cases are success, then we are creating JIRA Ticket for UAT deployment.
+
+From JIRA, we are triggering UAT, application will be deployed into UAT, we trigger end to end/integration automation test cases (around 30 minutes), then we are updating JIRA as UAT Passed.
+
+
+Then application is ready for PROD, CR process will be followed by our support team, within the deployment window support team updates JIRA with CR number, then trigger the pipeline.
+
+Our main pipeline makes sure CR number is approved and within the time window, then we trigger to PROD Deploy in JIRA. helm does auto rollback if pods are not coming to running in 5 minutes, then fail the pipeline. If success, we tag the commit-id with version and update JIRA as DONE. PROD deployment is completed. We cannot have same version in git and it does not accept the same tags.
+
+Not only this work, we as devops engineer, we will onboard teams, if existing teams face any issue, we will address them. Issues like package.json (version/tag changes when new feature development happens), newly introducing scans, earlier we used to have only sonar scan. Recently, we included trivy scan (image scanning). Earlier, we used to have nodeJSEKSPipeline, javaEKSPipeline and now we have written pythonEKSPipeline. Going forward, we also want to introduce golang pipeline, we have to go through the project structure and ready to write the pipelines for it. If teams require changes in application infra, we will do terraform changes and upgrade EKS also. We used to do automation through Jenkins, but recently asked to migrate to GitHub. Whatever the process, we are running in Jenkins, we will do POC for GitHub actions and migrate to it. We don't have helm earlier, now we introduced it.
+If PROD deployment is failed, then one of the reason is developers forgot to change version in package.json and other is in helm configuration [It is used as only typo mistake]. We can only test application not configuration. So, we are thinking/planning that Pull Request (PR) along with humans, AI agents can also review (AI agents reviewing PR).
+
+--> We will onboard them and create whatever they require and we standby for 2 PROD deployments and after that not required, automatically our pipelines will work. In case, if pipeline breaks we will be available. 1 standby will be there.

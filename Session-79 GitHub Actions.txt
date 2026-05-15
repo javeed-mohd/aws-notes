@@ -8,7 +8,7 @@ We are replacing Jenkins server with GitHub actions so that maintenance can be r
 2. Native support to GitHub		[We have our code in GitHub, integration will become easier when compared to Jenkins]. It will be powerful.
 
 
-Disadvantages/cons:
+Disadvantages/Cons:
 -------------------
 
 1. We will not have full control
@@ -16,9 +16,9 @@ Disadvantages/cons:
 3. Even, we setup GitHub action in GitHub enterprise (self hosted enterprise), it is dependent on internet for actions and marketplace
 4. If there is a problem in GitHub side, our pipelines will not work
 
-Heavy dependency, not having full control but there is no problem for maintenanace.
+Heavy dependency, not having full control but there is no problem for maintenance.
 
---> Earlier, we were using Jenkins server, now we are migrating to github actions. I can handle both. Even, I have handled migration.		[Making Jenkins setup working as it is in Github actions is known as migration, we are not moving data]. 
+--> Earlier, we were using Jenkins server, now we are migrating to GitHub actions. I can handle both. Even, I have handled migration.		[Making Jenkins setup working as it is in GitHub actions is known as migration, we are not moving data]. 
 
 CI:
 ===
@@ -81,16 +81,16 @@ In your Profile, create github-actions repo in your other org. that contains,
 search hello world GitHub actions
 
 
-Jenkins						GitHub Actions
-========					==============
-Pipeline					Workflow
-Triggers (Cron Job, Webhooks, Remote trigger)	Triggers
-Stage						Job
-Agent						runs-on
-Steps						Steps
-Parameters					inputs
-Credentials					secrets
-Plugins						Actions
+Jenkins                                         GitHub Actions
+========                                        ==============
+Pipeline                                        Workflow
+Triggers (Cron Job, Webhooks, Remote trigger)   Triggers
+Stage                                           Job
+Agent                                           runs-on
+Steps                                           Steps
+Parameters                                      inputs
+Credentials                                     secrets
+Plugins                                         Actions
 
 GitHub actions triggers search, after pushing event as we did not mention specifically which branch to trigger. So, it will trigger for any branch on pushing. But, separately we can do triggers on a particular branch.
 
@@ -321,12 +321,12 @@ jobs:
         run: ls -l
 
 -----
-search how to call another workflow from my current github actions
+search how to call another workflow from my current GitHub actions
 
 By giving uses section and full path then we can call it,
 uses: javeed-mohd/workflows/.github/workflows/nodejs-feature-pipeline.yaml@main
 
-while calling, we need to pass some parameters to it. It can be done using with section.
+While calling, we need to pass some parameters to it. It can be done using with section.
 
 
 maven:

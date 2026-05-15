@@ -1,0 +1,343 @@
+GitHub Actions:
+===============
+
+Advantages/Pros:
+-----------------
+1. No need to maintain CI server	[We can run the CI where the code is present whereas in Jenkins we have clone the code, on that we will run the CI server].
+We are replacing Jenkins server with GitHub actions so that maintenance can be reduced. 
+2. Native support to GitHub		[We have our code in GitHub, integration will become easier when compared to Jenkins]. It will be powerful.
+
+
+Disadvantages/cons:
+-------------------
+
+1. We will not have full control
+2. Code must be in GitHub	[If code is not there in GitHub then GitHub actions won't work]
+3. Even, we setup GitHub action in GitHub enterprise (self hosted enterprise), it is dependent on internet for actions and marketplace
+4. If there is a problem in GitHub side, our pipelines will not work
+
+Heavy dependency, not having full control but there is no problem for maintenanace.
+
+--> Earlier, we were using Jenkins server, now we are migrating to github actions. I can handle both. Even, I have handled migration.		[Making Jenkins setup working as it is in Github actions is known as migration, we are not moving data]. 
+
+CI:
+===
+It is a process of integrating the code developed by developers. So, in this process, you can scan it, do unit testing, you can involve continuous scanning, testing and we can perform the deployment also from CI server.
+
+
+DevOps Main Goal:
+=================
+1. Faster deployments
+2. No defects
+
+
+pipeline {
+
+	agent{
+	
+	}
+	options{
+	
+	}
+	parameters{
+	
+	}
+	environment{
+	
+	}
+	stages{
+		stage(){
+		
+		}
+		stage(){
+		
+		}
+	}
+	post {
+	    always {
+                echo 'I will always say Hello again!'
+                cleanWs()
+            }
+            success {
+                echo "Pipeline Success"
+            }
+            failure {
+                echo "Pipeline Failure"
+            }
+	
+	}
+}
+
+--> For GitHub actions, we need to have organizations because we will use self hosted runners. We will have our own agents. Central server is GitHub but agent should be in our servers. We don't place our code inside GitHub agent due to security problem.
+
+
+--> In GitHub, Profile - Organizations - New Organization - gha-pipelines - Create.
+
+Runners are nothing but Agents.
+
+In your Profile, create github-actions repo in your other org. that contains,
+.github/workflows
+
+search hello world GitHub actions
+
+
+Jenkins						GitHub Actions
+========					==============
+Pipeline					Workflow
+Triggers (Cron Job, Webhooks, Remote trigger)	Triggers
+Stage						Job
+Agent						runs-on
+Steps						Steps
+Parameters					inputs
+Credentials					secrets
+Plugins						Actions
+
+GitHub actions triggers search, after pushing event as we did not mention specifically which branch to trigger. So, it will trigger for any branch on pushing. But, separately we can do triggers on a particular branch.
+
+If we want to manually we use - workflow_dispatch. In Triggers - Run workflow (We have to give manually in GitHub).
+
+push, pull request and so on.
+
+
+******
+Context:
+========
+
+search print GitHub context
+
+github-context is global, we can access in GitHub actions workflows.
+
+1. github	-> ${{ github }}
+
+- name: Print info
+        run: |
+          echo "${{ toJson(github) }}"
+          echo "Branch name: ${{ github.ref_name }}"
+
+2. env
+
+env:
+  project: "roboshop"
+  component: "catalogue"
+  environment: "dev"
+
+3. secrets (Confidential information)	[We can store this in GitHub, encrypted only safe]
+
+==> In github-actions repo - Settings - Secrets and variables - Actions - Secrets - New repository secret - Name (DB_USER) - Add.
+
+We can access this through secrets.	(search accessing secrets in GitHub actions)
+- name: Print secrets
+        run: |
+          echo "DB Username: ${{ secrets.DB_USER }}"
+          echo "DB Password: ${{ secrets.DB_PASSWORD }}"
+
+--> Obviously, it won't print, it will mask for security reasons but will work in code.
+
+4. variables (Non-confidential information)
+
+==> In github-actions repo - Settings - Secrets and variables - Actions - Variables - New repository variable - Name (DB_URL) - Add.
+
+We can access this through variables.	(search accessing variables in GitHub actions)
+- name: Print variables
+        run: |
+          echo "DB URL: ${{ vars.DB_URL }}"
+
+5. inputs	-> ${{ inputs.key-name }}
+6. steps
+
+To take outputs from one step to another, we use,
+--> In Jenkins - in environment, we will set the variables as empty and set the value in steps. (common way) But, we need to follow  specific syntax to take outputs from one to another in GitHub actions,
+
+- name: Image tag
+        id: tag     # id is mandatory, to access the output of this step in later steps.
+        run: |
+          echo "version=1.0.0" >> $GITHUB_OUTPUT
+          echo "image-name=catalogue" >> $GITHUB_OUTPUT
+
+- name: Print previous step output
+        run: |
+          echo "Version: ${{ steps.tag.outputs.version }}"
+          echo "Image name: ${{ steps.tag.outputs.image-name }}"
+
+
+--> We also have GitHub env which are useful within the job. (search github_env in actions)
+
+We can give them as key-value pairs which works as environment variable.
+
+- name: github env
+        run: |
+          echo "Course=github-actions" >> $GITHUB_ENV
+          echo "Duration=5 Hours" >> $GITHUB_ENV
+
+- name: Print github env
+        run: |
+          echo "Course: $Course"
+          echo "Duration: $Duration"
+
+GitHub env works only within the job.
+
+# Job name
+  deploy:
+    needs: github-context
+    runs-on: ubuntu-latest            # Github hosted runners
+    steps:
+      - name: Print github env in another job
+        run: |
+          echo "Course: $Course"
+          echo "Duration: $Duration"
+
+If we try to access, we won't get the output.
+
+==> If we want to expose outside of the job, we have to do it through GITHUB_OUTPUT, we have to mention outputs section below runner what all things we want to expose. Then, this can be useful to accessing from other jobs.
+
+github-context:
+    runs-on: ubuntu-latest            # Github hosted runners
+    outputs:
+      image-version: ${{ steps.tag.outputs.version }} 
+      image-name: ${{ steps.tag.outputs.image-name }}
+
+deploy:
+    needs: github-context             # Depends on above job (github-context) can be accessed using outputs section
+    runs-on: ubuntu-latest            # Github hosted runners
+    steps:
+      - name: Print github env in another job
+        run: |
+          echo "Image Version: ${{ needs.github-context.outputs.image-version }}"
+          echo "Image Name: ${{ needs.github-context.outputs.image-name }}"
+
+This is sequential order of execution.
+
+--> If we want to run the jobs parallelly, we can run them.
+
+==> Here,
+scan:
+    runs-on: ubuntu-latest            # Github hosted runners
+    steps:
+      - name: Run sonar scan
+        run: echo "Sonar Scan"
+
+deploy job is dependent on github-context job, so it runs sequentially. [We specified in deploy job with needs section]
+But, scan job is not dependent on other job, so it runs parallelly.	[github automatically runs parallelly]. 
+
+
+7. job	(search github actions job context)
+
+- name: Print job contexts
+        run: echo "${{ toJson(job) }}"
+
+8. runner
+
+- name: Print runner contexts
+        run: echo "${{ toJson(runner) }}"
+
+This all will be helpful to control the pipelines.
+
+
+
+Concurrency:	(github actions concurrency search) 
+============
+
+name: main-workflow
+on: [push]                            # Triggers the workflow on every push to the repository
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref_name }}     # main-workflow-main
+  cancel-in-progress: true            # If true, present execution will be cancelled, new trigger will happen / If false, until the in progress execution is done, other won't be triggered.
+
+jobs:
+  # Job name
+  say-hello:
+    runs-on: ubuntu-latest            # Github hosted runners
+    steps:
+      - name: Concurrency build
+        run: sleep 60     # The command to execute
+
+
+We can also keep timeout in concurrency. 
+timeout-minutes: 30  # Job will fail if it takes longer than 30 mins.
+
+
+Conditions:	(search github actions conditions)
+===========
+
+Using conditions to control job execution
+Prevent a job from running unless your conditions are met.
+
+jobs:
+  # Job name
+  say-hello:
+    runs-on: ubuntu-latest            # Github hosted runners
+    steps:
+      - name: Main branch
+        if: github.ref_name == 'main'
+        run: echo "This will be executed, if branch is main"     # The command to execute
+
+      - name: Feature branch
+        if: github.ref_name == 'feature-*'
+        run: echo "This will be executed, if branch is feature"     # The command to execute
+
+
+
+Workflows:
+==========
+project
+component
+environment
+
+==> If we want cloned code in github actions, we can use it from github marketplace. [search github actions clone code]. (https://github.com/actions/checkout)
+
+
+workflows
+	- .github
+		- workflows
+nodejs-feature-pipeline.yaml:
+
+name: nodejs-feature-branch-workflow
+on: 
+  # Someone should call this
+  workflow_call:
+    inputs:
+      project:
+        description: 'Project name'
+        required: true
+        type: string
+      component:
+        description: 'Component name'
+        required: true
+        type: string
+      environment:
+        description: 'Environment name'
+        required: true
+        type: string
+
+jobs:
+  # Job name
+  trigger:
+    runs-on: ubuntu-latest            # Github hosted runners
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+      
+      - name: List the files
+        run: ls -l
+
+-----
+search how to call another workflow from my current github actions
+
+By giving uses section and full path then we can call it,
+uses: javeed-mohd/workflows/.github/workflows/nodejs-feature-pipeline.yaml@main
+
+while calling, we need to pass some parameters to it. It can be done using with section.
+
+
+maven:
+======
+
+java build tool
+pom.xml
+	group-id: com.icicibank
+	artifact: savings-bank
+	version: 1.0
+	
+sonar-scanner: sonar-8.X
+
+mvn sonar

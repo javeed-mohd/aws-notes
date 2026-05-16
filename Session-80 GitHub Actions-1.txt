@@ -1,0 +1,253 @@
+GitHub actions:
+===============
+
+Pros:
+-----
+1. No need to maintain CI server	[We can run the CI where the code is present whereas in Jenkins we have clone the code, on that we will run the CI server].
+We are replacing Jenkins server with GitHub actions so that maintenance can be reduced. 
+2. Native support to GitHub		[We have our code in GitHub, integration will become easier when compared to Jenkins]. It will be powerful.
+
+Pipelines == Workflows
+
+--> We have both Jenkins and GitHub actions, few projects support Jenkins and few are migrating to GitHub actions. Here, we are not migrating the data only process migration. [Data migration is risky, generally databases on-premise to cloud migrating is risky because we need to transfer the actual data. But, here we no need to transfer data, just migrating the process. We will use Jenkins for 1 or 2 PROD Deployments successful and once GitHub actions becomes completely stable then we can deprecate/remove the Jenkins.
+
+On-premise means software or servers are kept and run inside a company’s own building or data center, instead of using them over the internet from a cloud provider.
+
+Pros:
+-----
+Better control over data
+Strong security requirements
+Need to work without internet
+Compliance/legal reasons
+
+Cons:
+-----
+Expensive hardware
+Needs IT staff
+Maintenance and upgrades are manual
+
+
+Jenkins                                         GitHub Actions
+========                                        ==============
+Pipeline                                        Workflow
+Triggers (Cron Job, Webhooks, Remote trigger)   Triggers
+Stage                                           Job
+Agent                                           runs-on
+Steps                                           Steps
+Parameters                                      inputs
+Credentials                                     secrets
+Plugins                                         Actions
+Shared library                                  reusable-workflows
+
+
+For roboshp-infra-eks repo - We have to run,
+
+In gitbash:
+-----------
+for i in 00-vpc/ 10-sg/ 20-sg-rules/; do cd $i; terraform apply -auto-approve; cd ..; done
+
+00-vpc		- [33]
+10-sg		- [26]
+20-sg-rules	- [20]
+
+By default Jenkins will be true before applying 31-cicd-tools, we have to set the Jenkins to false using,
+
+terraform apply -var "jenkins=false" -var "runner=true" -auto-approve	[It is used while practicing runner]. [We need to change for runner].
+
+terraform apply -var "jenkins=true" -var "runner=false" -auto-approve	[It is used while practicing Jenkins]. 	[It will be automatically set for Jenkins].
+
+31-cicd-tools	- [1]
+
+terraform destroy -auto-approve
+for i in 20-sg-rules/ 10-sg/ 00-vpc/ ; do cd $i; terraform destroy -auto-approve; cd ..; done
+
+
+self-hosted runners (agents):
+=============================
+
+--> Public IP of runner instance
+
+In GitHub Org - Settings - Actions - Runners - New Runner - New self-hosted runner (Brings our own infrastructure) - Image (Linux) - Architecture (x64) - Download (If we run this commands in our runner server (Mobaxterm), then the runner will connect with our github actions.
+
+
+Download --> 
+# Create a folder
+$ mkdir actions-runner && cd actions-runner
+
+# Download the latest runner package
+$ curl -o actions-runner-linux-x64-2.334.0.tar.gz -L https://github.com/actions/runner/releases/download/v2.334.0/actions-runner-linux-x64-2.334.0.tar.gz
+
+# Extract the installer
+$ tar xzf ./actions-runner-linux-x64-2.334.0.tar.gz
+
+==> For configuration to github actions --> Use configure and we will use runner.service file which makes systemctl to run easily.
+
+==> All are default only. [It will take by default IP address]. Our work will be saved in _work folder.
+
+--> sudo vim /etc/systemd/system/runner.service
+
+This will be easier to start and stop.
+
+
+==> sudo systemctl enable runner --now
+
+--> sudo systemctl start runner
+--> sudo systemctl status runner
+
+To activate self-hosted runner, we have to make runner groups, allow public repos should be enabled.
+
+--> In GitHub - Settings - Actions - Runner Groups - Default - Allow Public Repositories - Enable - Save.
+
+--> systemctl stop runner		[If no longer needed].
+
+***
+==> In interviews, we should tell that we have used reusable workflows.
+
+
+Steps for feature branch pipeline:
+==================================
+
+After cloning the code,
+-> Read package.json
+-> Unit tests
+-> Sonar scan
+-> Sonar Quality gates
+-> Library scan
+-> Build image
+-> Trivy scan (OS and Dockerfile)
+-> Push image to ECR repo
+
+
+*********
+Do trigger for each and every step and check.
+
+--> search GitHub actions read package.json version
+
+      - name: Read version from package.json
+        id: package_version         # # id is mandatory, to access the output of this step in later steps and it is unique, can be used multiple times for reference rather than using name.
+        run: |
+          APP_VERSION=$(jq -r .version package.json)
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+
+--> search github actions sonar scan - Official SonarQube Scan · Actions · GitHub Marketplace
+
+      - name: Sonar scan
+        id: sonar_scan
+        uses: SonarSource/sonarqube-scan-action@v8.0.0
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}              # or https://sonarcloud.io
+
+
+Here, SONAR_TOKEN is secret and SONAR_HOST_URL is variable in GitHub.
+
+
+In GitHub Org, Settings - Secrets and Variables -  Actions - Secrets - New organization secret - New secret (SONAR_TOKEN (Name)) - Value [To generate this,
+
+-> Hit the Browser after launching Sonar EC2 instance - http://sonar.devopsdaws.online:9000
+Account - Administrator - Security - Name (github), Type (Global Analysis Token), 30 days (validity) - Generate. copy - sqa.... (token value)]
+Paste it in Value of github - Add secret.
+
+This is applied to all repos in this organization and no need to add again.
+
+Settings - Secrets and Variables -  Actions - Variables - New organization variable - New variable (SONAR_HOST_URL (Name)) - Value (http://sonar.devopsdaws.online:9000) - Add variable.
+
+
+*********
+But, in workflows it won't get the access of this secrets and variables.
+Those who are calling (catalogue-unit-tests) it, need to pass them.
+In that repo, .github/workflows - feature-workflow.yaml
+should give secrets: inherit
+--> This feature-workflow.yaml pipeline is calling nodejs-feature-pipeline.yaml, at the time of calling, it should pass the secrets also otherwise reusable workflow(nodejs-feature-pipeline.yaml) doesn't know/have idea about it. So, we have to pass secrets: inherit in feature-workflow.yaml, it will carry these secrets to reusable workflow and this will set up that secrets in their environment.
+
+
+--> search GitHub actions sonar quality gate - SonarQube Quality Gate Check · Actions
+
+      - name: SonarQube Quality Gate check
+        id: sonar_check
+        uses: sonarsource/sonarqube-quality-gate-action@master
+        with:
+          pollingTimeoutSec: 600
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ vars.SONAR_HOST_URL }}              #OPTIONAL
+
+
+--> search github actions dependabot alerts check (library scan) - Dependabot Security Checker · Actions
+
+      - name: Check Dependabot Alerts
+        id: library_scan
+        uses: Posture-Cybersecurity/dependabot-security-checker@v1.1.5
+        with:
+          github-token: ${{ secrets.DEPENDABOT_TOKEN }}
+          severities: 'critical,high'                            # Only check critical and high
+          output-file: 'security-report.csv'
+          fail-on-alerts: 'true'                                 # Fail workflow, if alerts are found
+
+In GitHub Profile - Settings - Developer settings - Personal access tokens - Fine-grained tokens - Generate new token - Token name (actions) - Resource owner (javeed-mohd) - All repositories - Permissions (Dependabot alerts) (Read only) - Generate token. 
+
+--> Copy token value.
+
+In GitHub Org, Settings - Secrets and Variables -  Actions - Secrets - New organization secret - New secret (DEPENDABOT_TOKEN (Name)) - Value [Paste it in Value of github] - Add secret.
+
+Manually triggering by re-run all jobs in github after giving workflow_dispatch.
+
+==> Temporarily change in catalogue-unit-tests - settings - rules - ruleset - main - 0 approvals (Require a pull request before merging). And moreover, we used master branch in our code. 
+
+
+To login, we need to set up aws credentials.
+--> search github actions aws credentials - Configure AWS credential environment variables for use, https://github.com/aws-actions/configure-aws-credentials (Official)
+
+In GitHub Org, Settings - Secrets and Variables -  Actions - Secrets - New organization secret - New secret (AWS_ACCESS_KEY_ID (Name)) - Value [from aws configure paste the access key id] - Add secret.
+
+In GitHub Org, Settings - Secrets and Variables -  Actions - Secrets - New organization secret - New secret (AWS_SECRET_ACCESS_KEY (Name)) - Value [from aws configure paste the secret access key] - Add secret.
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v6.1.0
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
+
+
+
+--> search github actions ecr login - aws-actions/amazon-ecr-login: Logs into https://github.com/aws-actions/amazon-ecr-login (Official)
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+--> Build image
+
+      - name: Build Image
+        id: build_image
+        run: |
+          docker build -t ${account_id}.dkr.ecr.us-east-1.amazonaws.com/${project}/${component}:${APP_VERSION} .
+
+--> search github actions trivy scan - aquasecurity/trivy-action: Runs Trivy as, https://github.com/aquasecurity/trivy-action
+
+      - name: Trivy scan
+        id: trivy_scan
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          image-ref: ${{ env.account_id }}.dkr.ecr.us-east-1.amazonaws.com/${{ env.project }}/${{ env.component }}:${{ env.APP_VERSION }}
+          scan-type: 'image'
+          vuln-type: os
+          format: 'table'
+          exit-code: 1
+          severity: 'CRITICAL,HIGH'
+
+
+For Java applications, same pipeline will be used but few changes are made in,
+--> In read version - maven pom.xml
+Install dependencies and unit tests will only be changed all other will be same as it is.
+
+
+*********
+--> We have update commit statuses, in Jenkins we used utils.groovy file.
+
+In github actions if you don't have official commit status code, then we can write on our own using, search github actions update commit statuses.
+
+We need to search for customized actions github - creating a composite action.
+
+In github - catalogue-unit-tests - actions - feature-pipeline - branch (feature-123) - Run workflow -> Manually running the workflow as we used workflow_dispatch.

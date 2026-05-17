@@ -262,16 +262,16 @@ Why to taint:
 ~~~~~~~~~~~~~
 
 1. We reserve that node to other special workloads.
-2. May b, ewe can attach GPU node to the cluster, we reserve that for AI/ML workloads.
+2. May be, we can attach GPU node to the cluster, we reserve that for AI/ML workloads.
 3. DB may accept connections from specific IP, we only send the pods that connects to DB in the tainted node.
 
 ****
 ==> SYNTAX for tainting the specific Pod  ==> kubectl taint nodes node1 key1=value1:NoSchedule
 
 
-NoSchedule 	 	-> Don't schedule the new pods. (It means before scheduled pods will be running)
-PreferNoSchedule	-> Try not to schedule the new pods. Scheduler may schedule the pods. (Soft)
-NoExecute 		-> Don't schedule new pods and evict existing pods. (Super Hard)
+NoSchedule        --> Don't schedule the new pods. (It means before scheduled pods will be running)
+PreferNoSchedule  --> Try not to schedule the new pods. Scheduler may schedule the pods. (Soft)
+NoExecute         --> Don't schedule new pods and evict existing pods. (Super Hard)
 
 
 ==> cd
@@ -309,7 +309,7 @@ nginx   1/1     Running   0          5s    192.168.32.79   ip-192-168-35-9.ec2.i
 
 ==> kubectl get pods -o wide (In which we have tainted, the pod will not go into that node, No matter how many times we delete and apply the pod).
 
-==> If we want our pod on to tainted node, then we should use toleration, toleration will not gaurentee pod scheduling
+==> If we want our pod on to tainted node, then we should use toleration, toleration will not guarentee pod scheduling
 
 tolerations:
   - key: "project"

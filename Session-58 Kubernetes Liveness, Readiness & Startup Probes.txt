@@ -222,6 +222,22 @@ If we want to change it to default, then use:
 ==> kubens default
 ==> kubectl get pods
 
+***
+k9s:
+=====
+
+k9s is a terminal-based tool used to manage Kubernetes clusters interactively.
+
+k9s = a command-line dashboard for Kubernetes that lets you view and control resources (pods, deployments, logs, etc.) in real time.
+
+It’s like a live control panel for Kubernetes inside your terminal.
+
+It is useful for:
+--> View running pods and services
+--> Check logs
+--> Restart or delete resources
+--> Search and filter workloads
+--> Monitor cluster health in real time
 
 
 k9 install: (Browser --> GitHub --> webi)
@@ -291,6 +307,8 @@ We have to optimise the images to run them:
 ===========================================
 
 IN DOCKER:
+-----------
+
 docker-roboshop folder:
 ======================
 
@@ -693,7 +711,7 @@ uid, gid in payment.ini should be commented for second time building as we are r
 
 
 *****
-Frontend: (nginx non root docker image - browse (Running Nginx Official image as non root-General (dockerhub))
+Frontend: [nginx non root docker image - browse (Running Nginx Official image as non root-General (dockerhub))]
 =========
 
 nginx expects a lot of directories log, process instance ID (PID), parent process instance ID (PPID), configuration and so on...

@@ -59,7 +59,7 @@ uid, gid in payment.ini should be commented for second time building as we are r
 
 
 *****
-Frontend: (nginx non root docker image - browse (Running Nginx Official image as non root-General (dockerhub))
+Frontend: [nginx non root docker image - browse (Running Nginx Official image as non root-General (dockerhub))]
 =========
 
 nginx expects a lot of directories log, process instance ID (PID), parent process instance ID (PPID), configuration and so on.

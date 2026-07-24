@@ -1,0 +1,92 @@
+In GitHub workflows, every step is an action.
+
+--> Actions are like Plugins. They will be official available, if in case they are not available then we can run shell commands like this,
+	run: |
+          APP_VERSION=$(jq -r .version package.json)
+          echo "APP_VERSION=$APP_VERSION" >> $GITHUB_ENV
+
+Still, if there is any reusable then we can write custom actions.
+
+==> Type Slack API apps - Slack API:Applications, https://api.slack.com/apps
+
+GitHub actions should update to Slack, it can be updated through webhook.
+Two systems communicate each other through webhook only.
+
+--> https://api.slack.com/apps - Create New App - From scratch - App Name (github-actions-alerts) - Javeed (Workspace) - Create App.
+
+==> Incoming webhooks (Will get communication from other systems here) - Activate (ON) - Add New Webhook - channel(github-actions-status) - Allow. 
+
+Will get output in Slack.
+
+search slack api webhook GitHub actions,
+
+- name: Send Slack Notification
+  uses: slackapi/slack-github-action@v2.0.0
+  with:
+    payload: |
+      {
+        "text": "Build status: ${{ job.status }}\nRepo: ${{ github.repository }}"
+      }
+  env:
+    SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+ 
+
+==> In GitHub Org, Settings - Secrets and Variables -  Actions - Secrets - New organization secret - New secret (SLACK_WEBHOOK_URL (Name)) - Value [value] - Add secret.
+
+
+
+search slack api webhook GitHub actions - Send data into Slack using this GitHub Action! - docs - sending-data-slack-incoming-webhook.md
+
+
+- name: Slack alert
+        if: always()
+        uses: slackapi/slack-github-action@v3.0.3
+        with:
+          webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+          webhook-type: incoming-webhook
+          payload: |
+            text: "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *${{ inputs.project }}/${{ inputs.component }}* feature pipeline *${{ job.status }}*"
+            blocks:
+              - type: "section"
+                text:
+                  type: "mrkdwn"
+                  text: "${{ job.status == 'success' && ':white_check_mark:' || ':x:' }} *${{ inputs.project }}/${{ inputs.component }}* feature pipeline: *${{ job.status }}*\n*Branch:* `${{ github.ref_name }}`\n*Commit:* `${{ github.sha }}`\n*<${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}|View Run>*"
+
+
+
+==> In mobaxterm, delete the actions runner if getting errors. Or else manually delete it in Actions - Runner - Remove.
+--> rm -rf actions-runner/
+And reconnect again so that we won't get errors.
+This usually happens because before getting added to docker group, runner might have connected to GitHub.
+
+
+==> Search custom GitHub actions - About custom actions
+
+Types of actions:
+
+You can build Docker container, JavaScript, and composite actions. Actions require a metadata file to define the inputs, outputs, and runs configuration for your action. The preferred format is action.yml.
+
+Type			Linux	macOS	Windows
+=====			=====	=====	=======
+Docker container	Yes	No	No			
+JavaScript		Yes	Yes	Yes		==> This is for developers.			
+Composite Actions	Yes	Yes	Yes		==> Shell commands
+
+
+A composite action allows you to combine multiple workflow steps within one action. For example, you can use this feature to bundle together multiple run commands into an action, and then have a workflow that executes the bundled commands as a single step using that action. To see an example, check out Creating a composite action.
+
+--> echo $RANDOM
+
+
+- name: Post a message in a channel
+  uses: slackapi/slack-github-action@v3.0.3
+  with:
+    webhook: ${{ secrets.SLACK_WEBHOOK_URL }}
+    webhook-type: incoming-webhook
+    payload: |
+      text: "*GitHub Action build result*: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"
+      blocks:
+        - type: "section"
+          text:
+            type: "mrkdwn"
+            text: "GitHub Action build result: ${{ job.status }}\n${{ github.event.pull_request.html_url || github.event.head_commit.url }}"

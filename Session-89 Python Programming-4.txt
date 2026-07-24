@@ -1,0 +1,66 @@
+- When working with any project using python, it is necessary to separate the libraries that are used in that project
+- Or it is better we use a virtual environment
+
+- In python we can create virtual environments using "venv" module
+- This is just one way of creating a virtual environment
+- E.g. python -m venv <your environment name>
+
+- To activate: source <your environment name>/Scripts/activate
+
+- How to work with Github repositories
+- How to start/stop instances in ec2 as per cron schedule
+- How to work with Paramiko library
+
+- Please go through Modules and packages, API (get, post, put/patch, delete), file handling, List comprehension, spot_instances, exception handling concepts.
+
+
+--> python -m venv .venv	[One way of creating a virtual environment].
+where,
+m = modules
+venv = venv module
+.venv = environment name
+
+To activate it, we use: 
+==> source <your environment name>/Scripts/activate
+==> source .venv/Scripts/activate
+(.venv)
+
+Pypi => Python Package Index.
+
+
+****
+Search pypi (Python Package Index) --> Similar to Docker hub account.
+
+-->  pip install paramiko ==> SSH2 protocol library
+==> python
+Python 3.14.5 (tags/v3.14.5:5607950, May 10 2026, 10:43:50) [MSC v.1944 64 bit (AMD64)] on win32
+Type "help", "copyright", "credits" or "license" for more information.
+>>> import paramiko
+
+>>>
+
+--> 
+
+stdin, stdout, stderr = client.exec_command('sudo init 0') ==> It is used to shutdown the machine/instance.
+
+
+*****
+==> To connect with multiple instances which are running, then we have to get those IP addresses of particular use cases (instances), for that we have to use Boto3 package. (pip install boto3). After installing the package, we have to use particular thing to list all the IP addresses. If needed, we can store all those IP's in a file. And do all the similar process.
+
+--> pip install python-dotenv ==> Read key-value pairs from a .env file and set them as environment variables.
+
+--> pip install requests ==> Python HTTP for Humans.
+
+--> cd github-api/
+==> python list_repos.py
+
+
+git init (To initialize the empty repository).
+
+--> pip install boto3
+
+Lambda --> ec2_auto_start, ec2_auto_stop
+
+Amazon EventBridge -> Scheduler - Schedules (Not available) -> They shifted to Scheduled rules (legacy). (Cron Job Scheduling to start and stop the ec2 instance).
+
+Ec2_auto_start_policy -> Targets -> Target Name -> Monitor (To view and check CloudWatch logs).

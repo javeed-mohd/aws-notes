@@ -170,8 +170,8 @@ Of course we use multiple tools to make this process smooth. Continuous developm
 6 months -> 100$ credits + 100$ credits
 
 debit and credit
-international transformations enable -> net-banking, online spending, etc.
-	SBI, Rupay try to avoid.. 
+international transactions enable -> net-banking, online spending, etc.
+	SBI, Rupay try to avoid...
 	call to customer care
 use bank address while creating account
 give pan card, no problem

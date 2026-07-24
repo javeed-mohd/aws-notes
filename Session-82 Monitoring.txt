@@ -1,0 +1,434 @@
+4 Golden rules of Monitoring:
+=============================
+
+1. Traffic
+2. Errors
+3. Latency (Response Time application performance)
+4. Saturation (Resource level)
+
+resource metrics -> Prometheus
+
+
+==> Search Prometheus, download (Linux, amd64).
+
+prometheus instance (no key-pair) public ip:-
+==> sudo su -
+==> cd /opt/	(manual downloads will be stored here)
+
+To download and manually store the software in /opt/	(optional)
+
+==> ls -l
+==> wget https://github.com/prometheus/prometheus/releases/download/v3.13.1/prometheus-3.13.1.linux-amd64.tar.gz
+--> ls -l
+==> Untaring the file,
+tar -xzvf prometheus-3.13.1.linux-amd64.tar.gz
+
+--> ls -l
+If tomorrow any update happens, 3.13 to 3.14., To point or link the updated version, simply we have to create a link file ln -s (soft link).
+
+==> ln -s prometheus-3.13.1.linux-amd64 prometheus
+--> ls -l
+
+By doing this, if any update occurs in future we will be pointing this soft link to the new version and the old version will be as backup. If the updated version doesn't work properly, we will be pointing to back to older version.
+
+
+--> We will be using this for backward compatibility.
+Ex:
+~~~
+==> which yum
+/usr/bin/yum
+--> ls -l /usr/bin/yum
+/usr/bin/yum -> dnf-3
+
+
+--> ls -l
+==> cd prometheus
+--> ls -l
+
+Script that is used for running the Prometheus is present in Prometheus folder and also has configuration file (prometheus.yml)
+
+Create systemctl service,
+search systemctl prometheus service
+
+--> /opt/prometheus ]# useradd prometheus
+==> vim /etc/systemd/system/prometheus.service
+Insert the prometheus.service file
+:wq!
+
+
+Prometheus is TSD, (to store historical database)
+TSD -> time series database
+
+money, timestamp, category, description
+15sec metrics collection
+
+==> systemctl restart prometheus
+==> systemctl status prometheus
+
+
+Failed, to check
+--> journalctl -u prometheus
+
+==> cd ..
+--> ls -l
+==> chown -R prometheus:prometheus Prometheus
+
+
+--> vim /etc/systemd/system/prometheus.service
+Insert the prometheus.service file
+:wq!
+
+--> systemctl restart prometheus
+--> systemctl daemon-reload
+--> systemctl restart prometheus
+--> systemctl status proemtheus
+==> netstat -lntp
+
+==> prometheus runs on port number 9090.
+
+--> Search in browser with Public IP of prometheus instance:9090
+
+To monitor the own server also we need Prometheus.
+Prometheus query language(PQL)
+>up --> 1 means up
+>up[1m] --> To know how many times metrics has been taken in last one minute.
+
+******
+==> By default, prometheus collects the metrics for every 15 seconds. But, if required we can configure it accordingly...
+
+To see the graph, we use Grafana.
+
+
+Creating another server/instance:
+==> node-1 (no key-pair)
+
+node-1 public IP
+==> sudo su -
+==> cd /opt/
+
+search in Prometheus download, node_exporter 
+
+--> wget https://github.com/prometheus/node_exporter/releases/download/v1.12.0/node_exporter-1.12.0.linux-amd64.tar.gz
+--> ls -l
+==> tar -xzf node_exporter-1.12.0.linux-amd64.tar.gz
+
+--> ls -l
+==> ln -s node_exporter-1.12.0.linux-amd64 node_exporter
+==> ls -l
+
+--> cd node_exporter
+--> ls -l
+
+Script that is used for running the node_exporter is present in node_exporter folder.
+
+search systemctl node_exporter service,
+--> vim /etc/systemd/system/node_exporter.service
+Insert node_exporter.service file
+:wq!
+
+==> systemctl restart node_exporter
+If anything failed, then use systemctl daemon-reload
+==> systemctl status node_exporter
+
+--> netstat -lntp
+
+==> node_exporter runs on port number 9100.
+
+
+==> Now, we have to connect node_exporter with Prometheus.
+
+
+--> Now, we have to check the configuration of Prometheus,
+Mobaxterm,
+In Prometheus server,
+--> cat prometheus/prometheus.yml
+
+==> Actually we are automating but if we want to add individual job, we have to write it in prometheus.yml manually.
+
+Now, we have to make configuration changes as we have added the job manually in prometheus server,
+
+--> vim prometheus/prometheus.yml
+We have to update the file with the changes
+:wq!
+
+==> Now, if we give "up" in prometheus browser, we will be getting data from another instance like node-1. If needed, we can change the labels
+
+--> We can also check free memory (node_memory), disk space (node_disk) and so on.
+
+
+******
+==> How mayny instances we can do manually, everytime when we change instance we have to make changes in configuration file (by creating job), we may not know. If we enable autoscaling, instances won't be in our control, they will be depending upon traffic (more traffic more instances and viceversa). So, for prometheus to take that and scrape automatically, then we need dynamic scrapping.
+
+tags will be used as selectors in AWS.
+
+On tag basis, prometheus server checks.
+
+
+==> Now, we will be creating another instance node-2 that will be automatically gets scraped by our prometheus server.
+
+
+==> In node-2 instance, we have to download and configure node_exporter.
+
+
+node-2 public IP
+==> sudo su -
+==> cd /opt/
+
+search in Prometheus download, node_exporter 
+
+--> wget https://github.com/prometheus/node_exporter/releases/download/v1.12.0/node_exporter-1.12.0.linux-amd64.tar.gz
+--> ls -l
+==> tar -xzf node_exporter-1.12.0.linux-amd64.tar.gz
+
+==> ln -s node_exporter-1.12.0.linux-amd64 node_exporter
+==> ls -l
+
+--> cd node_exporter
+--> ls -l
+
+--> vim /etc/systemd/system/node_exporter.service
+Insert node_exporter.service file
+:wq!
+
+==> systemctl restart node_exporter
+--> netstat -lntp
+
+
+search in browser prometheus ec2 dynamic scraping, configuration
+
+<ec2 sd>
+
+search in browser prometheus ec2 sd config example,
+
+--> In node-2 instance, we have to add tag Monitoring as true. This is used for filtering. Tags are nothing but useful for filters.
+
+In AWS Account, IAM -> Policies -> Create Policy -> Service (EC2), Actions Allowed, List (DescribeInstances) -> Policy name (PrometheusEC2SD) -> Create.
+
+In AWS Account, IAM -> Roles -> Create Role -> AWS Service, EC2 -> Permissions policies (PrometheusEC2SD) -> Role name (PrometheusEC2SD) -> Create.
+
+
+*******
+==> Now, we have to attach this role to Prometheus Server/Instance...
+
+prometheus -> actions -> security -> modify IAM role -> PrometheusEC2SD -> Update IAM role.
+
+
+==> And we have to update this configuration file in prometheus server,
+
+--> vim prometheus/prometheus.yml
+We have to update the file with the changes
+:wq!
+
+--> systemctl restart prometheus
+
+Now, in browser of prometheus server, if we give "up" metrics then we will get the output as all the instances along with the labels whichever added.
+
+If "up" metrics value is 1 means the instance is up and running.
+If "up" metrics value is 0 means the instance is down and terminating.
+
+==> We are collecting data, after that we have to check few rules (If in case we have a problem in collected data, we should create an alert). We have to create alert-rules directory and create instance-down file.
+
+******
+search Prometheus alert rules in browser (alerting rules)
+
+
+==> In Prometheus server,
+cd prometheus
+ls -l
+mkdir alert-rules
+--> cd alert-rules/
+
+We can load 'n' number of alerts here,
+--> vim instance-down.yaml
+Insert the instance-down.yaml file here
+:wq!
+
+==> cd ../
+--> vim prometheus.yml
+Insert prometheus.yml file as we have changed the configuration of rule_files to "alert-rules/*.yaml"
+
+--> systemctl restart prometheus
+
+==> In prometheus instance browser, we can see in alerts section with instance down as inactive because no instance is down.
+
+For ex, we are making node-1 instance down in AWS by stopping it,
+
+Then we can see the up metrics as 0 for node-1, since it is down. (alerting for every 15 seconds) and now we can see in alerts section with instance is down as pending because instance is down. After 2 min, alert starts firing, then we have to take some action against it (alertmanager).
+
+
+
+Dynamic scraping:
+==================
+
+--> alert is created
+--> It should be managed
+
+
+==> In prometheus server,
+cd ../
+--> wget https://github.com/prometheus/alertmanager/releases/download/v0.33.1/alertmanager-0.33.1.linux-amd64.tar.gz
+--> ls -l
+==> tar -xzf alertmanager-0.33.1.linux-amd64.tar.gz
+
+==> ln -s alertmanager-0.33.1.linux-amd64 alertmanager
+==> ls -l
+
+--> cd alertmanager
+--> ls -l
+
+
+==> cat alertmanager.yml
+
+--> To send gmail we have to use concepts folder,
+==> sudo dnf install msmtp -y
+--> https://myaccount.google.com/apppasswords
+==> app name = prometheus - create and it generates a password.
+
+upjtfvxlmzfyozba
+
+--> sudo vi /etc/msmtprc
+
+Insert this file,
+
+defaults
+auth           on
+tls            on
+tls_trust_file /etc/ssl/certs/ca-bundle.crt
+logfile        /var/log/msmtp.log
+
+account        gmail
+host           smtp.gmail.com
+port           587
+from           m.sivakmrreddy@gmail.com
+user           m.sivakmrreddy@gmail.com
+password       upjtfvxlmzfyozba
+
+account default : gmail
+
+
+==> sudo chmod 644 /etc/msmtprc		(Permissions)
+==> sudo touch /var/log/msmtp.log
+sudo chmod 666 /var/log/msmtp.log	(Creating Log File)
+
+
+--> Next, 
+
+{
+echo "To: info@joindevops.com"
+echo "Subject: Testing prometheus alerts"
+echo "Content-Type: text/html"
+echo ""
+echo "Hello"
+} | msmtp "info@joindevops.com"
+
+
+
+==> Search prometheus alertmanager gmail configuration with subject in browser, (Grafana labs (gmail notifications and slack notifications))
+
+We have to create an app for slack for getting alerts,
+
+==> Type Slack API apps - Slack API:Applications, https://api.slack.com/apps
+
+--> https://api.slack.com/apps - Create New App - From scratch - App Name (prometheus-alerts) - Javeed (Workspace) - Create App.
+
+==> Incoming webhooks (Will get communication from other systems here) - Activate (ON) - Add New Webhook - channel(prometheus-status) - Allow. 
+
+Will get output in Slack.
+
+--> vim alertmanager.yaml
+Insert alertmanager.yaml file
+:wq!
+
+
+--> vim /etc/systemd/system/alertmanager.service
+Insert alertmanager.service file
+:wq!
+
+==> systemctl restart alertmanager
+--> netstat -lntp
+
+alertmanager runs on port number 9093.
+
+
+We have to change prometheus server configuration as we have made changes in it,
+--> cd ../prometheus
+--> vim prometheus.yml
+Insert the file
+:wq!
+
+==> systemctl restart prometheus
+
+In browser of prometheus server, if we run with 9093 port number, we will be getting the alert for the instances which are down in gmail and slack after firing happens. It happens for 5 min and instance again gets into pending for 2 min and will start firing again until and unless the alert is resolved.
+
+Similarly, we can write queries according to the requirements like cpu utilisation query, memory/disk utilisation and so on... And we can write alert rules also. 
+
+
+==> In Prometheus server,
+--> cd alert-rules/
+
+We can load 'n' number of alerts here,
+--> vim cpu-utilisation.yaml
+Insert the cpu-utilisation.yaml file here
+:wq!
+
+--> vim memory-utilisation.yaml
+Insert the memory-utilisation.yaml file here
+:wq!
+
+==> cd ../
+--> vim prometheus.yml
+Insert prometheus.yml file as we have changed the configuration of rule_files to "alert-rules/*.yaml"
+
+--> systemctl restart prometheus
+
+
+==> If any problem occurs, alerts will be fired. Then if we have to take action for those alerts, for that we need to have historical data so that we need to go through graph in prometheus server. If we see graph section, then we can easily identify when the problem has occurred with regards to timestamp. Based on timestamp, we can investigate what happened at that particular time. Grafana is used for graphs. It will show graphs effectively.
+
+Prometheus main intention is database. It stores the database properly.
+
+*******
+Search Grafana installation (RHEL)
+--> Grafana is installed where the prometheus is present.
+
+==> cd 
+--> curl -o gpg.key https://rpm.grafana.com/gpg.key
+==> sudo rpm --import gpg.key
+
+--> vim /etc/yum.repos.d/grafana.repo
+Insert this,
+
+[grafana]
+name=grafana
+baseurl=https://rpm.grafana.com
+repo_gpgcheck=1
+enabled=1
+gpgcheck=1
+gpgkey=https://rpm.grafana.com/gpg.key
+sslverify=1
+sslcacert=/etc/pki/tls/certs/ca-bundle.crt
+
+:wq!
+
+==> sudo dnf install grafana
+
+
+==> Rules, Scraping and Alert manager are part of prometheus architecture.
+
+--> Prometheus architecture consists of multiple components like time series database (TSD), service discovery (to find the services dynamically or statistically) and then alert manager component to manage alerts. We can have rules, Grafana for graphs and node exporter agents in the Linux servers.
+
+==> sudo systemctl daemon-reload
+sudo systemctl start grafana-server
+
+--> sudo systemctl status grafana-server
+
+--> netstat -lntp
+
+Grafana runs on port number 3000
+
+Public Ip of the instance with port 3000 in browser.
+
+--> In connections, we have to tell Grafana to take the connection from prometheus. (Data source - Add Prometheus) - localhost - Save & test.
+
+--> In dashboard, New dashboard - Add panel (UP) - Configure visualization - provide "up" query in code section - options (legend - custom - {{app}}) - Save (Monitoring).
+
+Search node exporter open source dashboard, We can use them already developed by someone and gives id, we have to import and give that id then we will get the full metrics.

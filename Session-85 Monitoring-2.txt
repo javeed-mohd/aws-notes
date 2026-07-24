@@ -1,0 +1,4 @@
+*******
+Argocd is gitops tool. We are using argocd to manage eks cluster and recently we started deploying few applications with argocd. In argocd, everything is application. It has source, destination and sync policy. When we update source, it will automatically sync that to destination.
+
+We are managing namespaces, storage classes, drivers, load balancer controller, etc., through argocd. application deployments also through argocd. Our CI pipeline updates image versions in helm values file based on environment, our argocd application syncs it automatically.

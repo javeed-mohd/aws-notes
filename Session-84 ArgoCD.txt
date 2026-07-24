@@ -1,0 +1,250 @@
+gitops tool
+works only for kubernetes deployments
+
+When we are creating EKS cluster, we will be having few one time setup,
+--> namespace
+--> storage classes
+--> ingress controller
+
+git -> single source of truth
+
+
+ArgoCD is an open-source continuous delivery (CD) tool for Kubernetes that follows the GitOps methodology. It automates the deployment and lifecycle management of applications by using a Git repository as the single source of truth.
+
+
+--> GitOps is a practice where,
+
+Your application's desired state (Kubernetes YAML files, Helm charts, Kustomize configurations, etc.) is stored in Git.
+Any change to the application or infrastructure is made through a Git commit.
+ArgoCD continuously compares the desired state in Git with the actual state in the Kubernetes cluster.
+If they differ, ArgoCD automatically synchronizes the cluster to match Git.
+
+==> How ArgoCD works:
+
+Developer
+    |
+    | 1. Push changes
+    v
+Git Repository
+    |
+    | 2. ArgoCD watches Git
+    v
+ArgoCD Server
+    |
+    | 3. Compares desired state with cluster
+    v
+Kubernetes Cluster
+
+
+--> GitOps-based deployment – Git is the single source of truth.
+--> Automatic synchronization – Deploys changes automatically when Git is updated.
+--> Rollback support – Roll back to any previous Git commit.
+--> Drift detection – Detects if someone manually changes resources in the cluster.
+--> Web UI – View application status, health, and deployment history.
+--> CLI and API – Manage applications programmatically.
+
+Supports multiple configuration formats,
+Kubernetes YAML
+Helm Charts
+Kustomize
+Jsonnet
+
+
+******
+Argocd:
+=======
+1. Managing the cluster
+2. k8 application deployments
+
+ArgoCD Architecture:
+
+--> API Server – Provides the UI, CLI, and REST API.
+--> Repository Server – Reads manifests from Git repositories.
+--> Application Controller – Monitors applications and reconciles cluster state.
+--> Redis – Caches data to improve performance.
+
+Advantages:
+Faster and more reliable deployments
+Easy rollback using Git history
+Version-controlled infrastructure
+Improved security through pull-based deployments
+Supports multiple Kubernetes clusters
+Reduced manual deployment errors
+
+Jenkins builds your application, while ArgoCD deploys it to Kubernetes using Git as the source of truth.
+
+We have created bastion and runner instances,
+Take bastion instance public ip,
+
+--> aws configure
+==> aws eks update-kubeconfig --name roboshop-dev --region us-east-1
+--> kubectl get nodes
+We will be getting the nodes info.
+
+(force terminate k8 namespace)
+In bastion server,
+--> Argocd works only for Kubernetes. So, install it in Kubernetes.
+
+Search ArgoCD installation,
+
+kubectl create namespace argocd
+kubectl apply -n argocd --server-side --force-conflicts -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+If already exist delete and check in k9s(other tab).
+
+
+==> We have to install ArgoCD CLI also, (Linux, download with curl)
+
+curl -sSL -o argocd-linux-amd64 https://github.com/argoproj/argo-cd/releases/latest/download/argocd-linux-amd64
+sudo install -m 555 argocd-linux-amd64 /usr/local/bin/argocd
+rm argocd-linux-amd64
+
+
+AgroCD load balancer, It will give UI
+
+==> kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "LoadBalancer"}}'
+
+--> kubectl get svc -n argocd
+We will get be getting load balancer url for argocd-server which is self signed certificate,	(load balancer - target instances load)
+Hit the browser with it https://load-balancer-url and login argocd with username and password.
+
+
+Login using CLI,
+--> argocd admin initial-password -n argocd
+
+
+--> argocd login <ARGOCD_SERVER>
+
+Change the password using the command:
+--> argocd account update-password
+
+
+
+In argocd, everything is called as application.
+
+source		--> git is single source of truth
+destination	--> K8s cluster
+sync policy	--> how frequently argocd should go and check GitHub, by default every 3min
+
+cluster - project infra, one time infra
+application - frequently changing infra
+
+
+*****
+Search argocd application example in browser,
+
+If a project is created newly, then in EKS we have to create namespace.
+
+
+==> In bastion server,
+
+--> argocd admin initial-password -n argocd
+--> git clone https://github.com/javeed-mohd/argocd.git
+--> cd argocd/
+ls -l (applications (namespace), namespaces(roboshop-dev))
+
+--> cd applications/
+--> kubectl apply -f namespace.yaml
+
+Argocd load balancer in browser, 
+Healthy and Synced,
+--> In applications - namespace will be created. 
+
+Two roles - EKS administrator and Application Devops Engineer, (uat and prod)
+The advantage of creating in this process is, if you are an EKS Cluster administrator and you (Application Devops Engineer) got a request to create a new namespace in cluster. Then EKS admin will tell, we won't do manually. But, we have argocd repository, you create a feature branch and create a namespace yaml file which you require, for example you want uat then make changes accordingly and then raise the pull request to us (EKS admin). After that, we (admin) will review, if it is ok we will approve and then namespace will be automatically created.
+
+--> Search argocd auto sync interval change in browser,
+data:
+  timeout.reconciliation:60s
+We are changing it from 60s to 30s for fast response. (Editing the configmap) --> kubectl edit configmap argocd-cm -n argocd
+
+
+uat and prod namespaces will be created in argocd server.
+
+
+--> Now, we are deleting the prod namespace and push it to GitHub, It will be deleted from argocd server.
+
+Whatever we keep in the git, it will be there in argocd server.
+
+==> If we delete this application, then everything will be deleted,
+--> kubectl delete -f namespace.yaml
+
+--> We have to any changes in argocd repository with proper pull requests only.
+--> kubectl apply -f namespace.yaml
+
+
+==> Storage classes - ebs-sc.yaml
+For this, we have to create another application like storage-classes.yaml file to create storage classes. push it to git.
+
+--> cd agrocd/applications/
+--> git pull
+==> kubectl apply -f storage-classes.yaml
+
+Argocd load balancer in browser, 
+Healthy and Synced,
+--> In applications - storage-classes will be created as roboshop-ebs (We can check in detail).
+
+
+********
+==> app-of-apps (We will give path here as applications, now it will be applied to all which are present in applications folder of argocd)
+Now, if we create app-of-apps, then it will go to applications folder and creates everything which are in that folder.
+
+For example, if a new cluster is created in other environment, then we can simply manage this repository and apply this app-of-apps file then we will get everything.
+
+Lets check by deleting storage-classes and namespace files from applications folder,
+--> kubectl delete -f storage-classes.yaml
+--> kubectl delete -f namespace.yaml
+
+push the changes to git,
+
+--> cd ..
+--> git pull
+ls -l
+[applications folder, namespaces folder, storage-classes folder, app-of-apps.yaml file]
+
+==> kubectl apply -f app-of-apps.yaml
+
+Argocd load balancer in browser, 
+Healthy and Synced,
+--> In applications - root-cluster is created in that namespace and storage-classes are created, if we check separately then we will get the desired output of namespace and storage-classes.
+
+
+****
+Suppose in a cluster, if you want to develop required configurations from scratch, we have to do it manually and need to follow large process. But, if we keep an argocd repository, then in future if any cluster comes we can immediately and easily create it without any manual process.
+
+
+Steps for aws eks load balancer controller creation:
+1. OIDC cluster
+2. policy creation
+3. eks service account -> creates IAM role and map service account with IAM role
+4. install through helm charts
+
+
+Search aws-load balancer-controller helm chart argocd application in browser,
+
+iam policy and role are part of terraform, they will be created at the time of infra creation. (roboshop-infra-eks)
+
+Now push it to git.
+
+
+Argocd load balancer in browser, 
+Healthy and Synced,
+--> In applications - root-cluster is created in that load-balancer-controller, namespace and storage-classes are created, if we check separately then we will get the desired output of load-balancer-controller, namespace and storage-classes.
+
+Now, add the expense in namespace and push to git and it will reflect in argocd server.
+
+
+==> Argocd is not syncing even after autosync is enabled, [Once, we have to sync it manually].
+--> Search argocd auto sync interval change in browser,
+data:
+  timeout.reconciliation:60s
+We are changing it from 30s to 60s by editing the configmap. --> kubectl edit configmap argocd-cm -n argocd
+
+
+*******
+Argocd is git ops tool. We are using argocd to manage eks cluster and recently we started deploying few applications with argocd. In argocd, everything is application. It has source, destination and sync policy. When we update source, it will automatically sync that to destination.
+
+We are managing namespaces, storage classes, drivers, load balancer controller, etc., through argocd. application deployments also through argocd. Our CI pipeline updates image versions in helm values file based on environment, our argocd application syncs it automatically.
+
+CI - GitHub actions
+CD - argocd

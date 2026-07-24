@@ -1,0 +1,180 @@
+Sets:
+=====
+A set is a collection which is unordered, unchangeable, and unindexed. Sets are written with curly brackets.
+
+Set items are unordered, unchangeable, and do not allow duplicate values.
+
+--> Unordered means that the items in a set do not have a defined order. Set items can appear in a different order every time you use them, and cannot be referred to by index or key.
+
+--> Set items are unchangeable, meaning that we cannot change the items after the set has been created. Once a set is created, you cannot change its items, but you can remove items and add new items.
+
+--> Sets cannot have two items with the same value. Duplicate values will be ignored.
+
+****
+Note: 
+-----
+The values True and 1 are considered the same value in sets, and are treated as duplicates.
+The values False and 0 are considered the same value in sets, and are treated as duplicates.
+
+
+Set Methods:
+============
+
+
+Method				Shortcut	Description
+------				--------	-----------
+add()	 					Adds an element to the set
+clear()	 					Removes all the elements from the set
+copy()	 					Returns a copy of the set
+difference()			-		Returns a set containing the difference between two or more sets
+difference_update()		-=		Removes the items in this set that are also included in another, specified set
+discard()	 				Remove the specified item
+intersection()			&		Returns a set, that is the intersection of two other sets
+intersection_update()		&=		Removes the items in this set that are not present in other, specified set(s)
+isdisjoint()	 				Returns True if NO items of this set is present in another set
+issubset()			<=		Returns True if all items of this set is present in another set
+ 				<		Returns True if all items of this set is present in another, larger set
+issuperset()			>=		Returns True if all items of another set is present in this set
+ 				>		Returns True if all items of another, smaller set is present in this set
+pop()	 					Removes an element from the set
+remove()			 		Removes the specified element
+symmetric_difference()		^		Returns a set with the symmetric differences of two sets
+symmetric_difference_update()	^=		Inserts the symmetric differences from this set and another
+union()				|		Return a set containing the union of sets
+update()			|=		Update the set with the union of this set and others
+
+
+********
+Python Collections (Arrays):
+============================
+There are four collection data types in the Python programming language:
+
+List is a collection which is ordered and changeable. Allows duplicate members.
+Tuple is a collection which is ordered and unchangeable. Allows duplicate members.
+Set is a collection which is unordered, unchangeable, and unindexed. No duplicate members.
+Dictionary is a collection which is ordered and changeable. No duplicate members.
+
+*Set items are unchangeable, but you can remove items and add new items.
+
+**As of Python version 3.7, dictionaries are ordered. In Python 3.6 and earlier, dictionaries are unordered.
+
+
+Python Conditions:
+==================
+
+If, else, elif/else if
+
+--> How to accept input from user
+The return datatype of input function is string.
+
+Indentation in python is very important.
+It can be either a tab or 4 spaces.
+
+If statement:
+=============
+
+Equals: a == b
+Not Equals: a != b
+Less than: a < b
+Less than or equal to: a <= b
+Greater than: a > b
+Greater than or equal to: a >= b
+
+If statement evaluates a condition (an expression that results in True or False). If the condition is true, the code block inside the if statement is executed. If the condition is false, the code block is skipped.
+
+Else:
+=====
+
+The else keyword catches anything which isn't caught by the preceding conditions.
+
+The else statement is executed when the if condition (and any elif conditions) evaluate to False.
+
+Else if / elif:
+===============
+
+elif keyword is Python's way of saying "if the previous conditions were not true, then try this condition".
+
+The elif keyword allows you to check multiple expressions for True and execute a block of code as soon as one of the conditions evaluates to True.
+
+
+Loops:
+======
+
+While loop:
+============
+In While loop, we can execute a set of statements as long as a condition is true.
+
+--> Break statement we can stop the loop even if the while condition is true.
+
+--> Continue statement we can stop the current iteration, and continue with the next.
+
+--> With the else statement we can run a block of code once when the condition no longer is true.
+
+
+For loop:
+=========
+A for loop is used for iterating over a sequence (that is either a list, a tuple, a dictionary, a set, or a string).
+
+The for loop does not require an indexing variable to set beforehand.
+
+Even strings are iterable objects, they contain a sequence of characters.
+
+==> To loop through a set of code a specified number of times, we can use the range() function. The range() function returns a sequence of numbers, starting from 0 by default, and increments by 1 (by default), and ends at a specified number.
+
+membership operator: 'in' is used in for loop.
+
+--> Print all elements inside a list along with its index. For that, we use enumerate, range.
+
+******
+(Lazy execution, iterators and generators).
+
+Iterable:	A Python object which can be looped over or iterated over in a loop. Examples of iterables include lists, sets, tuples, dictionaries, strings, etc. 
+
+Iterator:	An iterator is an object that can be iterated upon. Thus, iterators contain a countable number of values. 
+
+Generator:	A special type of function which does not return a single value: it returns an iterator object with a sequence of values.
+
+Lazy Evaluation:	An evaluation strategy whereby certain objects are only produced when required. Consequently, certain developer circles also refer to lazy evaluation as “call-by-need.”
+
+Iterator Protocol:	A set of rules that must be followed to define an iterator in Python. 
+
+next():		A built-in function used to return the next item in an iterator. 
+
+iter():		A built-in function used to convert an iterable to an iterator. 
+
+yield():	A python keyword similar to the return keyword, except yield returns a generator object instead of a value. 
+
+
+Functions:
+==========
+
+A function is a block of code which only runs when it is called. A function can return data as a result. A function helps avoiding code repetition.
+
+In Python, a function is defined using the def keyword, followed by a function name and parentheses,
+
+def my_function():
+
+--> To call a function, write its name followed by parentheses
+my_function()
+
+
+==> We can call same function multiple times.
+
+
+Function Names:
+---------------
+Function names follow the same rules as variable names in Python:
+
+--> A function name must start with a letter or underscore.
+--> A function name can only contain letters, numbers, and underscores.
+--> Function names are case-sensitive (myFunction and myfunction are different).
+
+
+******
+If we don't specify anything after return statement, it will be considering it as None.
+
+Map
+===
+num1, num2 = map(int, input("Enter two numbers: ").split()) ==> One method 
+# num1, num2 = int(num1), int(num2)     # Other method to specify datatype
+print(num1, num2, type(num1), type(num2))

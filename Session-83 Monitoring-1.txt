@@ -1,0 +1,456 @@
+Structured	--> SQL, NoSQL, JSON, YAML, etc
+Unstructured	--> Text files, Documents, etc
+Semi-structured	--> Log files -> Structured
+
+
+--> Create an instance with elk (ELK is developed based on java and is heavy server we need atleast 4cpu's, 16gb ram - t3.xlarge(instance-type), No keypair, 60 GB Storage).
+
+
+With Public ip of elk instance in mobaxterm,
+
+Extend the disk, you must have atleast 60GB
+--> sudo su -
+--> lsblk
+
+--> sudo growpart /dev/nvme0n1 4
+--> sudo lvextend -L +20G /dev/RootVG/rootVol
+sudo lvextend -L +20G /dev/RootVG/varVol
+
+--> sudo xfs_growfs /
+--> sudo xfs_growfs /var
+
+==> vim /etc/yum.repos.d/elasticsearch.repo
+Insert this file,
+
+[elasticsearch]
+name=Elasticsearch repository for 9.x packages
+baseurl=https://artifacts.elastic.co/packages/9.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+type=rpm-md
+
+:wq!
+
+==> dnf install elasticsearch kibana logstash nginx -y
+
+
+--> Without logstash (semi-structured)
+
+==> systemctl start elasticsearch
+systemctl start kibana
+
+We will get the password for elastic built-in superuser at the time of installation.
+
+--> netstat -lntp
+
+elastic search runs on port number 9200.
+kibana runs on port number 9300.
+
+
+We can use nginx as reverse proxy for easy web access.
+
+--> rm -rf /etc/nginx/nginx.conf
+
+==> vim /etc/nginx/nginx.conf
+Insert this,
+
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log;
+pid /run/nginx.pid;
+include /usr/share/nginx/modules/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile            on;
+    tcp_nopush          on;
+    tcp_nodelay         on;
+    keepalive_timeout   65;
+    types_hash_max_size 2048;
+
+    include             /etc/nginx/mime.types;
+    default_type        application/octet-stream;
+
+    include /etc/nginx/conf.d/*.conf;
+  ## Kibana Config
+  upstream kibana {
+    server 127.0.0.1:5601;
+    keepalive 15;
+  }
+
+  server {
+    listen 80;
+
+    location / {
+      proxy_pass http://kibana;
+      proxy_redirect off;
+      proxy_buffering off;
+
+      proxy_http_version 1.1;
+      proxy_set_header Connection "Keep-Alive";
+      proxy_set_header Proxy-Connection "Keep-Alive";
+    }
+
+  }
+}
+
+--> netstat -lntp
+
+It is having access through localhost only, so we are accessing nginx through reverse proxy.
+
+==> systemctl restart nginx
+
+Take the public ip of elk server and hit the browser.
+
+
+--> Generate an enrollment token for Kibana instance.
+
+/usr/share/elasticsearch/bin/elasticsearch-create-enrollment-token -s kibana
+
+--> Kibana Verification
+
+/usr/share/kibana/bin/kibana-verification-code
+
+-->Reset admin password
+
+/usr/share/elasticsearch/bin/elasticsearch-reset-password -u elastic 
+
+
+username - elastic
+password - your password
+
+
+--> It is a heavy server, to check we have to create roboshop frontend instance
+
+Take the public Ip of frontend in mobaxterm,
+--> sudo su -
+--> dnf install nginx -y
+
+==> systemctl enable nginx 
+systemctl start nginx
+
+--> rm -rf /usr/share/nginx/html/*
+--> curl -o /tmp/frontend.zip https://roboshop-artifacts.s3.amazonaws.com/frontend-v3.zip
+
+--> cd /usr/share/nginx/html 
+unzip /tmp/frontend.zip
+
+--> vim /etc/nginx/nginx.conf
+Insert the file,
+
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log notice;
+pid /run/nginx.pid;
+
+include /usr/share/nginx/modules/*.conf;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log  /var/log/nginx/access.log  main;
+
+    sendfile            on;
+    tcp_nopush          on;
+    keepalive_timeout   65;
+    types_hash_max_size 4096;
+
+    include             /etc/nginx/mime.types;
+    default_type        application/octet-stream;
+
+    include /etc/nginx/conf.d/*.conf;
+
+    server {
+        listen       80;
+        listen       [::]:80;
+        server_name  _;
+        root         /usr/share/nginx/html;
+
+        include /etc/nginx/default.d/*.conf;
+
+        error_page 404 /404.html;
+        location = /404.html {
+        }
+
+        error_page 500 502 503 504 /50x.html;
+        location = /50x.html {
+        }
+
+        location /images/ {
+          expires 5s;
+          root   /usr/share/nginx/html;
+          try_files $uri /images/placeholder.jpg;
+        }
+        location /api/catalogue/ { proxy_pass http://localhost:8080/; }
+        location /api/user/ { proxy_pass http://localhost:8080/; }
+        location /api/cart/ { proxy_pass http://localhost:8080/; }
+        location /api/shipping/ { proxy_pass http://localhost:8080/; }
+        location /api/payment/ { proxy_pass http://localhost:8080/; }
+
+        location /health {
+          stub_status on;
+          access_log off;
+        }
+
+    }
+}
+
+
+--> systemctl restart nginx
+
+Take the public ip of frontend server and hit the browser.
+
+--> tail -f /var/log/nginx/access.log
+
+If we analyse this logs, we will know the information.
+
+Then who has to push the logs, filebeat will do. So, we have to install filebeat agent.
+
+In frontend server,
+
+--> vim /etc/yum.repos.d/elasticsearch.repo
+Insert the file,
+
+[elasticsearch]
+name=Elasticsearch repository for 9.x packages
+baseurl=https://artifacts.elastic.co/packages/9.x/yum
+gpgcheck=1
+gpgkey=https://artifacts.elastic.co/GPG-KEY-elasticsearch
+enabled=1
+type=rpm-md
+
+==> dnf install filebeat -y
+
+--> vim /etc/filebeat/filebeat.yml
+
+enabled: true
+paths: - /var/log/nginx/access.log
+outputs: localhost=private ip of elk server
+username: elastic
+password: your-password
+
+Search filebeat elastic search output ssl verification disable  in browser, as this is a self signed certificate.
+
+ssl.verification_mode: none
+
+--> systemctl restart filebeat
+--> journalctl -u filebeat -f		(Connection established)
+
+If we browse the frontend and access, then the logs will be pushed, which will be stored in database as raw data.
+
+--> We can see it in elastic search browser, stack management - index management - data streams - filebeat.
+
+We can't see the database which is raw data so we have to create data views.
+
+Create data view - filebeat - filebeat-* - Save. We can the log in Discover.
+
+Generally developers won't have access for elastic search but they have access for kibana.  
+
+KQL, if we query then we get the response.
+
+Message:
+"59.182.34.200 - - [15/May/2026:15:05:07 +0000] ""GET /api/catalogue/categories HTTP/1.1"" 404 555 ""http://44.223.51.101/"" ""Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36"" ""-"""
+
+ip: 59.182.34.200
+time: 15/May/2026:15:05:07 +0000
+method: GET
+
+--> cat /etc/nginx/nginx.conf
+
+log_format  main  '$remote_addr - $remote_user [$time_local] "$request" '
+                      '$status $body_bytes_sent "$http_referer" '
+                      '"$http_user_agent" "$http_x_forwarded_for" $request_time $upstream_response_time';
+
+
+Generally, nginx logs the time also.
+
+Search nginx request time and upstream time in browser.
+
+edit above format in frontend instance and restart nginx.
+					  
+59.182.34.200 - - [15/May/2026:15:12:14 +0000] "GET /api/user/uniqueid HTTP/1.1" 404 555 "http://44.223.51.101/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/148.0.0.0 Safari/537.36" "-" 0.000 0.000
+
+
+--> Search grok pattern in browser - logstash-patterns-core/patterns/legacy/grok-patterns at main 
+
+83.110.197.108 - - [03/Feb/2026:15:15:40 +0000] "GET /api/user/uniqueid HTTP/1.1" 404 555 "http://54.147.56.107/" "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/144.0.0.0 Safari/537.36" "-" "0.000"
+
+%{IP:client_ip} - %{DATA:remote_user} \[%{HTTPDATE:timestamp}\] "%{WORD:method} %{URIPATH:request_path} HTTP/%{NUMBER:http_version}" %{NUMBER:status:int} %{NUMBER:bytes_sent:int} "%{URI:referrer}" "%{DATA:user_agent}" "%{DATA:x_forwarded_for}" "%{NUMBER:response_time:float}"
+
+
+%{IP:client_ip} - %{DATA:remote_user} \[%{HTTPDATE:timestamp}\] "%{WORD:method} %{URIPATH:request_path} HTTP/%{NUMBER:http_version}" %{NUMBER:status:int} %{NUMBER:bytes_sent:int} "%{URI:referrer}" "%{DATA:user_agent}" "%{DATA:x_forwarded_for}" "%{NUMBER:total_time:float}" "%{NUMBER:upstream_time:float}"
+
+
+
+--> In elk instance/server, 
+
+==> systemctl start logstash
+--> systemctl status logstash
+
+--> cd /etc/logstash/conf.d/
+--> ls -l
+
+In this folder, how many types of logs are handled then we can keep that many types of configuration files. 
+
+==> vim nginx-access-log.conf
+Insert nginx-access-log.conf file here.
+
+--> systemctl restart logstash
+
+****
+If error occurs, journalctl -u logstash
+
+less /var/log/logstash/logstash-plain.log
+
+--> If problem in nginx.conf then, mv nginx.conf nginx-access.conf
+--> vim nginx-access.conf
+Insert nginx-access-log.conf file here,
+
+--> systemctl restart logstash
+
+# 1. Force kill any running logstash process
+pkill -9 -f logstash
+sleep 3
+
+# 2. Verify nothing is running
+ps aux | grep logstash | grep -v grep
+
+# 3. Clean the pipeline cache/data
+rm -rf /usr/share/logstash/data/queue/*
+rm -rf /usr/share/logstash/data/dead_letter_queue/*
+
+# 4. Fix permissions again after root cleanup
+chown -R logstash:logstash /usr/share/logstash/data
+
+# 5. Confirm only ONE config file exists
+ls -la /etc/logstash/conf.d/
+
+# 6. Start fresh
+systemctl start logstash
+journalctl -u logstash -f
+
+==> systemctl restart logstash
+--> systemctl status logstash
+
+
+==> netstat -lntp (5044 port is opened).
+
+
+In frontend server,
+--> vim /etc/nginx/nginx.conf 
+Same as nginx-access-log.conf variable
+
+==> systemctl restart nginx
+
+--> Now, we have to change the filebeat configuration,
+
+--> vim /etc/filebeat/filebeat.yml
+
+output.elasticsearch:
+hosts:
+enabled: false
+
+output.logstash:
+hosts: ["private ip of elk instance:5044"]
+
+--> systemctl restart filebeat
+==> journalctl -u filebeat -f
+
+After log is successfully sent, then we can see that in elasticsearch browser,
+Stack management - index management - we can see nginx-logs.
+
+Then create a data view - nginx-logs(name) - nginx-logs-* (pattern) - Save. Now in discover you can see that in nginx-logs file. We can add the status tag separately if required.
+
+--> As we have data, we can go to visualization library - Create New - Lens - X-axis(timestamp) always - Y-axis (Count(status) advanced Filter by status > 399) - Save.
+
+Save lens visualization - dashboard(new) - roboshop(title) - Save. Last 5 minutes - Update.
+
+--> Add panel - visualization - X-axis(timestamp) - Y-axis (Count(records)) - Save. records=traffic
+
+--> Add panel - New panel - Lens  - X-axis(timestamp) - Y-axis (Count(request_time) advanced Filter by request_time > 0) - Save.
+
+Here traffic is automatically updated and will be auto-refreshed and we can see the visualization based on the logs.
+
+********
+--> If we accessing the frontend server, the logs will be taken by filebeat and filebeat sends input to logstash, logstash will filter that converted it as key-value pairs and sends to elastic search and then we have created visualization in kibana, it automatically refreshes the log files. We used grok pattern for logstash,  or chatgpt, google.
+
+
+
+If container logs means then, login to EKS Cluster and then push the container logs,
+
+--> roboshop-dev-bastion public ip instance
+--> aws configure (enter access key, secret key, region, text format)
+
+--> aws eks update-kubeconfig --name roboshop-dev --region us-east-1
+==> kubectl get nodes
+
+Tring to install few pods,
+--> git clone https://github.com/javeed-mohd/k8s-roboshop.git
+--> cd k8s-roboshop/
+
+==> kubectl create namespace roboshop
+--> kubectl apply -f mongodb/manifest.yaml
+--> kubectl apply -f catalogue/manifest.yaml
+
+****
+containers ultimately run in servers. similarly, container logs also will be in server logs.
+
+--> kubens roboshop
+--> kubectl get pods
+
+Containers are running and will ultimately stored in servers.
+
+Now, we have to write another grok pattern and also filebeat. In every server we want a container that should shift the logs for that which type of Kubernetes resource should we run? It is daemonset.
+
+==> cd
+--> helm repo add elastic https://helm.elastic.co
+
+
+In elk server,
+
+--> mv nginx-access-log.conf nginx-access-log.conf.bkp
+
+==> vim nginx-eks-containers.conf
+Insert nginx-eks-pods.conf file
+
+--> systemctl restart logstash
+--> systemctl status logstash
+
+
+
+In roboshop-dev-bastion server,
+--> vim filebeat.yaml
+Insert filebeat.yaml file
+
+--> helm upgrade --install filebeat elastic/filebeat -f filebeat.yaml
+
+==> kubectl get pods
+We have two nodes then two daemonset are running which continuously pushes the logs.
+
+--> kubectl logs filebeat-filebeat-a2bc3.
+
+Now, if we go to elastic search browser, we will get those logs.
+
+Stack management - Index management - k8s-containers.
+
+--> Create data view - roboshop-containers (title) - k8s-containers-* (pattern) - Save.
+
+This data will be available in discover - data view - roboshop-containers 
+
+Based on the error, they will find the logs for each component and will resolve it. After pushing all the container logs to elastic search, we can do whatever we want if we find any error.
